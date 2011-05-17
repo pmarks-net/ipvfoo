@@ -1,0 +1,13 @@
+{
+  "name": "IPvFoo",
+  "version": "0.1",
+  "description": "Show the current page's IP address in the location bar. (Uses experimental/unstable APIs)",
+  "background_page": "background.html",
+  "page_action": {
+    "default_icon": "question.png",
+    "default_title": "?"
+  },
+  "permissions": [
+    "experimental"
+  ]
+}

@@ -2,22 +2,15 @@
 <head>
 <script>
 
-activeRequests = {};
+window.requestToTab = {};
+window.tabToIP = {};
 
-function setIcon(data) {
-  addr = data.ip;
-  tabId = data.tabId;
+function setIcon(tabId, addr) {
+  addr = addr || "?";
 
-  if (addr == undefined) {
-    // Incomplete?
-    return;
-  }
-
-  addr = addr || '?';
-
-  if (addr.indexOf(':') >= 0) {
+  if (addr.indexOf(":") >= 0) {
     icon = "6.png";
-  } else if (addr.indexOf('.') >= 0) {
+  } else if (addr.indexOf(".") >= 0) {
     icon = "4.png";
   } else {
     icon = "question.png";
@@ -27,43 +20,88 @@ function setIcon(data) {
   chrome.pageAction.show(tabId);
 }
 
+// -- webNavigation --
+
+chrome.experimental.webNavigation.onBeforeNavigate.addListener(
+  function(details) {
+    if (details.frameId != 0) {
+      return;
+    }
+    
+    /*
+    console.log("requestToTab=" + Object.keys(requestToTab).length + " " +
+                "tabToIP=" + Object.keys(tabToIP).length);
+    */
+
+    // Hack: This shouldn't be necessary, but mashing F5 seems to cause leaks.
+    // Just reset everything if it gets out of hand.
+    if (Object.keys(requestToTab).length > 100 ||
+        Object.keys(tabToIP).length > 100) {
+      window.requestToTab = {};
+      window.tabToIP = {};
+    }
+
+    // This should get updated by onRequestSent before onCommitted reads it.
+    tabToIP[details.tabId] = "?";
+  }
+);
+
+chrome.experimental.webNavigation.onCommitted.addListener(
+  function(details) {
+    if (details.frameId != 0) {
+      return;
+    }
+    setIcon(details.tabId, tabToIP[details.tabId]);
+    delete tabToIP[details.tabId];
+  }
+);
+
+chrome.experimental.webNavigation.onErrorOccurred.addListener(
+  function(details) {
+    if (details.frameId != 0) {
+      return;
+    }
+    delete tabToIP[details.tabId];
+  }
+);
+
+// -- webRequest --
+
 chrome.experimental.webRequest.onBeforeRequest.addListener(
   function (details) {
     if (details.type != "main_frame") {
       return;
     }
-    activeRequests[details.requestId] = {tabId: details.tabId};
+    if (!(details.tabId in tabToIP)) {
+      return;
+    }
+    requestToTab[details.requestId] = details.tabId;
   }
 );
 
 chrome.experimental.webRequest.onRequestSent.addListener(
   function(details) {
-    if (!(details.requestId in activeRequests)) {
+    var tabId = requestToTab[details.requestId];
+    if (tabId == undefined) {
       return;
     }
-    data = activeRequests[details.requestId];
-    data.ip = details.ip;
-    setIcon(data);
+    if (!(tabId in tabToIP)) {
+      return;
+    }
+    tabToIP[tabId] = details.ip;
+    setIcon(tabId, details.ip);
   }
 );
 
 chrome.experimental.webRequest.onCompleted.addListener(
   function(details) {
-    if (!(details.requestId in activeRequests)) {
-      return;
-    }
-    data = activeRequests[details.requestId];
-    delete activeRequests[details.requestId];
-    setIcon(data);
+    delete requestToTab[details.requestId];
   }
 );
 
 chrome.experimental.webRequest.onErrorOccurred.addListener(
   function(details) {
-    if (!(details.requestId in activeRequests)) {
-      return;
-    }
-    delete activeRequests[details.requestId];
+    delete requestToTab[details.requestId];
   }
 );
 

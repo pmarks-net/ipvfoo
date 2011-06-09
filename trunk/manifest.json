@@ -1,6 +1,6 @@
 {
   "name": "IPvFoo",
-  "version": "0.1",
+  "version": "0.2",
   "description": "Show the current page's IP address in the location bar. (Uses experimental/unstable APIs)",
   "background_page": "background.html",
   "page_action": {

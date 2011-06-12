@@ -1,0 +1,43 @@
+<html>
+<head>
+<style type="text/css">
+body {
+  white-space: nowrap;
+}
+table, td, tr {
+  border-width: 1px;
+  border-collapse: collapse;
+  border-color: black;
+  border-style: solid;
+  padding: 2pt;
+  white-space: nowrap;
+}
+</style>
+
+<script type="text/javascript">
+tabInfo = JSON.parse(window.location.hash.substr(1));
+</script>
+</head>
+<body>
+
+<p><strong>Main Page:</strong>
+<script>
+  document.write(tabInfo.mainAddr);
+</script>
+
+<p><strong>Page Elements:</strong>
+<table>
+  <tr bgcolor="#ddffdd"><td>Domain</td><td>IP address</td></tr>
+  <script>
+  var subHosts = Object.keys(tabInfo.subAddrs).sort();
+  for (var i = 0; i < subHosts.length; i++) {
+    var host = subHosts[i];
+    var addr = tabInfo.subAddrs[host];
+    document.write('<tr><td>' + host + '</td>');
+    document.write('<td>' + addr + '</td></tr>\n');
+  }
+  </script>
+</table>
+
+</body>
+</html>

@@ -2,22 +2,85 @@
 <head>
 <script>
 
-window.requestToTab = {};
-window.tabToIP = {};
+// request -> { tabId, isMainFrame }
+window.requestMap = {};
 
-function setIcon(tabId, addr) {
-  addr = addr || "?";
+// tab -> { mainAddr, subAddrs: {host -> ip} }
+window.tabMap = {};
 
-  if (addr.indexOf(":") >= 0) {
-    icon = "6.png";
-  } else if (addr.indexOf(".") >= 0) {
-    icon = "4.png";
-  } else {
-    icon = "question.png";
+// Images from sprites.png: [x, y, w, h]
+spriteBig = {
+  "4": [1,  1, 12, 16],
+  "6": [14, 1, 12, 16],
+  "?": [27, 1, 12, 16],
+};
+spriteSmall = {
+  "4": [40, 1, 6, 6],
+  "6": [40, 8, 6, 6],
+  "?": [0,  0, 1, 1],  // shouldn't be used.
+};
+
+// Destination coordinates: [x, y]
+targetBig = [1, 2];
+targetSmall1 = [13, 2];
+targetSmall2 = [13, 9];
+
+// pattern is 0..3 characters, each '4', '6', or '?'.
+function buildIcon(pattern) {
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (pattern.length >= 1) {
+    drawSprite(ctx, targetBig, spriteBig[pattern.charAt(0)]);
   }
-  chrome.pageAction.setIcon({"tabId": tabId, "path": icon});
-  chrome.pageAction.setTitle({"tabId": tabId, "title": addr});
+  if (pattern.length >= 2) {
+    drawSprite(ctx, targetSmall1, spriteSmall[pattern.charAt(1)]);
+  }
+  if (pattern.length >= 3) {
+    drawSprite(ctx, targetSmall2, spriteSmall[pattern.charAt(2)]);
+  }
+  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+function drawSprite(ctx, target, source) {
+  // (image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+  ctx.drawImage(document.getElementById("sprites"),
+                source[0], source[1], source[2], source[3],
+                target[0], target[1], source[2], source[3]);
+}
+
+function addrToVersion(addr) {
+  if (addr.indexOf(":") >= 0) return "6";
+  if (addr.indexOf(".") >= 0) return "4";
+  return "?";
+}
+
+function renderTabInfo(tabId, tabInfo) {
+  var subAddrKeys = Object.keys(tabInfo.subAddrs);
+  var has4 = false;
+  var has6 = false;
+  for (var i = 0; i < subAddrKeys.length; i++) {
+    var addr = tabInfo.subAddrs[subAddrKeys[i]];
+    var version = addrToVersion(addr);
+    if (version == "4") has4 = true;
+    if (version == "6") has6 = true;
+  }
+
+  var pattern = addrToVersion(tabInfo.mainAddr);
+  if (has4) pattern += "4";
+  if (has6) pattern += "6";
+
+  var popupUrl = "popup.html#" + JSON.stringify(tabInfo);
+
+  chrome.pageAction.setIcon({"tabId": tabId, "imageData": buildIcon(pattern)});
+  chrome.pageAction.setPopup({"tabId": tabId, "popup": popupUrl});
   chrome.pageAction.show(tabId);
+}
+
+function urlToHost(url) {
+  var a = document.createElement("a");
+  a.href = url;
+  return a.hostname;
 }
 
 // -- webNavigation --
@@ -29,20 +92,25 @@ chrome.experimental.webNavigation.onBeforeNavigate.addListener(
     }
     
     /*
-    console.log("requestToTab=" + Object.keys(requestToTab).length + " " +
-                "tabToIP=" + Object.keys(tabToIP).length);
+    console.log("requestMap=" + Object.keys(requestMap).length + " " +
+                "tabMap=" + Object.keys(tabMap).length);
     */
 
     // Hack: This shouldn't be necessary, but mashing F5 seems to cause leaks.
     // Just reset everything if it gets out of hand.
-    if (Object.keys(requestToTab).length > 100 ||
-        Object.keys(tabToIP).length > 100) {
-      window.requestToTab = {};
-      window.tabToIP = {};
+    if (Object.keys(requestMap).length > 100 ||
+        Object.keys(tabMap).length > 100) {
+      window.requestMap = {};
+      window.tabMap = {};
     }
 
     // This should get updated by onRequestSent before onCommitted reads it.
-    tabToIP[details.tabId] = "?";
+    tabMap[details.tabId] = {
+      // IP address of the main_frame request.
+      mainAddr: "?",
+      // host->IP mapping for all the subrequests.
+      subAddrs: {}
+    };
   }
 );
 
@@ -51,8 +119,17 @@ chrome.experimental.webNavigation.onCommitted.addListener(
     if (details.frameId != 0) {
       return;
     }
-    setIcon(details.tabId, tabToIP[details.tabId]);
-    delete tabToIP[details.tabId];
+    renderTabInfo(details.tabId, tabMap[details.tabId]);
+  }
+);
+
+chrome.experimental.webNavigation.onCompleted.addListener(
+  function(details) {
+    if (details.frameId != 0) {
+      return;
+    }
+    renderTabInfo(details.tabId, tabMap[details.tabId]);
+    delete tabMap[details.tabId];
   }
 );
 
@@ -61,7 +138,7 @@ chrome.experimental.webNavigation.onErrorOccurred.addListener(
     if (details.frameId != 0) {
       return;
     }
-    delete tabToIP[details.tabId];
+    delete tabMap[details.tabId];
   }
 );
 
@@ -69,42 +146,51 @@ chrome.experimental.webNavigation.onErrorOccurred.addListener(
 
 chrome.experimental.webRequest.onBeforeRequest.addListener(
   function (details) {
-    if (details.type != "main_frame") {
+    if (!(details.tabId in tabMap)) {
       return;
     }
-    if (!(details.tabId in tabToIP)) {
-      return;
-    }
-    requestToTab[details.requestId] = details.tabId;
+    requestMap[details.requestId] = {
+      tabId: details.tabId,
+      isMainFrame: details.type == "main_frame"
+    };
   }
 );
 
 chrome.experimental.webRequest.onRequestSent.addListener(
   function(details) {
-    var tabId = requestToTab[details.requestId];
-    if (tabId == undefined) {
+    var requestInfo = requestMap[details.requestId];
+    if (requestInfo == undefined) {
       return;
     }
-    if (!(tabId in tabToIP)) {
+    var tabInfo = tabMap[requestInfo.tabId];
+    if (tabInfo == undefined) {
       return;
     }
-    tabToIP[tabId] = details.ip;
-    setIcon(tabId, details.ip);
+    if (requestInfo.isMainFrame) {
+      tabInfo.mainAddr = details.ip;
+    } else {
+      tabInfo.subAddrs[urlToHost(details.url)] = details.ip;
+    }
   }
 );
 
 chrome.experimental.webRequest.onCompleted.addListener(
   function(details) {
-    delete requestToTab[details.requestId];
+    delete requestMap[details.requestId];
   }
 );
 
 chrome.experimental.webRequest.onErrorOccurred.addListener(
   function(details) {
-    delete requestToTab[details.requestId];
+    delete requestMap[details.requestId];
   }
 );
 
 </script>
 </head>
+
+<body>
+<img id="sprites" src="sprites.png">
+<canvas id="canvas" width="19" height="19"></canvas>
+</body>
 </html>

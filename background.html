@@ -2,10 +2,10 @@
 <head>
 <script>
 
-// request -> { tabId, isMainFrame }
+// request -> { tabId }
 window.requestMap = {};
 
-// tab -> { mainAddr, subAddrs: {host -> ip} }
+// tab -> { mainDomain, addrs: {domain -> ip} }
 window.tabMap = {};
 
 // Images from sprites.png: [x, y, w, h]
@@ -56,21 +56,33 @@ function addrToVersion(addr) {
 }
 
 function renderTabInfo(tabId, tabInfo) {
-  var subAddrKeys = Object.keys(tabInfo.subAddrs);
+  var domains = Object.keys(tabInfo.addrs).sort();
   var has4 = false;
   var has6 = false;
-  for (var i = 0; i < subAddrKeys.length; i++) {
-    var addr = tabInfo.subAddrs[subAddrKeys[i]];
+  // Build some [domain, addr, version] tuples.
+  var mainTuple = [tabInfo.mainDomain, "cached?", "?"];
+  var tuples = [mainTuple];
+  for (var i = 0; i < domains.length; i++) {
+    var domain = domains[i];
+    var addr = tabInfo.addrs[domain];
     var version = addrToVersion(addr);
-    if (version == "4") has4 = true;
-    if (version == "6") has6 = true;
+    if (domain == mainTuple[0]) {
+      mainTuple[1] = addr;
+      mainTuple[2] = version;
+    } else {
+      tuples.push([domain, addr, version]);
+      switch (version) {
+        case "4": has4 = true; break;
+        case "6": has6 = true; break;
+      }
+    }
   }
 
-  var pattern = addrToVersion(tabInfo.mainAddr);
+  var pattern = mainTuple[2];
   if (has4) pattern += "4";
   if (has6) pattern += "6";
 
-  var popupUrl = "popup.html#" + JSON.stringify(tabInfo);
+  var popupUrl = "popup.html#" + JSON.stringify(tuples);
 
   chrome.pageAction.setIcon({"tabId": tabId, "imageData": buildIcon(pattern)});
   chrome.pageAction.setPopup({"tabId": tabId, "popup": popupUrl});
@@ -98,18 +110,19 @@ chrome.experimental.webNavigation.onBeforeNavigate.addListener(
 
     // Hack: This shouldn't be necessary, but mashing F5 seems to cause leaks.
     // Just reset everything if it gets out of hand.
-    if (Object.keys(requestMap).length > 100 ||
-        Object.keys(tabMap).length > 100) {
+    if (Object.keys(requestMap).length > 100) {
       window.requestMap = {};
+    }
+    if (Object.keys(tabMap).length > 100) {
       window.tabMap = {};
     }
 
     // This should get updated by onRequestSent before onCommitted reads it.
     tabMap[details.tabId] = {
-      // IP address of the main_frame request.
-      mainAddr: "?",
-      // host->IP mapping for all the subrequests.
-      subAddrs: {}
+      // Domain of the top-level request.
+      mainDomain: "",
+      // host->IP mapping for all the requests.
+      addrs: {}
     };
   }
 );
@@ -146,12 +159,15 @@ chrome.experimental.webNavigation.onErrorOccurred.addListener(
 
 chrome.experimental.webRequest.onBeforeRequest.addListener(
   function (details) {
-    if (!(details.tabId in tabMap)) {
+    var tabInfo = tabMap[details.tabId];
+    if (tabInfo == undefined) {
       return;
+    }
+    if (details.type == "main_frame") {
+      tabInfo.mainDomain = urlToHost(details.url);
     }
     requestMap[details.requestId] = {
       tabId: details.tabId,
-      isMainFrame: details.type == "main_frame"
     };
   }
 );
@@ -166,11 +182,8 @@ chrome.experimental.webRequest.onRequestSent.addListener(
     if (tabInfo == undefined) {
       return;
     }
-    if (requestInfo.isMainFrame) {
-      tabInfo.mainAddr = details.ip;
-    } else {
-      tabInfo.subAddrs[urlToHost(details.url)] = details.ip;
-    }
+    var domain = urlToHost(details.url);
+    tabInfo.addrs[domain] = details.ip;
   }
 );
 

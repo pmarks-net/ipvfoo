@@ -1,9 +1,6 @@
 <html>
 <head>
 <style type="text/css">
-body {
-  white-space: nowrap;
-}
 table, td, tr {
   border-width: 1px;
   border-collapse: collapse;
@@ -12,29 +9,46 @@ table, td, tr {
   padding: 2pt;
   white-space: nowrap;
 }
+.headerRow {
+  background-color: #eee;
+}
+.mainRow {
+  font-weight: bold;
+}
+.ip4 {
+  font-family: monospace;
+  color: #800000;
+}
+.ip6 {
+  font-family: monospace;
+  color: #008000;
+}
+.ipUnknown {
+  font-family: monospace;
+}
 </style>
 
 <script type="text/javascript">
-tabInfo = JSON.parse(window.location.hash.substr(1));
+tuples = JSON.parse(window.location.hash.substr(1));
 </script>
 </head>
 <body>
 
-<p><strong>Main Page:</strong>
-<script>
-  document.write(tabInfo.mainAddr);
-</script>
-
-<p><strong>Page Elements:</strong>
 <table>
-  <tr bgcolor="#ddffdd"><td>Domain</td><td>IP address</td></tr>
+  <tr class="headerRow"><td>Domain</td><td>IP address</td></tr>
   <script>
-  var subHosts = Object.keys(tabInfo.subAddrs).sort();
-  for (var i = 0; i < subHosts.length; i++) {
-    var host = subHosts[i];
-    var addr = tabInfo.subAddrs[host];
-    document.write('<tr><td>' + host + '</td>');
-    document.write('<td>' + addr + '</td></tr>\n');
+  for (var i = 0; i < tuples.length; i++) {
+    var domain = tuples[i][0];
+    var addr = tuples[i][1];
+    var version = tuples[i][2];
+    var addrClass = "ipUnknown";
+    switch (version) {
+      case "4": addrClass = "ip4"; break;
+      case "6": addrClass = "ip6"; break;
+    }
+    document.write(i == 0 ? '<tr class="mainRow">' : '<tr>');
+    document.write('<td>' + domain + '</td>');
+    document.write('<td class="' + addrClass + '">' + addr + '</td></tr>\n');
   }
   </script>
 </table>

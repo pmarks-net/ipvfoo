@@ -1,12 +1,18 @@
 <html>
 <head>
-<script>
+<script type="text/javascript" src="lru.js"></script>
+<script type="text/javascript">
 
-// request -> { tabId }
-window.requestMap = {};
+// requestId -> { tabId }
+// Cap the number of items due to http://crbug.com/86139
+requestMap = new LRU(128);
+
+// Cache of recent domain -> ip mappings.  This hacks around a couple bugs
+// in the webRequest API: http://crbug.com/81262 http://crbug.com/88625
+domainAddrCache = new LRU(128);
 
 // tab -> { mainDomain, addrs: {domain -> ip} }
-window.tabMap = {};
+tabMap = {};
 
 // Images from sprites.png: [x, y, w, h]
 spriteBig = {
@@ -17,7 +23,6 @@ spriteBig = {
 spriteSmall = {
   "4": [40, 1, 6, 6],
   "6": [40, 8, 6, 6],
-  "?": [0,  0, 1, 1],  // shouldn't be used.
 };
 
 // Destination coordinates: [x, y]
@@ -50,8 +55,8 @@ function drawSprite(ctx, target, source) {
 }
 
 function addrToVersion(addr) {
-  if (addr.indexOf(":") >= 0) return "6";
-  if (addr.indexOf(".") >= 0) return "4";
+  if (addr && addr.indexOf(":") >= 0) return "6";
+  if (addr && addr.indexOf(".") >= 0) return "4";
   return "?";
 }
 
@@ -95,6 +100,16 @@ function urlToHost(url) {
   return a.hostname;
 }
 
+function maybeGetCachedAddr(tabInfo, domain) {
+  // If we don't have an IP for this domain, fall back to a recent one.
+  if (tabInfo.addrs[domain] == undefined) {
+    var ip = domainAddrCache.getItem(domain);
+    if (ip != undefined) {
+      tabInfo.addrs[domain] = ip;
+    }
+  }
+}
+
 // -- webNavigation --
 
 chrome.experimental.webNavigation.onBeforeNavigate.addListener(
@@ -103,20 +118,6 @@ chrome.experimental.webNavigation.onBeforeNavigate.addListener(
       return;
     }
     
-    /*
-    console.log("requestMap=" + Object.keys(requestMap).length + " " +
-                "tabMap=" + Object.keys(tabMap).length);
-    */
-
-    // Hack: This shouldn't be necessary, but mashing F5 seems to cause leaks.
-    // Just reset everything if it gets out of hand.
-    if (Object.keys(requestMap).length > 100) {
-      window.requestMap = {};
-    }
-    if (Object.keys(tabMap).length > 100) {
-      window.tabMap = {};
-    }
-
     // This should get updated by onRequestSent before onCommitted reads it.
     tabMap[details.tabId] = {
       // Domain of the top-level request.
@@ -132,7 +133,13 @@ chrome.experimental.webNavigation.onCommitted.addListener(
     if (details.frameId != 0) {
       return;
     }
-    renderTabInfo(details.tabId, tabMap[details.tabId]);
+    var tabInfo = tabMap[details.tabId];
+    if (tabInfo == undefined) {
+      return;
+    }
+    tabInfo.mainDomain = urlToHost(details.url);
+    maybeGetCachedAddr(tabInfo, tabInfo.mainDomain);
+    renderTabInfo(details.tabId, tabInfo);
   }
 );
 
@@ -141,7 +148,11 @@ chrome.experimental.webNavigation.onCompleted.addListener(
     if (details.frameId != 0) {
       return;
     }
-    renderTabInfo(details.tabId, tabMap[details.tabId]);
+    var tabInfo = tabMap[details.tabId];
+    if (tabInfo == undefined) {
+      return;
+    }
+    renderTabInfo(details.tabId, tabInfo);
     delete tabMap[details.tabId];
   }
 );
@@ -159,43 +170,44 @@ chrome.experimental.webNavigation.onErrorOccurred.addListener(
 
 chrome.experimental.webRequest.onBeforeRequest.addListener(
   function (details) {
+    requestMap.setItem(details.requestId, {
+      tabId: details.tabId
+    });
+
     var tabInfo = tabMap[details.tabId];
-    if (tabInfo == undefined) {
-      return;
+    if (tabInfo != undefined) {
+      maybeGetCachedAddr(tabInfo, urlToHost(details.url));
     }
-    if (details.type == "main_frame") {
-      tabInfo.mainDomain = urlToHost(details.url);
-    }
-    requestMap[details.requestId] = {
-      tabId: details.tabId,
-    };
   }
 );
 
 chrome.experimental.webRequest.onRequestSent.addListener(
   function(details) {
-    var requestInfo = requestMap[details.requestId];
+    var requestInfo = requestMap.getItem(details.requestId);
     if (requestInfo == undefined) {
       return;
     }
+
+    var domain = urlToHost(details.url);
+    domainAddrCache.setItem(domain, details.ip);
+
     var tabInfo = tabMap[requestInfo.tabId];
     if (tabInfo == undefined) {
       return;
     }
-    var domain = urlToHost(details.url);
     tabInfo.addrs[domain] = details.ip;
   }
 );
 
 chrome.experimental.webRequest.onCompleted.addListener(
   function(details) {
-    delete requestMap[details.requestId];
+    requestMap.forgetItem(details.requestId);
   }
 );
 
 chrome.experimental.webRequest.onErrorOccurred.addListener(
   function(details) {
-    delete requestMap[details.requestId];
+    requestMap.forgetItem(details.requestId);
   }
 );
 

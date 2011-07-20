@@ -3,13 +3,12 @@
 <script type="text/javascript" src="lru.js"></script>
 <script type="text/javascript">
 
-// requestId -> { tabId }
-// Cap the number of items due to http://crbug.com/86139
-requestMap = new LRU(128);
+// requestId -> { tabId, isMainFrame }
+requestMap = {};
 
-// Cache of recent domain -> ip mappings.  This hacks around a couple bugs
-// in the webRequest API: http://crbug.com/81262 http://crbug.com/88625
-domainAddrCache = new LRU(128);
+// Cache of recent domain -> ip mappings from main_frame requests.
+// This is a hack to work around http://crbug.com/88625
+domainAddrCache = new LRU(32);
 
 // tab -> { mainDomain, addrs: {domain -> ip} }
 tabMap = {};
@@ -65,7 +64,7 @@ function renderTabInfo(tabId, tabInfo) {
   var has4 = false;
   var has6 = false;
   // Build some [domain, addr, version] tuples.
-  var mainTuple = [tabInfo.mainDomain, "cached?", "?"];
+  var mainTuple = [tabInfo.mainDomain, "unknown", "?"];
   var tuples = [mainTuple];
   for (var i = 0; i < domains.length; i++) {
     var domain = domains[i];
@@ -100,16 +99,6 @@ function urlToHost(url) {
   return a.hostname;
 }
 
-function maybeGetCachedAddr(tabInfo, domain) {
-  // If we don't have an IP for this domain, fall back to a recent one.
-  if (tabInfo.addrs[domain] == undefined) {
-    var ip = domainAddrCache.getItem(domain);
-    if (ip != undefined) {
-      tabInfo.addrs[domain] = ip;
-    }
-  }
-}
-
 // -- webNavigation --
 
 chrome.experimental.webNavigation.onBeforeNavigate.addListener(
@@ -118,7 +107,7 @@ chrome.experimental.webNavigation.onBeforeNavigate.addListener(
       return;
     }
     
-    // This should get updated by onRequestSent before onCommitted reads it.
+    // This should get updated by onResponseStarted before onCommitted reads it.
     tabMap[details.tabId] = {
       // Domain of the top-level request.
       mainDomain: "",
@@ -137,8 +126,16 @@ chrome.experimental.webNavigation.onCommitted.addListener(
     if (tabInfo == undefined) {
       return;
     }
-    tabInfo.mainDomain = urlToHost(details.url);
-    maybeGetCachedAddr(tabInfo, tabInfo.mainDomain);
+
+    var domain = urlToHost(details.url);
+    if (tabInfo.addrs[domain] == undefined) {
+      var ip = domainAddrCache.getItem(domain);
+      if (ip != undefined) {
+        tabInfo.addrs[domain] = ip;
+      }
+    }
+
+    tabInfo.mainDomain = domain;
     renderTabInfo(details.tabId, tabInfo);
   }
 );
@@ -170,44 +167,45 @@ chrome.experimental.webNavigation.onErrorOccurred.addListener(
 
 chrome.experimental.webRequest.onBeforeRequest.addListener(
   function (details) {
-    requestMap.setItem(details.requestId, {
-      tabId: details.tabId
-    });
-
-    var tabInfo = tabMap[details.tabId];
-    if (tabInfo != undefined) {
-      maybeGetCachedAddr(tabInfo, urlToHost(details.url));
-    }
+    requestMap[details.requestId] = {
+      tabId: details.tabId,
+      isMainFrame: details.type == "main_frame"
+    };
   }
 );
 
-chrome.experimental.webRequest.onRequestSent.addListener(
-  function(details) {
-    var requestInfo = requestMap.getItem(details.requestId);
+chrome.experimental.webRequest.onResponseStarted.addListener(
+  function (details) {
+    var requestInfo = requestMap[details.requestId];
     if (requestInfo == undefined) {
       return;
     }
 
     var domain = urlToHost(details.url);
-    domainAddrCache.setItem(domain, details.ip);
+    if (requestInfo.isMainFrame) {
+      domainAddrCache.setItem(domain, details.ip);
+    }
 
     var tabInfo = tabMap[requestInfo.tabId];
     if (tabInfo == undefined) {
       return;
     }
     tabInfo.addrs[domain] = details.ip;
+
+    // TODO: when "fromCache" makes it to the dev channel, give uncached IPs
+    //       a higher priority in the addrs map.
   }
 );
 
 chrome.experimental.webRequest.onCompleted.addListener(
   function(details) {
-    requestMap.forgetItem(details.requestId);
+    delete requestMap[details.requestId];
   }
 );
 
 chrome.experimental.webRequest.onErrorOccurred.addListener(
   function(details) {
-    requestMap.forgetItem(details.requestId);
+    delete requestMap[details.requestId];
   }
 );
 

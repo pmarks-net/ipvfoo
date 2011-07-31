@@ -1,9 +1,6 @@
 <html>
 <head>
 <style type="text/css">
-body {
-  overflow-x: hidden;
-}
 table, td, tr {
   border-width: 1px;
   border-collapse: collapse;
@@ -36,9 +33,9 @@ tuples = JSON.parse(window.location.hash.substr(1));
 
 function tweakWidthForScrollbar() {
   var db = document.body;
-  if (db.scrollWidth > db.clientWidth) {
-    db.style.paddingRight = db.clientWidth - db.offsetWidth + "px";
-  }
+  var scrollBarWidth = db.scrollHeight > db.clientHeight ?
+      db.clientWidth - db.offsetWidth : 0;
+  db.style.paddingRight = scrollBarWidth + "px";
 }
 </script>
 </head>

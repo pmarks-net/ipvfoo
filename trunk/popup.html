@@ -33,9 +33,9 @@ tuples = JSON.parse(window.location.hash.substr(1));
 
 function tweakWidthForScrollbar() {
   var db = document.body;
-  var scrollBarWidth = db.scrollHeight > db.clientHeight ?
+  var scrollbarWidth = db.scrollHeight > db.clientHeight ?
       db.clientWidth - db.offsetWidth : 0;
-  db.style.paddingRight = scrollBarWidth + "px";
+  db.style.paddingRight = scrollbarWidth + "px";
 }
 </script>
 </head>

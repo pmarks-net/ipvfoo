@@ -1,6 +1,9 @@
 <html>
 <head>
 <style type="text/css">
+body {
+  overflow-x: hidden;
+}
 table, td, tr {
   border-width: 1px;
   border-collapse: collapse;
@@ -30,9 +33,16 @@ table, td, tr {
 
 <script type="text/javascript">
 tuples = JSON.parse(window.location.hash.substr(1));
+
+function tweakWidthForScrollbar() {
+  var db = document.body;
+  if (db.scrollWidth > db.clientWidth) {
+    db.style.paddingRight = db.clientWidth - db.offsetWidth + "px";
+  }
+}
 </script>
 </head>
-<body>
+<body onresize="tweakWidthForScrollbar()">
 
 <table>
   <tr class="headerRow"><td>Domain</td><td>IP address</td></tr>

@@ -1,16 +1,27 @@
 <html>
 <head>
-<script type="text/javascript" src="lru.js"></script>
 <script type="text/javascript">
 
-// requestId -> { tabId, isMainFrame }
+/*
+Lifecycle documentation:
+
+The purpose of requestMap is to copy tabInfo from wR.onBeforeRequest to
+wR.onResponseStarted (where the IP address is available.)  A map entry
+normally begins/ends with these two calls, but it could also be deleted
+in wR.onCompleted or wR.onErrorOccurred if something bad happens.
+
+An entry in tabMap tries to approximate one "page view".  It begins (or resets)
+in wR.onBeforeRequest(main_frame), and goes away in tabs.onRemoved.
+
+UI updates begin in wN.onCommitted, which (hopefully) comes after
+wR.onResponseStarted(main_frame).  Updates continue as new requests are made,
+and stop in wR.onBeforeRequest(main_frame), i.e. the next page load.
+*/
+
+// requestId -> {tabInfo}
 requestMap = {};
 
-// Cache of recent domain -> ip mappings from main_frame requests.
-// This is a hack to work around http://crbug.com/88625
-domainAddrCache = new LRU(32);
-
-// tab -> { mainDomain, addrs: {domain -> ip} }
+// For the list of fields, see onBeforeRequest() below.
 tabMap = {};
 
 // Images from sprites.png: [x, y, w, h]
@@ -59,8 +70,9 @@ function addrToVersion(addr) {
   return "?";
 }
 
-function renderTabInfo(tabId, tabInfo) {
-  var domains = Object.keys(tabInfo.addrs).sort();
+function renderTabInfo(tabInfo) {
+  var tabId = tabInfo.tabId;
+  var domains = Object.keys(tabInfo.domains).sort();
   var has4 = false;
   var has6 = false;
   // Build some [domain, addr, version] tuples.
@@ -68,7 +80,7 @@ function renderTabInfo(tabId, tabInfo) {
   var tuples = [mainTuple];
   for (var i = 0; i < domains.length; i++) {
     var domain = domains[i];
-    var addr = tabInfo.addrs[domain];
+    var addr = tabInfo.domains[domain].addr;
     var version = addrToVersion(addr);
     if (domain == mainTuple[0]) {
       mainTuple[1] = addr;
@@ -93,6 +105,36 @@ function renderTabInfo(tabId, tabInfo) {
   chrome.pageAction.show(tabId);
 }
 
+function renderTabInfoWithThrottle(tabInfo) {
+  if (tabInfo.throttled >= 0) {
+    // To conserve CPU, don't redraw anything until the timer expires.
+    tabInfo.throttled++;
+    return;
+  }
+
+  renderTabInfo(tabInfo);
+
+  tabInfo.throttled = 0;
+  setTimeout(
+    function() {
+      if (!tabInfo.deleted && tabInfo.throttled > 0) {
+        renderTabInfo(tabInfo);
+      }
+      tabInfo.throttled = -1;
+    },
+    500
+  );
+}
+
+function deleteTabInfo(tabId) {
+  var tabInfo = tabMap[tabId];
+  delete tabMap[tabId];
+  if (tabInfo) {
+    // Tell any in-flight requests/timeouts to ignore this instance.
+    tabInfo.deleted = true;
+  }
+}
+
 function urlToHost(url) {
   var a = document.createElement("a");
   a.href = url;
@@ -101,65 +143,18 @@ function urlToHost(url) {
 
 // -- webNavigation --
 
-chrome.experimental.webNavigation.onBeforeNavigate.addListener(
-  function(details) {
-    if (details.frameId != 0) {
-      return;
-    }
-    
-    // This should get updated by onResponseStarted before onCommitted reads it.
-    tabMap[details.tabId] = {
-      // Domain of the top-level request.
-      mainDomain: "",
-      // host->IP mapping for all the requests.
-      addrs: {}
-    };
-  }
-);
-
 chrome.experimental.webNavigation.onCommitted.addListener(
   function(details) {
     if (details.frameId != 0) {
       return;
     }
     var tabInfo = tabMap[details.tabId];
-    if (tabInfo == undefined) {
+    if (!tabInfo) {
       return;
     }
-
-    var domain = urlToHost(details.url);
-    if (tabInfo.addrs[domain] == undefined) {
-      var ip = domainAddrCache.getItem(domain);
-      if (ip != undefined) {
-        tabInfo.addrs[domain] = ip;
-      }
-    }
-
-    tabInfo.mainDomain = domain;
-    renderTabInfo(details.tabId, tabInfo);
-  }
-);
-
-chrome.experimental.webNavigation.onCompleted.addListener(
-  function(details) {
-    if (details.frameId != 0) {
-      return;
-    }
-    var tabInfo = tabMap[details.tabId];
-    if (tabInfo == undefined) {
-      return;
-    }
-    renderTabInfo(details.tabId, tabInfo);
-    delete tabMap[details.tabId];
-  }
-);
-
-chrome.experimental.webNavigation.onErrorOccurred.addListener(
-  function(details) {
-    if (details.frameId != 0) {
-      return;
-    }
-    delete tabMap[details.tabId];
+    tabInfo.committed = true;
+    tabInfo.mainDomain = urlToHost(details.url);
+    renderTabInfoWithThrottle(tabInfo);
   }
 );
 
@@ -167,9 +162,23 @@ chrome.experimental.webNavigation.onErrorOccurred.addListener(
 
 chrome.experimental.webRequest.onBeforeRequest.addListener(
   function (details) {
+    if (details.type == "main_frame") {
+      deleteTabInfo(details.tabId);
+      tabMap[details.tabId] = {
+        tabId: details.tabId,
+        committed: false,  // has wN.onCommitted() fired yet?
+        mainDomain: "",    // Set by wN.onCommitted()
+        domains: {},       // Updated whenever we get some IPs.
+        throttled: -1,     // >= 0 if the throttle timeout is active.
+        deleted: false,    // True if this object is no longer in tabMap.
+      };
+    }
+    var tabInfo = tabMap[details.tabId];
+    if (!tabInfo) {
+      return;
+    }
     requestMap[details.requestId] = {
-      tabId: details.tabId,
-      isMainFrame: details.type == "main_frame"
+      tabInfo: tabInfo,
     };
   }
 );
@@ -177,23 +186,38 @@ chrome.experimental.webRequest.onBeforeRequest.addListener(
 chrome.experimental.webRequest.onResponseStarted.addListener(
   function (details) {
     var requestInfo = requestMap[details.requestId];
-    if (requestInfo == undefined) {
+    delete requestMap[details.requestId];
+    if (!requestInfo) {
+      return;
+    }
+    if (!details.ip) {
+      return;
+    }
+    var tabInfo = requestInfo.tabInfo;
+    if (tabInfo.deleted) {
       return;
     }
 
     var domain = urlToHost(details.url);
-    if (requestInfo.isMainFrame) {
-      domainAddrCache.setItem(domain, details.ip);
-    }
+    var oldDomainInfo = tabInfo.domains[domain];
 
-    var tabInfo = tabMap[requestInfo.tabId];
-    if (tabInfo == undefined) {
+    // Limit the number of domains per page, to avoid wasting RAM.
+    if (!oldDomainInfo && Object.keys(tabInfo.domains).length >= 100) {
       return;
     }
-    tabInfo.addrs[domain] = details.ip;
 
-    // TODO: when "fromCache" makes it to the dev channel, give uncached IPs
-    //       a higher priority in the addrs map.
+    // Don't allow a cached IP to overwrite an actually-connected IP.
+    if (details.fromCache && oldDomainInfo && !oldDomainInfo.fromCache) {
+      return;
+    }
+
+    tabInfo.domains[domain] = {
+      addr: details.ip,
+      fromCache: details.fromCache
+    };
+    if (tabInfo.committed) {
+      renderTabInfoWithThrottle(tabInfo);
+    }
   }
 );
 
@@ -206,6 +230,14 @@ chrome.experimental.webRequest.onCompleted.addListener(
 chrome.experimental.webRequest.onErrorOccurred.addListener(
   function(details) {
     delete requestMap[details.requestId];
+  }
+);
+
+// -- tabs --
+
+chrome.tabs.onRemoved.addListener(
+  function(tabId, removeInfo) {
+    deleteTabInfo(tabId);
   }
 );
 

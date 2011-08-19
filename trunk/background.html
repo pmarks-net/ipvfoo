@@ -90,18 +90,20 @@ function renderTabInfo(tabInfo) {
   var domains = Object.keys(tabInfo.domains).sort();
   var has4 = false;
   var has6 = false;
-  // Build some [domain, addr, version] tuples.
-  var mainTuple = [tabInfo.mainDomain, "unknown", "?"];
+  // Build some [domain, addr, version, fromCache] tuples.
+  var mainTuple = [tabInfo.mainDomain, "unknown", "?", false];
   var tuples = [mainTuple];
   for (var i = 0; i < domains.length; i++) {
     var domain = domains[i];
     var addr = tabInfo.domains[domain].addr;
     var version = addrToVersion(addr);
+    var fromCache = tabInfo.domains[domain].fromCache;
     if (domain == mainTuple[0]) {
       mainTuple[1] = addr;
       mainTuple[2] = version;
+      mainTuple[3] = fromCache;
     } else {
-      tuples.push([domain, addr, version]);
+      tuples.push([domain, addr, version, fromCache]);
       switch (version) {
         case "4": has4 = true; break;
         case "6": has6 = true; break;

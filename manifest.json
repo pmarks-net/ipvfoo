@@ -1,6 +1,6 @@
 {
   "name": "IPvFoo",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "View the domains and IPv4/IPv6 addresses behind every webpage.",
   "icons": {"128": "icon128.png" },
   "background_page": "background.html",

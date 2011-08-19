@@ -19,16 +19,18 @@ limitations under the License.
 table, td, tr {
   border-width: 1px;
   border-collapse: collapse;
-  border-color: black;
+  border-color: #777;
   border-style: solid;
-  padding: 2pt;
+  padding: 0pt 3pt 0pt 3pt;
   white-space: nowrap;
-}
-.headerRow {
-  background-color: #eee;
 }
 .mainRow {
   font-weight: bold;
+}
+.cacheIcon {
+  border-left: hidden;
+  cursor: default;
+  color: #888;
 }
 .ip4 {
   font-family: monospace;
@@ -57,20 +59,27 @@ function tweakWidthForScrollbar() {
 <body onresize="tweakWidthForScrollbar()">
 
 <table>
-  <tr class="headerRow"><td>Domain</td><td>IP address</td></tr>
   <script>
   for (var i = 0; i < tuples.length; i++) {
     var domain = tuples[i][0];
     var addr = tuples[i][1];
     var version = tuples[i][2];
+    var fromCache = tuples[i][3];
     var addrClass = "ipUnknown";
     switch (version) {
       case "4": addrClass = "ip4"; break;
       case "6": addrClass = "ip6"; break;
     }
     document.write(i == 0 ? '<tr class="mainRow">' : '<tr>');
-    document.write('<td>' + domain + '</td>');
-    document.write('<td class="' + addrClass + '">' + addr + '</td></tr>\n');
+    document.write('<td>', domain, '</td>');
+    document.write('<td class="', addrClass, '">', addr, '</td>\n');
+    if (fromCache) {
+      document.write('<td class="cacheIcon" ',
+                     'title="IP address was cached.">&#8635;</td>');
+    } else {
+      document.write('<td class="cacheIcon"></td>')
+    }
+    document.write('</tr>')
   }
   </script>
 </table>

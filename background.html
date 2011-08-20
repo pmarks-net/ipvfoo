@@ -155,6 +155,9 @@ function deleteTabInfo(tabId) {
 function urlToHost(url) {
   var a = document.createElement("a");
   a.href = url;
+  if (a.protocol == 'file:') {
+    return "file://";
+  }
   return a.hostname;
 }
 
@@ -207,15 +210,15 @@ chrome.experimental.webRequest.onResponseStarted.addListener(
     if (!requestInfo) {
       return;
     }
-    if (!details.ip) {
-      return;
-    }
     var tabInfo = requestInfo.tabInfo;
     if (tabInfo.deleted) {
       return;
     }
 
     var domain = urlToHost(details.url);
+    if (!domain) {
+      return;
+    }
     var oldDomainInfo = tabInfo.domains[domain];
 
     // Limit the number of domains per page, to avoid wasting RAM.
@@ -229,7 +232,7 @@ chrome.experimental.webRequest.onResponseStarted.addListener(
     }
 
     tabInfo.domains[domain] = {
-      addr: details.ip,
+      addr: details.ip || "(no address)",
       fromCache: details.fromCache
     };
     if (tabInfo.committed) {

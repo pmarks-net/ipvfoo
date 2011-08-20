@@ -19,7 +19,7 @@ limitations under the License.
 table, td, tr {
   border-width: 1px;
   border-collapse: collapse;
-  border-color: #777;
+  border-color: #888;
   border-style: solid;
   padding: 0pt 3pt 0pt 3pt;
   white-space: nowrap;
@@ -27,21 +27,21 @@ table, td, tr {
 .mainRow {
   font-weight: bold;
 }
-.cacheIcon {
-  border-left: hidden;
+.cacheCell {
+  font-weight: normal;
   cursor: default;
   color: #888;
+  border-left-width: 0;
+}
+.ipCell {
+  font-family: monospace;
+  border-right-width: 0;
 }
 .ip4 {
-  font-family: monospace;
   color: #800000;
 }
 .ip6 {
-  font-family: monospace;
   color: #008000;
-}
-.ipUnknown {
-  font-family: monospace;
 }
 </style>
 
@@ -60,26 +60,27 @@ function tweakWidthForScrollbar() {
 
 <table>
   <script>
+  var doc = document;
   for (var i = 0; i < tuples.length; i++) {
     var domain = tuples[i][0];
     var addr = tuples[i][1];
     var version = tuples[i][2];
     var fromCache = tuples[i][3];
-    var addrClass = "ipUnknown";
+    var addrClass = "";
     switch (version) {
       case "4": addrClass = "ip4"; break;
       case "6": addrClass = "ip6"; break;
     }
-    document.write(i == 0 ? '<tr class="mainRow">' : '<tr>');
-    document.write('<td>', domain, '</td>');
-    document.write('<td class="', addrClass, '">', addr, '</td>\n');
+    doc.write(i == 0 ? '<tr class="mainRow">' : '<tr>');
+    doc.write('<td>', domain, '</td>');
+    doc.write('<td class="ipCell ', addrClass, '">', addr, '</td>\n');
     if (fromCache) {
-      document.write('<td class="cacheIcon" ',
-                     'title="IP address was cached.">&#8635;</td>');
+      doc.write('<td class="cacheCell"',
+                ' title="Data from cached requests only.">&#8635;</td>');
     } else {
-      document.write('<td class="cacheIcon"></td>')
+      doc.write('<td class="cacheCell" style="padding:0"></td>');
     }
-    document.write('</tr>')
+    doc.write('</tr>');
   }
   </script>
 </table>

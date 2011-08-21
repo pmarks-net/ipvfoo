@@ -2,6 +2,7 @@
   "name": "IPvFoo",
   "version": "0.7.3",
   "description": "View the domains and IPv4/IPv6 addresses behind every webpage.",
+  "homepage_url": "http://ipvfoo.googlecode.com/",
   "icons": {"128": "icon128.png" },
   "background_page": "background.html",
   "page_action": {

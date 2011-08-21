@@ -26,11 +26,16 @@ normally begins/ends with these two calls, but it could also be deleted
 in wR.onCompleted or wR.onErrorOccurred if something bad happens.
 
 An entry in tabMap tries to approximate one "page view".  It begins (or resets)
-in wR.onBeforeRequest(main_frame), and goes away in tabs.onRemoved.
+in wR.onBeforeRequest(main_frame), and goes away when the tab ceases to exist.
+(see deleteTabInfoLater for details.)
 
 UI updates begin in wN.onCommitted, which (hopefully) comes after
 wR.onResponseStarted(main_frame).  Updates continue as new requests are made,
 and stop in wR.onBeforeRequest(main_frame), i.e. the next page load.
+
+Note: I considered starting the UI updates in wR.onCompleted(main_frame), but
+that sometimes fires too early, and the icon gets erased.  Thus, wN.onCommitted
+is the best "start drawing" event I could find.
 */
 
 // requestId -> {tabInfo}
@@ -146,10 +151,28 @@ function renderTabInfoWithThrottle(tabInfo) {
 function deleteTabInfo(tabId) {
   var tabInfo = tabMap[tabId];
   delete tabMap[tabId];
-  if (tabInfo) {
-    // Tell any in-flight requests/timeouts to ignore this instance.
-    tabInfo.deleted = true;
+  if (!tabInfo) {
+    return false;
   }
+  // Tell any in-flight requests/timeouts to ignore this instance.
+  tabInfo.deleted = true;
+  return true;
+}
+
+// Create a connection to this tabId, and delete it from tabMap when the
+// tab ceases to exist.
+//
+// If the tabId belongs to a hidden tab used for pre-rendering, then we'll
+// receive the callback almost immedately, and an ugly error will appear in
+// the console:
+//   "Port error: Could not establish connection. Receiving end does not exist."
+// In some cases, the pre-rendered page won't have any IP information, but
+// that's better than leaking memory, and/or a deluge of pageAction errors.
+// See http://crbug.com/93646.
+function deleteTabInfoLater(tabId) {
+  chrome.tabs.connect(tabId).onDisconnect.addListener(function() {
+    deleteTabInfo(tabId);
+  });
 }
 
 function urlToHost(url) {
@@ -182,8 +205,15 @@ chrome.experimental.webNavigation.onCommitted.addListener(
 
 chrome.experimental.webRequest.onBeforeRequest.addListener(
   function (details) {
+    if (details.tabId == -1) {
+      // Not exactly sure what these are, but they happen occasionally.
+      return;
+    }
     if (details.type == "main_frame") {
-      deleteTabInfo(details.tabId);
+      if (!deleteTabInfo(details.tabId)) {
+        // The first time we use each tabId, set up a garbage collector.
+        deleteTabInfoLater(details.tabId);
+      }
       tabMap[details.tabId] = {
         tabId: details.tabId,
         committed: false,  // has wN.onCommitted() fired yet?
@@ -250,14 +280,6 @@ chrome.experimental.webRequest.onCompleted.addListener(
 chrome.experimental.webRequest.onErrorOccurred.addListener(
   function(details) {
     delete requestMap[details.requestId];
-  }
-);
-
-// -- tabs --
-
-chrome.tabs.onRemoved.addListener(
-  function(tabId, removeInfo) {
-    deleteTabInfo(tabId);
   }
 );
 

@@ -152,11 +152,15 @@ function deleteTabInfo(tabId) {
   var tabInfo = tabMap[tabId];
   delete tabMap[tabId];
   if (!tabInfo) {
-    return false;
+    return;
   }
   // Tell any in-flight requests/timeouts to ignore this instance.
   tabInfo.deleted = true;
-  return true;
+
+  // Unsubscribe from the tab deletion event.
+  if (tabInfo.port) {
+    tabInfo.port.disconnect();
+  }
 }
 
 // Create a connection to this tabId, and delete it from tabMap when the
@@ -169,9 +173,20 @@ function deleteTabInfo(tabId) {
 // In some cases, the pre-rendered page won't have any IP information, but
 // that's better than leaking memory, and/or a deluge of pageAction errors.
 // See http://crbug.com/93646.
-function deleteTabInfoLater(tabId) {
-  chrome.tabs.connect(tabId).onDisconnect.addListener(function() {
-    deleteTabInfo(tabId);
+//
+// And to top it all off, we only call this from wN.onCommitted, because my
+// experiments indicate that any Port created before then can disconnect
+// spuriously as the page is loading.
+function deleteTabInfoLater(tabInfo) {
+  if (tabInfo.port) {
+    // This shouldn't really happen.
+    return;
+  }
+  tabInfo.port = chrome.tabs.connect(tabInfo.tabId);
+  tabInfo.port.onDisconnect.addListener(function() {
+    if (!tabInfo.deleted) {
+      deleteTabInfo(tabInfo.tabId);
+    }
   });
 }
 
@@ -198,6 +213,7 @@ chrome.experimental.webNavigation.onCommitted.addListener(
     tabInfo.committed = true;
     tabInfo.mainDomain = urlToHost(details.url);
     renderTabInfoWithThrottle(tabInfo);
+    deleteTabInfoLater(tabInfo);
   }
 );
 
@@ -205,15 +221,13 @@ chrome.experimental.webNavigation.onCommitted.addListener(
 
 chrome.experimental.webRequest.onBeforeRequest.addListener(
   function (details) {
-    if (details.tabId == -1) {
-      // Not exactly sure what these are, but they happen occasionally.
+    if (!details.tabId || details.tabId == -1) {
+      // This request isn't related to a tab.
       return;
     }
-    if (details.type == "main_frame") {
-      if (!deleteTabInfo(details.tabId)) {
-        // The first time we use each tabId, set up a garbage collector.
-        deleteTabInfoLater(details.tabId);
-      }
+    var isMainFrame = (details.type == "main_frame");
+    if (isMainFrame) {
+      deleteTabInfo(details.tabId);
       tabMap[details.tabId] = {
         tabId: details.tabId,
         committed: false,  // has wN.onCommitted() fired yet?
@@ -221,6 +235,7 @@ chrome.experimental.webRequest.onBeforeRequest.addListener(
         domains: {},       // Updated whenever we get some IPs.
         throttled: -1,     // >= 0 if the throttle timeout is active.
         deleted: false,    // True if this object is no longer in tabMap.
+        port: null,        // Watches for the tab to go away.
       };
     }
     var tabInfo = tabMap[details.tabId];
@@ -229,6 +244,7 @@ chrome.experimental.webRequest.onBeforeRequest.addListener(
     }
     requestMap[details.requestId] = {
       tabInfo: tabInfo,
+      isMainFrame: isMainFrame,
     };
   }
 );
@@ -236,7 +252,6 @@ chrome.experimental.webRequest.onBeforeRequest.addListener(
 chrome.experimental.webRequest.onResponseStarted.addListener(
   function (details) {
     var requestInfo = requestMap[details.requestId];
-    delete requestMap[details.requestId];
     if (!requestInfo) {
       return;
     }
@@ -279,7 +294,15 @@ chrome.experimental.webRequest.onCompleted.addListener(
 
 chrome.experimental.webRequest.onErrorOccurred.addListener(
   function(details) {
+    var requestInfo = requestMap[details.requestId];
     delete requestMap[details.requestId];
+
+    // If the main_frame request failed, then we probably won't receive
+    // a wN.onCommitted and start the garbage collector Port, so just
+    // delete this immediately.
+    if (requestInfo && requestInfo.isMainFrame) {
+      deleteTabInfo(requestInfo.tabInfo.tabId);
+    }
   }
 );
 

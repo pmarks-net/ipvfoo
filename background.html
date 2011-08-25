@@ -25,23 +25,26 @@ wR.onResponseStarted (where the IP address is available.)  A map entry
 normally begins/ends with these two calls, but it could also be deleted
 in wR.onCompleted or wR.onErrorOccurred if something bad happens.
 
-An entry in tabMap tries to approximate one "page view".  It begins (or resets)
-in wR.onBeforeRequest(main_frame), and goes away when the tab ceases to exist.
-(see deleteTabInfoLater for details.)
+An entry in tabMap tries to approximate one "page view".  It begins in
+wR.onBeforeRequest(main_frame), and goes away either when another page
+begins, or when the tab ceases to exist (see awaitTabDeath for details.)
 
 UI updates begin in wN.onCommitted, which (hopefully) comes after
 wR.onResponseStarted(main_frame).  Updates continue as new requests are made,
 and stop in wR.onBeforeRequest(main_frame), i.e. the next page load.
 
-Note: I considered starting the UI updates in wR.onCompleted(main_frame), but
-that sometimes fires too early, and the icon gets erased.  Thus, wN.onCommitted
-is the best "start drawing" event I could find.
+Notes:
+- I considered starting the UI updates in wR.onCompleted(main_frame), but
+  that sometimes fires too early, and the icon gets erased.  Thus,
+  wN.onCommitted is the best "start drawing" event I could find.
+- wN.onCommitted *sometimes* fires without a preceding main_page request.
+  I've only observed this when opening a Google Docs document.
 */
 
-// requestId -> {tabInfo}
+// requestId -> {tabInfo, isMainFrame}
 requestMap = {};
 
-// For the list of fields, see onBeforeRequest() below.
+// tabId -> TabInfo
 tabMap = {};
 
 // Images from sprites.png: [x, y, w, h]
@@ -90,19 +93,83 @@ function addrToVersion(addr) {
   return "?";
 }
 
-function renderTabInfo(tabInfo) {
-  var tabId = tabInfo.tabId;
-  var domains = Object.keys(tabInfo.domains).sort();
+function urlToHost(url) {
+  var a = document.createElement("a");
+  a.href = url;
+  if (a.protocol == 'file:') {
+    return "file://";
+  }
+  return a.hostname;
+}
+
+// -- TabInfo --
+
+function pokeTabInfo(tabId, mustBeNew) {
+  var oldTabInfo = tabMap[tabId];
+  if (oldTabInfo) {
+    if (!mustBeNew) {
+      return oldTabInfo;
+    }
+    oldTabInfo.deleteMe();
+  }
+  return new TabInfo(tabId);
+}
+
+TabInfo = function(tabId) {
+  this.tabId = tabId;
+  this.committed = false;  // has wN.onCommitted() fired yet?
+  this.mainDomain = "";    // Set by wN.onCommitted()
+  this.domains = {};       // Updated whenever we get some IPs.
+  this.throttled = -1;     // >= 0 if the throttle timeout is active.
+  this.deleted = false;    // True if this object is no longer in tabMap.
+  this.port = null;        // Watches for the tab to go away.
+
+  if (tabMap[tabId]) throw "Duplicate entry in tabMap";
+  tabMap[tabId] = this;
+};
+
+TabInfo.prototype.setCommitted = function(mainDomain) {
+  this.committed = true;
+  this.mainDomain = mainDomain;
+  this.throttledRender();
+  this.awaitTabDeath();
+};
+
+TabInfo.prototype.addDomain = function(domain, addr, fromCache) {
+  var oldDomainInfo = this.domains[domain];
+
+  // Limit the number of domains per page, to avoid wasting RAM.
+  if (!oldDomainInfo && Object.keys(this.domains).length >= 100) {
+    return;
+  }
+
+  // Don't allow a cached IP to overwrite an actually-connected IP.
+  if (fromCache && oldDomainInfo && !oldDomainInfo.fromCache) {
+    return;
+  }
+
+  this.domains[domain] = {
+    addr: addr,
+    fromCache: fromCache,
+  };
+
+  if (this.committed) {
+    this.throttledRender();
+  }
+};
+
+TabInfo.prototype.render = function() {
+  var domains = Object.keys(this.domains).sort();
   var has4 = false;
   var has6 = false;
   // Build some [domain, addr, version, fromCache] tuples.
-  var mainTuple = [tabInfo.mainDomain, "unknown", "?", false];
+  var mainTuple = [this.mainDomain, "unknown", "?", false];
   var tuples = [mainTuple];
   for (var i = 0; i < domains.length; i++) {
     var domain = domains[i];
-    var addr = tabInfo.domains[domain].addr;
+    var addr = this.domains[domain].addr;
     var version = addrToVersion(addr);
-    var fromCache = tabInfo.domains[domain].fromCache;
+    var fromCache = this.domains[domain].fromCache;
     if (domain == mainTuple[0]) {
       mainTuple[1] = addr;
       mainTuple[2] = version;
@@ -122,46 +189,35 @@ function renderTabInfo(tabInfo) {
 
   var popupUrl = "popup.html#" + JSON.stringify(tuples);
 
-  chrome.pageAction.setIcon({"tabId": tabId, "imageData": buildIcon(pattern)});
-  chrome.pageAction.setPopup({"tabId": tabId, "popup": popupUrl});
-  chrome.pageAction.show(tabId);
-}
+  chrome.pageAction.setIcon({
+    "tabId": this.tabId,
+    "imageData": buildIcon(pattern),
+  });
+  chrome.pageAction.setPopup({
+    "tabId": this.tabId,
+    "popup": popupUrl,
+  });
+  chrome.pageAction.show(this.tabId);
+};
 
-function renderTabInfoWithThrottle(tabInfo) {
-  if (tabInfo.throttled >= 0) {
+TabInfo.prototype.throttledRender = function() {
+  if (this.throttled >= 0) {
     // To conserve CPU, don't redraw anything until the timer expires.
-    tabInfo.throttled++;
+    this.throttled++;
     return;
   }
 
-  renderTabInfo(tabInfo);
+  this.render();
+  this.throttled = 0;
 
-  tabInfo.throttled = 0;
-  setTimeout(
-    function() {
-      if (!tabInfo.deleted && tabInfo.throttled > 0) {
-        renderTabInfo(tabInfo);
-      }
-      tabInfo.throttled = -1;
-    },
-    500
-  );
-}
-
-function deleteTabInfo(tabId) {
-  var tabInfo = tabMap[tabId];
-  delete tabMap[tabId];
-  if (!tabInfo) {
-    return;
-  }
-  // Tell any in-flight requests/timeouts to ignore this instance.
-  tabInfo.deleted = true;
-
-  // Unsubscribe from the tab deletion event.
-  if (tabInfo.port) {
-    tabInfo.port.disconnect();
-  }
-}
+  var that = this;
+  setTimeout(function() {
+    if (!that.deleted && that.throttled > 0) {
+      that.render();
+    }
+    that.throttled = -1;
+  }, 500);
+};
 
 // Create a connection to this tabId, and delete it from tabMap when the
 // tab ceases to exist.
@@ -177,27 +233,35 @@ function deleteTabInfo(tabId) {
 // And to top it all off, we only call this from wN.onCommitted, because my
 // experiments indicate that any Port created before then can disconnect
 // spuriously as the page is loading.
-function deleteTabInfoLater(tabInfo) {
-  if (tabInfo.port) {
-    // This shouldn't really happen.
+TabInfo.prototype.awaitTabDeath = function() {
+  if (this.port) {
+    // This is pretty unusual, but it is sometimes possible for a tab to
+    // hit onCommitted twice without a main_frame request in between.
+    this.port.disconnect();
+  }
+  this.port = chrome.tabs.connect(this.tabId);
+
+  var that = this;
+  this.port.onDisconnect.addListener(function() {
+    that.deleteMe();
+  });
+};
+
+TabInfo.prototype.deleteMe = function() {
+  if (this.deleted) {
     return;
   }
-  tabInfo.port = chrome.tabs.connect(tabInfo.tabId);
-  tabInfo.port.onDisconnect.addListener(function() {
-    if (!tabInfo.deleted) {
-      deleteTabInfo(tabInfo.tabId);
-    }
-  });
-}
 
-function urlToHost(url) {
-  var a = document.createElement("a");
-  a.href = url;
-  if (a.protocol == 'file:') {
-    return "file://";
+  // Tell any in-flight requests/timeouts to ignore this instance.
+  this.deleted = true;
+
+  // Unsubscribe from the tab deletion event.
+  if (this.port) {
+    this.port.disconnect();
   }
-  return a.hostname;
-}
+
+  delete tabMap[this.tabId];
+};
 
 // -- webNavigation --
 
@@ -206,14 +270,8 @@ chrome.experimental.webNavigation.onCommitted.addListener(
     if (details.frameId != 0) {
       return;
     }
-    var tabInfo = tabMap[details.tabId];
-    if (!tabInfo) {
-      return;
-    }
-    tabInfo.committed = true;
-    tabInfo.mainDomain = urlToHost(details.url);
-    renderTabInfoWithThrottle(tabInfo);
-    deleteTabInfoLater(tabInfo);
+    var mainDomain = urlToHost(details.url);
+    pokeTabInfo(details.tabId, false).setCommitted(mainDomain);
   }
 );
 
@@ -227,16 +285,7 @@ chrome.experimental.webRequest.onBeforeRequest.addListener(
     }
     var isMainFrame = (details.type == "main_frame");
     if (isMainFrame) {
-      deleteTabInfo(details.tabId);
-      tabMap[details.tabId] = {
-        tabId: details.tabId,
-        committed: false,  // has wN.onCommitted() fired yet?
-        mainDomain: "",    // Set by wN.onCommitted()
-        domains: {},       // Updated whenever we get some IPs.
-        throttled: -1,     // >= 0 if the throttle timeout is active.
-        deleted: false,    // True if this object is no longer in tabMap.
-        port: null,        // Watches for the tab to go away.
-      };
+      pokeTabInfo(details.tabId, true);
     }
     var tabInfo = tabMap[details.tabId];
     if (!tabInfo) {
@@ -252,37 +301,15 @@ chrome.experimental.webRequest.onBeforeRequest.addListener(
 chrome.experimental.webRequest.onResponseStarted.addListener(
   function (details) {
     var requestInfo = requestMap[details.requestId];
-    if (!requestInfo) {
+    if (!requestInfo || requestInfo.tabInfo.deleted) {
       return;
     }
-    var tabInfo = requestInfo.tabInfo;
-    if (tabInfo.deleted) {
-      return;
-    }
-
     var domain = urlToHost(details.url);
     if (!domain) {
       return;
     }
-    var oldDomainInfo = tabInfo.domains[domain];
-
-    // Limit the number of domains per page, to avoid wasting RAM.
-    if (!oldDomainInfo && Object.keys(tabInfo.domains).length >= 100) {
-      return;
-    }
-
-    // Don't allow a cached IP to overwrite an actually-connected IP.
-    if (details.fromCache && oldDomainInfo && !oldDomainInfo.fromCache) {
-      return;
-    }
-
-    tabInfo.domains[domain] = {
-      addr: details.ip || "(no address)",
-      fromCache: details.fromCache
-    };
-    if (tabInfo.committed) {
-      renderTabInfoWithThrottle(tabInfo);
-    }
+    var addr = details.ip || "(no address)";
+    requestInfo.tabInfo.addDomain(domain, addr, details.fromCache);
   }
 );
 
@@ -301,7 +328,7 @@ chrome.experimental.webRequest.onErrorOccurred.addListener(
     // a wN.onCommitted and start the garbage collector Port, so just
     // delete this immediately.
     if (requestInfo && requestInfo.isMainFrame) {
-      deleteTabInfo(requestInfo.tabInfo.tabId);
+      requestInfo.tabInfo.deleteMe();
     }
   }
 );

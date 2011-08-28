@@ -46,7 +46,14 @@ table, td, tr {
 </style>
 
 <script type="text/javascript">
-tuples = JSON.parse(window.location.hash.substr(1));
+tabId = Number(window.location.hash.substr(1));
+if (!isFinite(tabId)) {
+  throw "Bad tabId";
+}
+
+function subscribeMe() {
+  chrome.extension.getBackgroundPage().popups.attachWindow(window);
+}
 
 function tweakWidthForScrollbar() {
   var db = document.body;
@@ -54,36 +61,89 @@ function tweakWidthForScrollbar() {
       db.clientWidth - db.offsetWidth : 0;
   db.style.paddingRight = scrollbarWidth + "px";
 }
+
+// Clear the table, and fill it with new data.
+function pushAll(tuples) {
+  var table = document.getElementById("addr_table");
+  while (table.hasChildNodes()) {
+    table.removeChild(table.lastChild);
+  }
+  for (var i = 0; i < tuples.length; i++) {
+    table.appendChild(makeRow(i == 0, tuples[i]));
+  }
+}
+
+// Insert or update a single table row.
+function pushOne(tuple) {
+  var domain = tuple[0];
+  var table = document.getElementById("addr_table");
+
+  var insertHere = null;
+  var isFirst = true;
+  for (var tr = table.firstChild; tr; tr = tr.nextSibling) {
+    if (tr._domain == domain) {
+      // Found an exact match.  Update the row.
+      table.replaceChild(makeRow(isFirst, tuple), tr);
+      return;
+    }
+    if (isFirst) {
+      isFirst = false;
+    } else if (tr._domain > domain) {
+      insertHere = tr;
+      break;
+    }
+  }
+  // No exact match.  Insert the row in alphabetical order.
+  table.insertBefore(makeRow(false, tuple), insertHere);
+}
+
+function makeRow(isFirst, tuple) {
+  var domain = tuple[0];
+  var addr = tuple[1];
+  var version = tuple[2];
+  var fromCache = tuple[3];
+
+  var tr = document.createElement("tr");
+  if (isFirst) {
+    tr.className = "mainRow";
+  }
+
+  // Build the "Domain" column.
+  var domainTd = document.createElement("td");
+  domainTd.appendChild(document.createTextNode(domain));
+
+  // Build the "Address" column.
+  var addrTd = document.createElement("td");
+  var addrClass = "";
+  switch (version) {
+    case "4": addrClass = "ip4"; break;
+    case "6": addrClass = "ip6"; break;
+  }
+  addrTd.className = "ipCell " + addrClass;
+  addrTd.appendChild(document.createTextNode(addr));
+
+  // Build the (possibly invisible) "Cached" column.
+  var cacheTd = document.createElement("td");
+  cacheTd.className = "cacheCell";
+  if (fromCache) {
+    cacheTd.title = "Data from cached requests only.";
+    cacheTd.appendChild(document.createTextNode("\u21BB"));
+  } else {
+    cacheTd.style.padding = "0";
+  }
+
+  tr._domain = domain;
+  tr.appendChild(domainTd);
+  tr.appendChild(addrTd);
+  tr.appendChild(cacheTd);
+  return tr;
+}
+
 </script>
 </head>
-<body onresize="tweakWidthForScrollbar()">
 
-<table>
-  <script>
-  var doc = document;
-  for (var i = 0; i < tuples.length; i++) {
-    var domain = tuples[i][0];
-    var addr = tuples[i][1];
-    var version = tuples[i][2];
-    var fromCache = tuples[i][3];
-    var addrClass = "";
-    switch (version) {
-      case "4": addrClass = "ip4"; break;
-      case "6": addrClass = "ip6"; break;
-    }
-    doc.write(i == 0 ? '<tr class="mainRow">' : '<tr>');
-    doc.write('<td>', domain, '</td>');
-    doc.write('<td class="ipCell ', addrClass, '">', addr, '</td>\n');
-    if (fromCache) {
-      doc.write('<td class="cacheCell"',
-                ' title="Data from cached requests only.">&#8635;</td>');
-    } else {
-      doc.write('<td class="cacheCell" style="padding:0"></td>');
-    }
-    doc.write('</tr>');
-  }
-  </script>
-</table>
-
+<body onload="subscribeMe()" onresize="tweakWidthForScrollbar()">
+<table id="addr_table"></table>
 </body>
+
 </html>

@@ -120,7 +120,7 @@ TabInfo = function(tabId) {
   this.committed = false;  // has wN.onCommitted() fired yet?
   this.mainDomain = "";    // Set by wN.onCommitted()
   this.domains = {};       // Updated whenever we get some IPs.
-  this.throttled = -1;     // >= 0 if the throttle timeout is active.
+  this.lastPattern = "";   // To avoid redundant icon redraws.
   this.deleted = false;    // True if this object is no longer in tabMap.
   this.port = null;        // Watches for the tab to go away.
 
@@ -131,21 +131,28 @@ TabInfo = function(tabId) {
 TabInfo.prototype.setCommitted = function(mainDomain) {
   this.committed = true;
   this.mainDomain = mainDomain;
-  this.throttledRender();
+  this.updateIcon();
+  popups.pushAll(this.tabId);
   this.awaitTabDeath();
 };
 
 TabInfo.prototype.addDomain = function(domain, addr, fromCache) {
   var oldDomainInfo = this.domains[domain];
 
-  // Limit the number of domains per page, to avoid wasting RAM.
-  if (!oldDomainInfo && Object.keys(this.domains).length >= 100) {
-    return;
-  }
-
-  // Don't allow a cached IP to overwrite an actually-connected IP.
-  if (fromCache && oldDomainInfo && !oldDomainInfo.fromCache) {
-    return;
+  if (!oldDomainInfo) {
+    // Limit the number of domains per page, to avoid wasting RAM.
+    if (Object.keys(this.domains).length >= 100) {
+      return;
+    }
+  } else {
+    // Don't allow a cached IP to overwrite an actually-connected IP.
+    if (fromCache && !oldDomainInfo.fromCache) {
+      return;
+    }
+    // Don't update if nothing has changed.
+    if (oldDomainInfo.addr == addr && oldDomainInfo.fromCache == fromCache) {
+      return;
+    }
   }
 
   this.domains[domain] = {
@@ -154,15 +161,52 @@ TabInfo.prototype.addDomain = function(domain, addr, fromCache) {
   };
 
   if (this.committed) {
-    this.throttledRender();
+    this.updateIcon();
+    popups.pushOne(this.tabId, domain, addr, fromCache);
   }
 };
 
-TabInfo.prototype.render = function() {
-  var domains = Object.keys(this.domains).sort();
+TabInfo.prototype.updateIcon = function() {
+  var domains = Object.keys(this.domains);
+  var pattern = "?";
   var has4 = false;
   var has6 = false;
-  // Build some [domain, addr, version, fromCache] tuples.
+  for (var i = 0; i < domains.length; i++) {
+    var domain = domains[i];
+    var addr = this.domains[domain].addr;
+    var version = addrToVersion(addr);
+    if (domain == this.mainDomain) {
+      pattern = version;
+    } else {
+      switch (version) {
+        case "4": has4 = true; break;
+        case "6": has6 = true; break;
+      }
+    }
+  }
+  if (has4) pattern += "4";
+  if (has6) pattern += "6";
+
+  // Don't waste time redrawing the same icon.
+  if (this.lastPattern == pattern) {
+    return;
+  }
+  this.lastPattern = pattern;
+
+  chrome.pageAction.setIcon({
+    "tabId": this.tabId,
+    "imageData": buildIcon(pattern),
+  });
+  chrome.pageAction.setPopup({
+    "tabId": this.tabId,
+    "popup": "popup.html#" + this.tabId,
+  });
+  chrome.pageAction.show(this.tabId);
+};
+
+// Build some [domain, addr, version, fromCache] tuples, for a popup.
+TabInfo.prototype.getTuples = function() {
+  var domains = Object.keys(this.domains).sort();
   var mainTuple = [this.mainDomain, "unknown", "?", false];
   var tuples = [mainTuple];
   for (var i = 0; i < domains.length; i++) {
@@ -176,48 +220,10 @@ TabInfo.prototype.render = function() {
       mainTuple[3] = fromCache;
     } else {
       tuples.push([domain, addr, version, fromCache]);
-      switch (version) {
-        case "4": has4 = true; break;
-        case "6": has6 = true; break;
-      }
     }
   }
-
-  var pattern = mainTuple[2];
-  if (has4) pattern += "4";
-  if (has6) pattern += "6";
-
-  var popupUrl = "popup.html#" + JSON.stringify(tuples);
-
-  chrome.pageAction.setIcon({
-    "tabId": this.tabId,
-    "imageData": buildIcon(pattern),
-  });
-  chrome.pageAction.setPopup({
-    "tabId": this.tabId,
-    "popup": popupUrl,
-  });
-  chrome.pageAction.show(this.tabId);
-};
-
-TabInfo.prototype.throttledRender = function() {
-  if (this.throttled >= 0) {
-    // To conserve CPU, don't redraw anything until the timer expires.
-    this.throttled++;
-    return;
-  }
-
-  this.render();
-  this.throttled = 0;
-
-  var that = this;
-  setTimeout(function() {
-    if (!that.deleted && that.throttled > 0) {
-      that.render();
-    }
-    that.throttled = -1;
-  }, 500);
-};
+  return tuples;
+}
 
 // Create a connection to this tabId, and delete it from tabMap when the
 // tab ceases to exist.
@@ -262,6 +268,72 @@ TabInfo.prototype.deleteMe = function() {
 
   delete tabMap[this.tabId];
 };
+
+// -- Popups --
+
+// This class keeps track of the visible popup windows,
+// and streams changes to them as they occur.
+Popups = function() {
+  this.map = {};            // tabId -> popup window
+  this.hasTimeout = false;  // Is the GC scheduled?
+}
+
+// Attach a new popup window, and start sending it updates.
+Popups.prototype.attachWindow = function(win) {
+  this.map[win.tabId] = win;
+  this.pushAll(win.tabId);
+  this.garbageCollect();
+}
+
+// Periodically make sure this.map is a subset of the visible popups.
+Popups.prototype.garbageCollect = function() {
+  if (this.hasTimeout) {
+    return;
+  }
+  if (Object.keys(this.map).length == 0) {
+    return;
+  }
+  this.hasTimeout = true;
+  var that = this;
+  setTimeout(function() {
+    // Find all the tabs with active popups.
+    var popupTabs = {};
+    var popups = chrome.extension.getViews({type:"popup"});
+    for (var i = 0; i < popups.length; i++) {
+      popupTabs[popups[i].tabId] = true;
+    }
+
+    // Drop references to the inactive popups.
+    var storedTabs = Object.keys(that.map);
+    for (var i = 0; i < storedTabs.length; i++) {
+      var tabId = storedTabs[i];
+      if (!popupTabs[tabId]) {
+        delete that.map[tabId];
+      }
+    }
+
+    // Maybe schedule another run.
+    that.hasTimeout = false;
+    that.garbageCollect();
+  }, 5000);
+};
+
+Popups.prototype.pushAll = function(tabId) {
+  var win = this.map[tabId];
+  var tabInfo = tabMap[tabId];
+  if (win && tabInfo) {
+    win.pushAll(tabInfo.getTuples());
+  }
+}
+
+Popups.prototype.pushOne = function(tabId, domain, addr, fromCache) {
+  var win = this.map[tabId];
+  if (win) {
+    win.pushOne([domain, addr, addrToVersion(addr), fromCache]);
+  }
+}
+
+popups = new Popups();
 
 // -- webNavigation --
 

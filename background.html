@@ -38,7 +38,7 @@ Notes:
   that sometimes fires too early, and the icon gets erased.  Thus,
   wN.onCommitted is the best "start drawing" event I could find.
 - wN.onCommitted *sometimes* fires without a preceding main_page request.
-  I've only observed this when opening a Google Docs document.
+  I think http://crbug.com/94342 is to blame.
 */
 
 // requestId -> {tabInfo, isMainFrame}

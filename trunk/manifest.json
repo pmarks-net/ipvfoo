@@ -1,6 +1,6 @@
 {
   "name": "IPvFoo",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "View the domains and IPv4/IPv6 addresses behind every webpage.",
   "homepage_url": "http://ipvfoo.googlecode.com/",
   "icons": {"128": "icon128.png" },
@@ -9,6 +9,7 @@
     "default_popup": "popup.html"
   },
   "permissions": [
+    "webNavigation",
     "experimental"
   ]
 }

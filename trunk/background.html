@@ -337,9 +337,7 @@ popups = new Popups();
 
 // -- webNavigation --
 
-var webNavigation = chrome.webNavigation || chrome.experimental.webNavigation;
-
-webNavigation.onCommitted.addListener(
+chrome.webNavigation.onCommitted.addListener(
   function(details) {
     if (details.frameId != 0) {
       return;
@@ -351,7 +349,7 @@ webNavigation.onCommitted.addListener(
 
 // -- webRequest --
 
-chrome.experimental.webRequest.onBeforeRequest.addListener(
+chrome.webRequest.onBeforeRequest.addListener(
   function (details) {
     if (!details.tabId || details.tabId == -1) {
       // This request isn't related to a tab.
@@ -372,7 +370,7 @@ chrome.experimental.webRequest.onBeforeRequest.addListener(
   }
 );
 
-chrome.experimental.webRequest.onResponseStarted.addListener(
+chrome.webRequest.onResponseStarted.addListener(
   function (details) {
     var requestInfo = requestMap[details.requestId];
     if (!requestInfo || requestInfo.tabInfo.deleted) {
@@ -387,13 +385,13 @@ chrome.experimental.webRequest.onResponseStarted.addListener(
   }
 );
 
-chrome.experimental.webRequest.onCompleted.addListener(
+chrome.webRequest.onCompleted.addListener(
   function(details) {
     delete requestMap[details.requestId];
   }
 );
 
-chrome.experimental.webRequest.onErrorOccurred.addListener(
+chrome.webRequest.onErrorOccurred.addListener(
   function(details) {
     var requestInfo = requestMap[details.requestId];
     delete requestMap[details.requestId];

@@ -367,7 +367,8 @@ chrome.webRequest.onBeforeRequest.addListener(
       tabInfo: tabInfo,
       isMainFrame: isMainFrame,
     };
-  }
+  },
+  {urls: ["<all_urls>"]}
 );
 
 chrome.webRequest.onResponseStarted.addListener(
@@ -382,13 +383,15 @@ chrome.webRequest.onResponseStarted.addListener(
     }
     var addr = details.ip || "(no address)";
     requestInfo.tabInfo.addDomain(domain, addr, details.fromCache);
-  }
+  },
+  {urls: ["<all_urls>"]}
 );
 
 chrome.webRequest.onCompleted.addListener(
   function(details) {
     delete requestMap[details.requestId];
-  }
+  },
+  {urls: ["<all_urls>"]}
 );
 
 chrome.webRequest.onErrorOccurred.addListener(
@@ -402,7 +405,8 @@ chrome.webRequest.onErrorOccurred.addListener(
     if (requestInfo && requestInfo.isMainFrame) {
       requestInfo.tabInfo.deleteMe();
     }
-  }
+  },
+  {urls: ["<all_urls>"]}
 );
 
 </script>

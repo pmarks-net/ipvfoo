@@ -51,8 +51,10 @@ if (!isFinite(tabId)) {
   throw "Bad tabId";
 }
 
+var bg = chrome.extension.getBackgroundPage();
+
 function subscribeMe() {
-  chrome.extension.getBackgroundPage().popups.attachWindow(window);
+  bg.popups.attachWindow(window);
 }
 
 function tweakWidthForScrollbar() {
@@ -97,16 +99,45 @@ function pushOne(tuple) {
   table.insertBefore(makeRow(false, tuple), insertHere);
 }
 
+function makeImg(src, title) {
+  var img = document.createElement("img");
+  img.src = src;
+  img.title = title;
+  return img;
+}
+
+function makeSslImg(flags) {
+  switch (flags & (bg.FLAG_SSL | bg.FLAG_NOSSL)) {
+    case bg.FLAG_SSL | bg.FLAG_NOSSL:
+      return makeImg(
+          "gray_schrodingers_lock.png",
+          "Mixture of HTTPS and non-HTTPS connections.");
+    case bg.FLAG_SSL:
+      return makeImg(
+          "gray_lock.png",
+          "Connection uses HTTPS.\n" +
+          "Warning: IPvFoo does not verify the integrity of encryption.");
+    default:
+      return makeImg(
+          "gray_unlock.png",
+          "Connection does not use HTTPS.");
+  }
+}
+
 function makeRow(isFirst, tuple) {
   var domain = tuple[0];
   var addr = tuple[1];
   var version = tuple[2];
-  var fromCache = tuple[3];
+  var flags = tuple[3];
 
   var tr = document.createElement("tr");
   if (isFirst) {
     tr.className = "mainRow";
   }
+
+  // Build the "SSL" column.
+  var sslTd = document.createElement("td");
+  sslTd.appendChild(makeSslImg(flags));
 
   // Build the "Domain" column.
   var domainTd = document.createElement("td");
@@ -125,14 +156,15 @@ function makeRow(isFirst, tuple) {
   // Build the (possibly invisible) "Cached" column.
   var cacheTd = document.createElement("td");
   cacheTd.className = "cacheCell";
-  if (fromCache) {
+  if (!(flags & bg.FLAG_UNCACHED)) {
     cacheTd.title = "Data from cached requests only.";
     cacheTd.appendChild(document.createTextNode("\u21BB"));
   } else {
-    cacheTd.style.padding = "0";
+    cacheTd.style.padding = 0;
   }
 
   tr._domain = domain;
+  tr.appendChild(sslTd);
   tr.appendChild(domainTd);
   tr.appendChild(addrTd);
   tr.appendChild(cacheTd);

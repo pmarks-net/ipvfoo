@@ -1,7 +1,7 @@
 {
   "name": "IPvFoo",
-  "version": "1.0.1",
-  "description": "View the domains and IPv4/IPv6 addresses behind every webpage.",
+  "version": "1.0.2",
+  "description": "Summarizes IPv4, IPv6, and HTTPS information for all connections made by the current webpage.",
   "homepage_url": "http://ipvfoo.googlecode.com/",
   "icons": {"128": "icon128.png" },
   "background_page": "background.html",

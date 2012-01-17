@@ -63,6 +63,11 @@ targetBig = [1, 2];
 targetSmall1 = [13, 2];
 targetSmall2 = [13, 9];
 
+// Flags are bitwise-OR'd across all connections to a domain.
+FLAG_SSL = 0x1;
+FLAG_NOSSL = 0x2;
+FLAG_UNCACHED = 0x4;
+
 // pattern is 0..3 characters, each '4', '6', or '?'.
 function buildIcon(pattern) {
   var canvas = document.getElementById("canvas");
@@ -95,13 +100,21 @@ function addrToVersion(addr) {
   return "?";
 }
 
-function urlToHost(url) {
+function parseUrl(url) {
+  var domain = null;
+  var ssl = false;
+
   var a = document.createElement("a");
   a.href = url;
   if (a.protocol == 'file:') {
-    return "file://";
+    domain = "file://";
+  } else {
+    domain = a.hostname;
+    if (a.protocol == 'https:') {
+      ssl = true;
+    }
   }
-  return a.hostname;
+  return { domain: domain, ssl: ssl };
 }
 
 // -- TabInfo --
@@ -138,7 +151,7 @@ TabInfo.prototype.setCommitted = function(mainDomain) {
   this.awaitTabDeath();
 };
 
-TabInfo.prototype.addDomain = function(domain, addr, fromCache) {
+TabInfo.prototype.addDomain = function(domain, addr, flags) {
   var oldDomainInfo = this.domains[domain];
 
   if (!oldDomainInfo) {
@@ -148,23 +161,25 @@ TabInfo.prototype.addDomain = function(domain, addr, fromCache) {
     }
   } else {
     // Don't allow a cached IP to overwrite an actually-connected IP.
-    if (fromCache && !oldDomainInfo.fromCache) {
-      return;
+    if (!(flags & FLAG_UNCACHED) && (oldDomainInfo.flags & FLAG_UNCACHED)) {
+      addr = oldDomainInfo.addr;
     }
+    // Merge in the previous flags.
+    flags |= oldDomainInfo.flags;
     // Don't update if nothing has changed.
-    if (oldDomainInfo.addr == addr && oldDomainInfo.fromCache == fromCache) {
+    if (oldDomainInfo.addr == addr && oldDomainInfo.flags == flags) {
       return;
     }
   }
 
   this.domains[domain] = {
     addr: addr,
-    fromCache: fromCache,
+    flags: flags,
   };
 
   if (this.committed) {
     this.updateIcon();
-    popups.pushOne(this.tabId, domain, addr, fromCache);
+    popups.pushOne(this.tabId, domain, addr, flags);
   }
 };
 
@@ -206,22 +221,22 @@ TabInfo.prototype.updateIcon = function() {
   chrome.pageAction.show(this.tabId);
 };
 
-// Build some [domain, addr, version, fromCache] tuples, for a popup.
+// Build some [domain, addr, version, flags] tuples, for a popup.
 TabInfo.prototype.getTuples = function() {
   var domains = Object.keys(this.domains).sort();
-  var mainTuple = [this.mainDomain, "unknown", "?", false];
+  var mainTuple = [this.mainDomain, "unknown", "?", 0];
   var tuples = [mainTuple];
   for (var i = 0; i < domains.length; i++) {
     var domain = domains[i];
     var addr = this.domains[domain].addr;
     var version = addrToVersion(addr);
-    var fromCache = this.domains[domain].fromCache;
+    var flags = this.domains[domain].flags;
     if (domain == mainTuple[0]) {
       mainTuple[1] = addr;
       mainTuple[2] = version;
-      mainTuple[3] = fromCache;
+      mainTuple[3] = flags;
     } else {
-      tuples.push([domain, addr, version, fromCache]);
+      tuples.push([domain, addr, version, flags]);
     }
   }
   return tuples;
@@ -328,10 +343,10 @@ Popups.prototype.pushAll = function(tabId) {
   }
 }
 
-Popups.prototype.pushOne = function(tabId, domain, addr, fromCache) {
+Popups.prototype.pushOne = function(tabId, domain, addr, flags) {
   var win = this.map[tabId];
   if (win) {
-    win.pushOne([domain, addr, addrToVersion(addr), fromCache]);
+    win.pushOne([domain, addr, addrToVersion(addr), flags]);
   }
 }
 
@@ -344,7 +359,7 @@ chrome.webNavigation.onCommitted.addListener(
     if (details.frameId != 0) {
       return;
     }
-    var mainDomain = urlToHost(details.url);
+    var mainDomain = parseUrl(details.url).domain;
     pokeTabInfo(details.tabId, false).setCommitted(mainDomain);
   }
 );
@@ -379,12 +394,17 @@ chrome.webRequest.onResponseStarted.addListener(
     if (!requestInfo || requestInfo.tabInfo.deleted) {
       return;
     }
-    var domain = urlToHost(details.url);
-    if (!domain) {
+    var parsed = parseUrl(details.url);
+    if (!parsed.domain) {
       return;
     }
     var addr = details.ip || "(no address)";
-    requestInfo.tabInfo.addDomain(domain, addr, details.fromCache);
+
+    var flags = parsed.ssl ? FLAG_SSL : FLAG_NOSSL;
+    if (!details.fromCache) {
+      flags |= FLAG_UNCACHED;
+    }
+    requestInfo.tabInfo.addDomain(parsed.domain, addr, flags);
   },
   {urls: ["<all_urls>"]}
 );

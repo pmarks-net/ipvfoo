@@ -94,8 +94,8 @@ function drawSprite(ctx, target, source) {
 
 function addrToVersion(addr) {
   if (addr) {
-    if (addr.indexOf(":") >= 0) return "6";
     if (addr.indexOf(".") >= 0) return "4";
+    if (addr.indexOf(":") >= 0) return "6";
   }
   return "?";
 }

@@ -27,7 +27,7 @@ in wR.onCompleted or wR.onErrorOccurred if something bad happens.
 
 An entry in tabMap tries to approximate one "page view".  It begins in
 wR.onBeforeRequest(main_frame), and goes away either when another page
-begins, or when the tab ceases to exist (see awaitTabDeath for details.)
+begins, or when the tab ceases to exist (see pollForTabDeath for details.)
 
 UI updates begin in wN.onCommitted, which (hopefully) comes after
 wR.onResponseStarted(main_frame).  Updates continue as new requests are made,
@@ -137,18 +137,20 @@ TabInfo = function(tabId) {
   this.domains = {};       // Updated whenever we get some IPs.
   this.lastPattern = "";   // To avoid redundant icon redraws.
   this.deleted = false;    // True if this object is no longer in tabMap.
-  this.port = null;        // Watches for the tab to go away.
 
   if (tabMap[tabId]) throw "Duplicate entry in tabMap";
   tabMap[tabId] = this;
 };
 
 TabInfo.prototype.setCommitted = function(mainDomain) {
+  var isFirstCommit = !this.committed;
   this.committed = true;
   this.mainDomain = mainDomain;
   this.updateIcon();
   popups.pushAll(this.tabId);
-  this.awaitTabDeath();
+  if (isFirstCommit) {
+    this.pollForTabDeath();
+  }
 };
 
 TabInfo.prototype.addDomain = function(domain, addr, flags) {
@@ -242,33 +244,36 @@ TabInfo.prototype.getTuples = function() {
   return tuples;
 }
 
-// Create a connection to this tabId, and delete it from tabMap when the
-// tab ceases to exist.
+// Test if the current tab still exists, and then poll for it periodically.
 //
-// If the tabId belongs to a hidden tab used for pre-rendering, then we'll
-// receive the callback almost immedately, and an ugly error will appear in
-// the console:
+// If the tabId belongs to a hidden tab used for pre-rendering, then the first
+// get() will fail immediately.  In some cases, this pre-rendered page won't
+// get any IP information, but that's better than leaking memory, and/or a
+// deluge of pageAction errors.  See http://crbug.com/93646.
+//
+// After the tab is closed, the following error will appear in the console:
 //   "Port error: Could not establish connection. Receiving end does not exist."
-// In some cases, the pre-rendered page won't have any IP information, but
-// that's better than leaking memory, and/or a deluge of pageAction errors.
-// See http://crbug.com/93646.
 //
-// And to top it all off, we only call this from wN.onCommitted, because my
-// experiments indicate that any Port created before then can disconnect
-// spuriously as the page is loading.
-TabInfo.prototype.awaitTabDeath = function() {
-  if (this.port) {
-    // This is pretty unusual, but it is sometimes possible for a tab to
-    // hit onCommitted twice without a main_frame request in between.
-    this.port.disconnect();
-  }
-  this.port = chrome.tabs.connect(this.tabId);
-
+// If http://crbug.com/124353 is ever resolved, then we'll be able to switch
+// back to the less-noisy tabs.connect() approach.
+TabInfo.prototype.pollForTabDeath = function() {
   var that = this;
-  this.port.onDisconnect.addListener(function() {
-    that.deleteMe();
+  if (that.deleted) {
+    return;
+  }
+  chrome.tabs.get(that.tabId, function(tab) {
+    if (that.deleted) {
+      return;
+    }
+    if (tab) {
+      // Tab still exists.  Check again later.
+      setTimeout(function() { that.pollForTabDeath() }, 15000);
+    } else {
+      // Tab no longer exists; clean up.
+      that.deleteMe();
+    }
   });
-};
+}
 
 TabInfo.prototype.deleteMe = function() {
   if (this.deleted) {
@@ -277,11 +282,6 @@ TabInfo.prototype.deleteMe = function() {
 
   // Tell any in-flight requests/timeouts to ignore this instance.
   this.deleted = true;
-
-  // Unsubscribe from the tab deletion event.
-  if (this.port) {
-    this.port.disconnect();
-  }
 
   delete tabMap[this.tabId];
 };

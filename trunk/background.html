@@ -288,7 +288,7 @@ TabInfo.prototype.pollForBirth = function() {
 // Poll a tab periodically, until it ceases to exist.
 //
 // After the tab is closed, the following error will appear in the console:
-//   "Port error: Could not establish connection. Receiving end does not exist."
+//   "Error during tabs.get: No tab with id: 123."
 //
 // If http://crbug.com/93646 and http://crbug.com/124353 are ever fixed, then
 // we'll be able to switch back to the less-noisy tabs.connect() approach.
@@ -457,10 +457,11 @@ chrome.webRequest.onErrorOccurred.addListener(
     var requestInfo = requestMap[details.requestId];
     delete requestMap[details.requestId];
 
-    // If the main_frame request failed, then we probably won't receive
-    // a wN.onCommitted and start the garbage collector Port, so just
-    // delete this immediately.
-    if (requestInfo && requestInfo.isMainFrame) {
+    // If the main_frame request failed prior to wN.onCommitted, then we'll
+    // probably never get a chance to start the death poller, so just delete
+    // this immediately.
+    if (requestInfo && requestInfo.isMainFrame &&
+        requestInfo.tabInfo.state == TAB_NEW) {
       requestInfo.tabInfo.deleteMe();
     }
   },

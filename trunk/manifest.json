@@ -1,6 +1,6 @@
 {
   "name": "IPvFoo",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Summarizes IPv4, IPv6, and HTTPS information for all connections made by the current webpage.",
   "homepage_url": "http://ipvfoo.googlecode.com/",
   "icons": {"128": "icon128.png" },

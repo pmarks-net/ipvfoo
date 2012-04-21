@@ -37,8 +37,6 @@ Notes:
 - I considered starting the UI updates in wR.onCompleted(main_frame), but
   that sometimes fires too early, and the icon gets erased.  Thus,
   wN.onCommitted is the best "start drawing" event I could find.
-- wN.onCommitted *sometimes* fires without a preceding main_page request.
-  I think http://crbug.com/94342 is to blame.
 */
 
 // requestId -> {tabInfo, isMainFrame}
@@ -67,6 +65,13 @@ targetSmall2 = [13, 9];
 FLAG_SSL = 0x1;
 FLAG_NOSSL = 0x2;
 FLAG_UNCACHED = 0x4;
+
+// Possible states for an instance of TabInfo.
+// We begin at NEW, and only ever move forward, not backward.
+TAB_NEW = 0;      // New, waiting for onCommitted().
+TAB_BIRTH = 1;    // Polling for tabs.get() success.
+TAB_ALIVE = 2;    // Polling for tabs.get() failure.
+TAB_DELETED = 3;  // Dead.
 
 // pattern is 0..3 characters, each '4', '6', or '?'.
 function buildIcon(pattern) {
@@ -132,24 +137,29 @@ function pokeTabInfo(tabId, mustBeNew) {
 
 TabInfo = function(tabId) {
   this.tabId = tabId;
-  this.committed = false;  // has wN.onCommitted() fired yet?
-  this.mainDomain = "";    // Set by wN.onCommitted()
-  this.domains = {};       // Updated whenever we get some IPs.
-  this.lastPattern = "";   // To avoid redundant icon redraws.
-  this.deleted = false;    // True if this object is no longer in tabMap.
+  this.state = TAB_NEW;      // See the TAB_* constants above.
+  this.mainDomain = "";      // Set by wN.onCommitted()
+  this.domains = {};         // Updated whenever we get some IPs.
+  this.lastPattern = "";     // To avoid redundant icon redraws.
+  this.birthPollCount = 15;  // Max number of times to poll for tab birth.
 
   if (tabMap[tabId]) throw "Duplicate entry in tabMap";
   tabMap[tabId] = this;
 };
 
 TabInfo.prototype.setCommitted = function(mainDomain) {
-  var isFirstCommit = !this.committed;
-  this.committed = true;
   this.mainDomain = mainDomain;
-  this.updateIcon();
-  popups.pushAll(this.tabId);
-  if (isFirstCommit) {
-    this.pollForTabDeath();
+
+  if (this.state == TAB_NEW) {
+    // Start polling for the tab's existence.
+    this.state = TAB_BIRTH;
+    this.pollForBirth();
+  } else if (this.state == TAB_ALIVE) {
+    // Some sites (e.g. Google+) can trigger a wN.onCommitted event without
+    // actually reloading the page.  This destroys the pageAction, so we need
+    // to repopulate it manually.
+    this.lastPattern = "";
+    this.updateIcon();
   }
 };
 
@@ -179,7 +189,7 @@ TabInfo.prototype.addDomain = function(domain, addr, flags) {
     flags: flags,
   };
 
-  if (this.committed) {
+  if (this.state == TAB_ALIVE) {
     this.updateIcon();
     popups.pushOne(this.tabId, domain, addr, flags);
   }
@@ -242,46 +252,72 @@ TabInfo.prototype.getTuples = function() {
     }
   }
   return tuples;
-}
+};
 
-// Test if the current tab still exists, and then poll for it periodically.
-//
-// If the tabId belongs to a hidden tab used for pre-rendering, then the first
-// get() will fail immediately.  In some cases, this pre-rendered page won't
-// get any IP information, but that's better than leaking memory, and/or a
-// deluge of pageAction errors.  See http://crbug.com/93646.
+// Poll a tab until it appears for the first time.  Ideally, tabs.get() would
+// always succeed on the first try, but sometimes Chrome gives us a hidden tab
+// which we can't manipulate until the user performs some action
+// (see http://crbug.com/93646).  However, hidden tabs aren't guaranteed to
+// ever appear, so we have to abandon hope after enough attempts.
+TabInfo.prototype.pollForBirth = function() {
+  var that = this;
+  if (that.state != TAB_BIRTH) {
+    return;
+  }
+  chrome.tabs.get(that.tabId, function(tab) {
+    if (that.state != TAB_BIRTH) {
+      return;
+    }
+    if (tab) {
+      // Yay, the tab exists now; give it an icon.
+      that.state = TAB_ALIVE;
+      that.updateIcon();
+      popups.pushAll(this.tabId);
+      that.pollForDeath();
+    } else if (--that.birthPollCount >= 0) {
+      // This must be a hidden tab; poll again in a second.
+      setTimeout(function() { that.pollForBirth() }, 1000);
+    } else {
+      // Tab is taking too long to appear.  Give up.
+      console.log("Tab " + that.tabId + " never appeared.");
+      that.deleteMe();
+    }
+  });
+};
+
+// Poll a tab periodically, until it ceases to exist.
 //
 // After the tab is closed, the following error will appear in the console:
 //   "Port error: Could not establish connection. Receiving end does not exist."
 //
-// If http://crbug.com/124353 is ever resolved, then we'll be able to switch
-// back to the less-noisy tabs.connect() approach.
-TabInfo.prototype.pollForTabDeath = function() {
+// If http://crbug.com/93646 and http://crbug.com/124353 are ever fixed, then
+// we'll be able to switch back to the less-noisy tabs.connect() approach.
+TabInfo.prototype.pollForDeath = function() {
   var that = this;
-  if (that.deleted) {
+  if (that.state != TAB_ALIVE) {
     return;
   }
   chrome.tabs.get(that.tabId, function(tab) {
-    if (that.deleted) {
+    if (that.state != TAB_ALIVE) {
       return;
     }
     if (tab) {
       // Tab still exists.  Check again later.
-      setTimeout(function() { that.pollForTabDeath() }, 15000);
+      setTimeout(function() { that.pollForDeath() }, 15000);
     } else {
       // Tab no longer exists; clean up.
       that.deleteMe();
     }
   });
-}
+};
 
 TabInfo.prototype.deleteMe = function() {
-  if (this.deleted) {
+  if (this.state == TAB_DELETED) {
     return;
   }
 
   // Tell any in-flight requests/timeouts to ignore this instance.
-  this.deleted = true;
+  this.state = TAB_DELETED;
 
   delete tabMap[this.tabId];
 };
@@ -293,14 +329,14 @@ TabInfo.prototype.deleteMe = function() {
 Popups = function() {
   this.map = {};            // tabId -> popup window
   this.hasTimeout = false;  // Is the GC scheduled?
-}
+};
 
 // Attach a new popup window, and start sending it updates.
 Popups.prototype.attachWindow = function(win) {
   this.map[win.tabId] = win;
   this.pushAll(win.tabId);
   this.garbageCollect();
-}
+};
 
 // Periodically make sure this.map is a subset of the visible popups.
 Popups.prototype.garbageCollect = function() {
@@ -341,14 +377,14 @@ Popups.prototype.pushAll = function(tabId) {
   if (win && tabInfo) {
     win.pushAll(tabInfo.getTuples());
   }
-}
+};
 
 Popups.prototype.pushOne = function(tabId, domain, addr, flags) {
   var win = this.map[tabId];
   if (win) {
     win.pushOne([domain, addr, addrToVersion(addr), flags]);
   }
-}
+};
 
 popups = new Popups();
 
@@ -391,7 +427,7 @@ chrome.webRequest.onBeforeRequest.addListener(
 chrome.webRequest.onResponseStarted.addListener(
   function (details) {
     var requestInfo = requestMap[details.requestId];
-    if (!requestInfo || requestInfo.tabInfo.deleted) {
+    if (!requestInfo || requestInfo.tabInfo.state == TAB_DELETED) {
       return;
     }
     var parsed = parseUrl(details.url);

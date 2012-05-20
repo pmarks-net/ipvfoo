@@ -57,13 +57,6 @@ function subscribeMe() {
   bg.popups.attachWindow(window);
 }
 
-function tweakWidthForScrollbar() {
-  var db = document.body;
-  var scrollbarWidth = db.scrollHeight > db.clientHeight ?
-      db.clientWidth - db.offsetWidth : 0;
-  db.style.paddingRight = scrollbarWidth + "px";
-}
-
 // Clear the table, and fill it with new data.
 function pushAll(tuples) {
   var table = document.getElementById("addr_table");
@@ -174,7 +167,7 @@ function makeRow(isFirst, tuple) {
 </script>
 </head>
 
-<body onload="subscribeMe()" onresize="tweakWidthForScrollbar()">
+<body onload="subscribeMe()">
 <table id="addr_table"></table>
 </body>
 

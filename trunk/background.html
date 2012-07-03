@@ -144,8 +144,8 @@ TabInfo = function(tabId) {
   this.domains = {};          // Updated whenever we get some IPs.
   this.lastPattern = "";      // To avoid redundant icon redraws.
   this.birthPollCount = 15;   // Max number of times to poll for tab birth.
-  this.navOrigin = "";        // Origin of the latest main_frame navigation.
-  this.accessDenied = false;  // webNavigation events aren't permitted.
+  this.reqOrigin = "";        // Origin of the latest main_frame request.
+  this.accessDenied = false;  // webRequest events aren't permitted.
 
   if (tabMap[tabId]) throw "Duplicate entry in tabMap";
   tabMap[tabId] = this;
@@ -154,8 +154,8 @@ TabInfo = function(tabId) {
 TabInfo.prototype.setCommitted = function(mainDomain, origin) {
   this.mainDomain = mainDomain;
 
-  if (origin != this.navOrigin) {
-    // We never saw a main_frame webNavigation for this page, so it must've
+  if (origin != this.reqOrigin) {
+    // We never saw a main_frame webRequest for this page, so it must've
     // been blocked by some policy.  Wipe all the state to avoid reporting
     // misleading information.  Known cases where this can occur:
     // - chrome:// URLs
@@ -206,6 +206,7 @@ TabInfo.prototype.addDomain = function(domain, addr, flags) {
 
   if (this.state == TAB_ALIVE) {
     this.updateIcon();
+    popups.pushOne(this.tabId, domain, addr, flags);
   }
 };
 
@@ -289,7 +290,7 @@ TabInfo.prototype.pollForBirth = function() {
       // Yay, the tab exists now; give it an icon.
       that.state = TAB_ALIVE;
       that.updateIcon();
-      popups.pushAll(this.tabId);
+      popups.pushAll(that.tabId);
       that.pollForDeath();
     } else if (--that.birthPollCount >= 0) {
       // This must be a hidden tab; poll again in a second.
@@ -428,7 +429,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     }
     var isMainFrame = (details.type == "main_frame");
     if (isMainFrame) {
-      pokeTabInfo(details.tabId, true).navOrigin = parseUrl(details.url).origin;
+      pokeTabInfo(details.tabId, true).reqOrigin = parseUrl(details.url).origin;
     }
     var tabInfo = tabMap[details.tabId];
     if (!tabInfo) {

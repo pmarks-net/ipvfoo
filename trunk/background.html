@@ -113,13 +113,15 @@ function parseUrl(url) {
   a.href = url;
   if (a.protocol == 'file:') {
     domain = "file://";
+  } else if (a.protocol == 'chrome:') {
+    domain = "chrome://";
   } else {
     domain = a.hostname;
     if (a.protocol == 'https:') {
       ssl = true;
     }
   }
-  return { domain: domain, ssl: ssl };
+  return { domain: domain, ssl: ssl, origin: a.origin };
 }
 
 // -- TabInfo --
@@ -137,18 +139,31 @@ function pokeTabInfo(tabId, mustBeNew) {
 
 TabInfo = function(tabId) {
   this.tabId = tabId;
-  this.state = TAB_NEW;      // See the TAB_* constants above.
-  this.mainDomain = "";      // Set by wN.onCommitted()
-  this.domains = {};         // Updated whenever we get some IPs.
-  this.lastPattern = "";     // To avoid redundant icon redraws.
-  this.birthPollCount = 15;  // Max number of times to poll for tab birth.
+  this.state = TAB_NEW;       // See the TAB_* constants above.
+  this.mainDomain = "";       // Set by wN.onCommitted()
+  this.domains = {};          // Updated whenever we get some IPs.
+  this.lastPattern = "";      // To avoid redundant icon redraws.
+  this.birthPollCount = 15;   // Max number of times to poll for tab birth.
+  this.navOrigin = "";        // Origin of the latest main_frame navigation.
+  this.accessDenied = false;  // webNavigation events aren't permitted.
 
   if (tabMap[tabId]) throw "Duplicate entry in tabMap";
   tabMap[tabId] = this;
 };
 
-TabInfo.prototype.setCommitted = function(mainDomain) {
+TabInfo.prototype.setCommitted = function(mainDomain, origin) {
   this.mainDomain = mainDomain;
+
+  if (origin != this.navOrigin) {
+    // We never saw a main_frame webNavigation for this page, so it must've
+    // been blocked by some policy.  Wipe all the state to avoid reporting
+    // misleading information.  Known cases where this can occur:
+    // - chrome:// URLs
+    // - file:// URLs (when "allow" is unchecked)
+    // - Pages in the Chrome Web Store
+    this.domains = {};
+    this.accessDenied = true;
+  }
 
   if (this.state == TAB_NEW) {
     // Start polling for the tab's existence.
@@ -191,7 +206,6 @@ TabInfo.prototype.addDomain = function(domain, addr, flags) {
 
   if (this.state == TAB_ALIVE) {
     this.updateIcon();
-    popups.pushOne(this.tabId, domain, addr, flags);
   }
 };
 
@@ -235,8 +249,11 @@ TabInfo.prototype.updateIcon = function() {
 
 // Build some [domain, addr, version, flags] tuples, for a popup.
 TabInfo.prototype.getTuples = function() {
+  if (this.accessDenied) {
+    return [[this.mainDomain, "(access denied)", "?", FLAG_UNCACHED]];
+  }
   var domains = Object.keys(this.domains).sort();
-  var mainTuple = [this.mainDomain, "unknown", "?", 0];
+  var mainTuple = [this.mainDomain, "(error?)", "?", 0];
   var tuples = [mainTuple];
   for (var i = 0; i < domains.length; i++) {
     var domain = domains[i];
@@ -395,8 +412,9 @@ chrome.webNavigation.onCommitted.addListener(
     if (details.frameId != 0) {
       return;
     }
-    var mainDomain = parseUrl(details.url).domain;
-    pokeTabInfo(details.tabId, false).setCommitted(mainDomain);
+    var parsed = parseUrl(details.url);
+    pokeTabInfo(details.tabId, false).setCommitted(
+        parsed.domain, parsed.origin);
   }
 );
 
@@ -410,7 +428,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     }
     var isMainFrame = (details.type == "main_frame");
     if (isMainFrame) {
-      pokeTabInfo(details.tabId, true);
+      pokeTabInfo(details.tabId, true).navOrigin = parseUrl(details.url).origin;
     }
     var tabInfo = tabMap[details.tabId];
     if (!tabInfo) {
@@ -427,7 +445,9 @@ chrome.webRequest.onBeforeRequest.addListener(
 chrome.webRequest.onResponseStarted.addListener(
   function (details) {
     var requestInfo = requestMap[details.requestId];
-    if (!requestInfo || requestInfo.tabInfo.state == TAB_DELETED) {
+    if (!requestInfo ||
+        requestInfo.tabInfo.state == TAB_DELETED ||
+        requestInfo.tabInfo.accessDenied) {
       return;
     }
     var parsed = parseUrl(details.url);

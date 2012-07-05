@@ -70,6 +70,9 @@ TAB_BIRTH = 1;    // Polling for tabs.get() success.
 TAB_ALIVE = 2;    // Polling for tabs.get() failure.
 TAB_DELETED = 3;  // Dead.
 
+// RequestFilter for webRequest events.
+FILTER_ALL_URLS = { urls: ["<all_urls>"] };
+
 // pattern is 0..3 characters, each '4', '6', or '?'.
 function buildIcon(pattern) {
   var canvas = document.getElementById("canvas");
@@ -437,7 +440,7 @@ chrome.webRequest.onBeforeRequest.addListener(
       isMainFrame: isMainFrame,
     };
   },
-  {urls: ["<all_urls>"]}
+  FILTER_ALL_URLS
 );
 
 chrome.webRequest.onResponseStarted.addListener(
@@ -460,14 +463,14 @@ chrome.webRequest.onResponseStarted.addListener(
     }
     requestInfo.tabInfo.addDomain(parsed.domain, addr, flags);
   },
-  {urls: ["<all_urls>"]}
+  FILTER_ALL_URLS
 );
 
 chrome.webRequest.onCompleted.addListener(
   function(details) {
     delete requestMap[details.requestId];
   },
-  {urls: ["<all_urls>"]}
+  FILTER_ALL_URLS
 );
 
 chrome.webRequest.onErrorOccurred.addListener(
@@ -483,5 +486,5 @@ chrome.webRequest.onErrorOccurred.addListener(
       requestInfo.tabInfo.deleteMe();
     }
   },
-  {urls: ["<all_urls>"]}
+  FILTER_ALL_URLS
 );

@@ -1,12 +1,14 @@
 {
   "name": "IPvFoo",
-  "manifest_version": 1,
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Summarizes IPv4, IPv6, and HTTPS information for all connections made by the current webpage.",
   "homepage_url": "http://ipvfoo.googlecode.com/",
-  "icons": { "128": "icon128.png" },
-  "background": { "page": "background.html" },
-  "page_action": { },
+  "icons": {"128": "icon128.png" },
+  "background_page": "background.html",
+  "page_action": {
+    "default_popup": "popup.html"
+  },
+  "minimum_chrome_version": "17.0.963.0",
   "permissions": [
     "tabs",
     "webNavigation",

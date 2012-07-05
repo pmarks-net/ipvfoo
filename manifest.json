@@ -1,15 +1,18 @@
 {
   "name": "IPvFoo",
-  "manifest_version": 1,
-  "version": "1.0.13",
+  "manifest_version": 2,
+  "version": "1.0.14",
   "description": "Summarizes IPv4, IPv6, and HTTPS information for all connections made by the current webpage.",
   "homepage_url": "http://ipvfoo.googlecode.com/",
-  "icons": {"128": "icon128.png" },
-  "background_page": "background.html",
-  "page_action": {
-    "default_popup": "popup.html"
+  "icons": {
+    "128": "icon128.png"
   },
-  "minimum_chrome_version": "17.0.963.0",
+  "background": {
+    "page": "background.html"
+  },
+  "page_action": {
+    "dummy": "http://crbug.com/86449"
+  },
   "permissions": [
     "tabs",
     "webNavigation",

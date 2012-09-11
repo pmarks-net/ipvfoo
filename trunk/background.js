@@ -169,10 +169,12 @@ TabInfo.prototype.setCommitted = function(mainDomain, origin) {
     // Start polling for the tab's existence.
     this.state = TAB_BIRTH;
     this.pollForBirth();
-  } else if (this.state == TAB_ALIVE) {
-    // Some sites (e.g. Google+) can trigger a wN.onCommitted event without
-    // actually reloading the page.  This destroys the pageAction, so we need
-    // to repopulate it manually.
+  }
+};
+
+// If the pageAction is supposed to be visible now, then draw it again.
+TabInfo.prototype.refreshPageAction = function() {
+  if (this.state == TAB_ALIVE) {
     this.lastPattern = "";
     this.updateIcon();
   }
@@ -416,6 +418,20 @@ chrome.webNavigation.onCommitted.addListener(
     var parsed = parseUrl(details.url);
     pokeTabInfo(details.tabId, false).setCommitted(
         parsed.domain, parsed.origin);
+  }
+);
+
+// -- tabs --
+
+// Whenever anything tab-related happens, try to refresh the pageAction.  This
+// is hacky and inefficient, but the back-stabbing browser leaves me no choice.
+// This seems to fix http://crbug.com/124970 and some problems on Google+.
+chrome.tabs.onUpdated.addListener(
+  function(tabId, changeInfo, tab) {
+    var tabInfo = tabMap[tabId];
+    if (tabInfo) {
+      tabInfo.refreshPageAction();
+    }
   }
 );
 

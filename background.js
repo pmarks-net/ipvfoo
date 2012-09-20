@@ -445,7 +445,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     }
     var isMainFrame = (details.type == "main_frame");
     if (isMainFrame) {
-      pokeTabInfo(details.tabId, true).reqOrigin = parseUrl(details.url).origin;
+      pokeTabInfo(details.tabId, true);
     }
     var tabInfo = tabMap[details.tabId];
     if (!tabInfo) {
@@ -468,6 +468,9 @@ chrome.webRequest.onResponseStarted.addListener(
       return;
     }
     var parsed = parseUrl(details.url);
+    if (requestInfo.isMainFrame) {
+      requestInfo.tabInfo.reqOrigin = parsed.origin;
+    }
     if (!parsed.domain) {
       return;
     }

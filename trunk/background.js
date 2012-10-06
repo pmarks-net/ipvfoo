@@ -97,8 +97,11 @@ function drawSprite(ctx, target, source) {
                 target[0], target[1], source[2], source[3]);
 }
 
+// In theory, we should be using a full-blown subnet parser/matcher here,
+// but let's keep it simple and stick with text for now.
 function addrToVersion(addr) {
   if (addr) {
+    if (addr.match(/^64:ff9b::/)) return "4";  // RFC6052
     if (addr.indexOf(".") >= 0) return "4";
     if (addr.indexOf(":") >= 0) return "6";
   }

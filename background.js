@@ -62,6 +62,7 @@ targetSmall2 = [13, 9];
 FLAG_SSL = 0x1;
 FLAG_NOSSL = 0x2;
 FLAG_UNCACHED = 0x4;
+FLAG_CONNECTED = 0x8;
 
 // Possible states for an instance of TabInfo.
 // We begin at NEW, and only ever move forward, not backward.
@@ -185,13 +186,28 @@ TabInfo.prototype.refreshPageAction = function() {
 
 TabInfo.prototype.addDomain = function(domain, addr, flags) {
   var oldDomainInfo = this.domains[domain];
+  var connCount = null;
+  flags |= FLAG_CONNECTED;
 
   if (!oldDomainInfo) {
     // Limit the number of domains per page, to avoid wasting RAM.
     if (Object.keys(this.domains).length >= 100) {
       return;
     }
+    // Run this after the last connection goes away.
+    var that = this;
+    connCount = new ConnectionCounter(function() {
+      var d = that.domains[domain];
+      if (!d) return;
+      d.flags &= ~FLAG_CONNECTED;
+      if (that.state == TAB_ALIVE) {
+        popups.pushOne(that.tabId, domain, d.addr, d.flags);
+      }
+    });
+    connCount.up();
   } else {
+    connCount = oldDomainInfo.connCount;
+    connCount.up();
     // Don't allow a cached IP to overwrite an actually-connected IP.
     if (!(flags & FLAG_UNCACHED) && (oldDomainInfo.flags & FLAG_UNCACHED)) {
       addr = oldDomainInfo.addr;
@@ -207,6 +223,7 @@ TabInfo.prototype.addDomain = function(domain, addr, flags) {
   this.domains[domain] = {
     addr: addr,
     flags: flags,
+    connCount: connCount,
   };
 
   if (this.state == TAB_ALIVE) {
@@ -214,6 +231,13 @@ TabInfo.prototype.addDomain = function(domain, addr, flags) {
     popups.pushOne(this.tabId, domain, addr, flags);
   }
 };
+
+TabInfo.prototype.disconnectDomain = function(domain) {
+  var d = this.domains[domain];
+  if (d) {
+    d.connCount.down();
+  }
+}
 
 TabInfo.prototype.updateIcon = function() {
   var domains = Object.keys(this.domains);
@@ -345,6 +369,33 @@ TabInfo.prototype.deleteMe = function() {
   delete tabMap[this.tabId];
 };
 
+// -- ConnectionCounter --
+// This class counts the number of active connections to a particular domain.
+// Whenever the count reaches zero, and a bit of time has elapsed, run the
+// onZero function.  This will remove the highlight in the popup.
+
+ConnectionCounter = function(onZero) {
+  this.onZero = onZero;
+  this.count = 0;
+  this.timer = null;
+}
+
+ConnectionCounter.prototype.up = function() {
+  if (this.timer) {
+    clearTimeout(this.timer);
+    this.timer = null;
+  }
+  this.count += 1;
+}
+
+ConnectionCounter.prototype.down = function() {
+  if (!(this.count > 0)) throw "Count went negative!";
+  if (--this.count == 0) {
+    if (this.timer) throw "Duplicate onZero timer!";
+    this.timer = setTimeout(this.onZero, 1000);
+  }
+}
+
 // -- Popups --
 
 // This class keeps track of the visible popup windows,
@@ -457,6 +508,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     requestMap[details.requestId] = {
       tabInfo: tabInfo,
       isMainFrame: isMainFrame,
+      domain: null,
     };
   },
   FILTER_ALL_URLS
@@ -483,22 +535,32 @@ chrome.webRequest.onResponseStarted.addListener(
     if (!details.fromCache) {
       flags |= FLAG_UNCACHED;
     }
+    requestInfo.domain = parsed.domain;
     requestInfo.tabInfo.addDomain(parsed.domain, addr, flags);
   },
   FILTER_ALL_URLS
 );
 
+function forgetRequest(requestId) {
+  var requestInfo = requestMap[requestId];
+  delete requestMap[requestId];
+  if (requestInfo && requestInfo.domain) {
+    requestInfo.tabInfo.disconnectDomain(requestInfo.domain);
+    requestInfo.domain = null;
+  }
+  return requestInfo;
+};
+
 chrome.webRequest.onCompleted.addListener(
   function(details) {
-    delete requestMap[details.requestId];
+    forgetRequest(details.requestId);
   },
   FILTER_ALL_URLS
 );
 
 chrome.webRequest.onErrorOccurred.addListener(
   function(details) {
-    var requestInfo = requestMap[details.requestId];
-    delete requestMap[details.requestId];
+    var requestInfo = forgetRequest(requestInfo);
 
     // If the main_frame request failed prior to wN.onCommitted, then we'll
     // probably never get a chance to start the death poller, so just delete

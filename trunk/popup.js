@@ -108,15 +108,17 @@ function makeRow(isFirst, tuple) {
   var addrTd = document.createElement("td");
   var addrClass = "";
   switch (version) {
-    case "4": addrClass = "ip4"; break;
-    case "6": addrClass = "ip6"; break;
+    case "4": addrClass = " ip4"; break;
+    case "6": addrClass = " ip6"; break;
   }
-  addrTd.className = "ipCell " + addrClass;
+  var connectedClass = (flags & bg.FLAG_CONNECTED) ? " highlight" : "";
+  addrTd.className = "ipCell" + addrClass + connectedClass;
   addrTd.appendChild(document.createTextNode(addr));
+
 
   // Build the (possibly invisible) "Cached" column.
   var cacheTd = document.createElement("td");
-  cacheTd.className = "cacheCell";
+  cacheTd.className = "cacheCell" + connectedClass;
   if (!(flags & bg.FLAG_UNCACHED)) {
     cacheTd.title = "Data from cached requests only.";
     cacheTd.appendChild(document.createTextNode("\u21BB"));

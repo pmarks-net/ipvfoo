@@ -535,6 +535,7 @@ chrome.webRequest.onResponseStarted.addListener(
     if (!details.fromCache) {
       flags |= FLAG_UNCACHED;
     }
+    if (requestInfo.domain) throw "Duplicate onResponseStarted!";
     requestInfo.domain = parsed.domain;
     requestInfo.tabInfo.addDomain(parsed.domain, addr, flags);
   },
@@ -560,7 +561,7 @@ chrome.webRequest.onCompleted.addListener(
 
 chrome.webRequest.onErrorOccurred.addListener(
   function(details) {
-    var requestInfo = forgetRequest(requestInfo);
+    var requestInfo = forgetRequest(details.requestId);
 
     // If the main_frame request failed prior to wN.onCommitted, then we'll
     // probably never get a chance to start the death poller, so just delete

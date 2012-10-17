@@ -371,8 +371,8 @@ TabInfo.prototype.deleteMe = function() {
 
 // -- ConnectionCounter --
 // This class counts the number of active connections to a particular domain.
-// Whenever the count reaches zero, and a bit of time has elapsed, run the
-// onZero function.  This will remove the highlight in the popup.
+// Whenever the count reaches zero, run the onZero function.  This will remove
+// the highlight from the popup.  The timer enforces a minimum hold time.
 
 ConnectionCounter = function(onZero) {
   this.onZero = onZero;
@@ -381,18 +381,21 @@ ConnectionCounter = function(onZero) {
 }
 
 ConnectionCounter.prototype.up = function() {
-  if (this.timer) {
-    clearTimeout(this.timer);
-    this.timer = null;
+  var that = this;
+  if (++that.count == 1 && !that.timer) {
+    that.timer = setTimeout(function() {
+      that.timer = null;
+      if (that.count == 0) {
+        that.onZero();
+      }
+    }, 500);
   }
-  this.count += 1;
 }
 
 ConnectionCounter.prototype.down = function() {
   if (!(this.count > 0)) throw "Count went negative!";
-  if (--this.count == 0) {
-    if (this.timer) throw "Duplicate onZero timer!";
-    this.timer = setTimeout(this.onZero, 1000);
+  if (--this.count == 0 && !this.timer) {
+    this.onZero();
   }
 }
 

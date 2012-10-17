@@ -46,7 +46,7 @@ function pushOne(tuple) {
   for (var tr = table.firstChild; tr; tr = tr.nextSibling) {
     if (tr._domain == domain) {
       // Found an exact match.  Update the row.
-      table.replaceChild(makeRow(isFirst, tuple), tr);
+      minimalCopy(makeRow(isFirst, tuple), tr);
       return;
     }
     if (isFirst) {
@@ -58,6 +58,23 @@ function pushOne(tuple) {
   }
   // No exact match.  Insert the row in alphabetical order.
   table.insertBefore(makeRow(false, tuple), insertHere);
+}
+
+// Copy the contents of src into dst, making minimal changes.
+function minimalCopy(src, dst) {
+  dst.className = src.className;
+  for (var s = src.firstChild, d = dst.firstChild;
+       s && d; s = sNext, d = dNext) {
+    var sNext = s.nextSibling;
+    var dNext = d.nextSibling;
+    // First, sync up the class names.
+    d.className = s.className = s.className;
+    // Only replace the whole node if something changes.
+    // That way, we avoid stomping on the user's selected text.
+    if (!d.isEqualNode(s)) {
+      dst.replaceChild(s, d);
+    }
+  }
 }
 
 function makeImg(src, title) {

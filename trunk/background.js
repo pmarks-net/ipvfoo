@@ -277,6 +277,8 @@ TabInfo.prototype.updateIcon = function() {
   chrome.pageAction.setIcon({
     "tabId": this.tabId,
     "imageData": {
+      // Note: It might be possible to avoid redundant operations by reading
+      //       window.devicePixelRatio
       "19": buildIcon(pattern, "19"),
       "38": buildIcon(pattern, "38"),
     },

@@ -42,6 +42,12 @@ requestMap = {};
 // tabId -> TabInfo
 tabMap = {};
 
+// Coordinate multiplier for each icon size
+spriteMults = {
+  "19": 1,
+  "38": 2,
+};
+
 // Images from sprites.png: [x, y, w, h]
 spriteBig = {
   "4": [1,  1, 12, 16],
@@ -75,27 +81,29 @@ TAB_DELETED = 3;  // Dead.
 FILTER_ALL_URLS = { urls: ["<all_urls>"] };
 
 // pattern is 0..3 characters, each '4', '6', or '?'.
-function buildIcon(pattern) {
-  var canvas = document.getElementById("canvas");
+// size is either "19" or "38".
+function buildIcon(pattern, size) {
+  var canvas = document.getElementById("canvas" + size);
   var ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (pattern.length >= 1) {
-    drawSprite(ctx, targetBig, spriteBig[pattern.charAt(0)]);
+    drawSprite(ctx, size, targetBig, spriteBig[pattern.charAt(0)]);
   }
   if (pattern.length >= 2) {
-    drawSprite(ctx, targetSmall1, spriteSmall[pattern.charAt(1)]);
+    drawSprite(ctx, size, targetSmall1, spriteSmall[pattern.charAt(1)]);
   }
   if (pattern.length >= 3) {
-    drawSprite(ctx, targetSmall2, spriteSmall[pattern.charAt(2)]);
+    drawSprite(ctx, size, targetSmall2, spriteSmall[pattern.charAt(2)]);
   }
   return ctx.getImageData(0, 0, canvas.width, canvas.height);
 }
 
-function drawSprite(ctx, target, source) {
+function drawSprite(ctx, size, target, source) {
+  var m = spriteMults[size];
   // (image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
-  ctx.drawImage(document.getElementById("sprites"),
-                source[0], source[1], source[2], source[3],
-                target[0], target[1], source[2], source[3]);
+  ctx.drawImage(document.getElementById("sprites" + size),
+                m*source[0], m*source[1], m*source[2], m*source[3],
+                m*target[0], m*target[1], m*source[2], m*source[3]);
 }
 
 // In theory, we should be using a full-blown subnet parser/matcher here,
@@ -268,7 +276,10 @@ TabInfo.prototype.updateIcon = function() {
 
   chrome.pageAction.setIcon({
     "tabId": this.tabId,
-    "imageData": buildIcon(pattern),
+    "imageData": {
+      "19": buildIcon(pattern, "19"),
+      "38": buildIcon(pattern, "38"),
+    },
   });
   chrome.pageAction.setPopup({
     "tabId": this.tabId,

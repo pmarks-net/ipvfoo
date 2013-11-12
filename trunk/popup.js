@@ -120,6 +120,7 @@ function makeRow(isFirst, tuple) {
   // Build the "Domain" column.
   var domainTd = document.createElement("td");
   domainTd.appendChild(document.createTextNode(domain));
+  domainTd.onclick = domainTd.oncontextmenu = selectCell;
 
   // Build the "Address" column.
   var addrTd = document.createElement("td");
@@ -131,7 +132,7 @@ function makeRow(isFirst, tuple) {
   var connectedClass = (flags & bg.FLAG_CONNECTED) ? " highlight" : "";
   addrTd.className = "ipCell" + addrClass + connectedClass;
   addrTd.appendChild(document.createTextNode(addr));
-
+  addrTd.onclick = addrTd.oncontextmenu = selectCell;
 
   // Build the (possibly invisible) "Cached" column.
   var cacheTd = document.createElement("td");
@@ -149,4 +150,17 @@ function makeRow(isFirst, tuple) {
   tr.appendChild(addrTd);
   tr.appendChild(cacheTd);
   return tr;
+}
+
+function selectCell() {
+  var sel = window.getSelection();
+  // Don't interfere when user selects text manually.
+  if (!sel.isCollapsed && sel.containsNode(this, true)) {
+    return;
+  }
+  // Select the cell's contents, to make copying easier.
+  var range = document.createRange();
+  range.selectNodeContents(this);
+  sel.removeAllRanges();
+  sel.addRange(range);
 }

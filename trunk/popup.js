@@ -14,20 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-tabId = Number(window.location.hash.substr(1));
+var tabId = Number(window.location.hash.substr(1));
 if (!isFinite(tabId)) {
   throw "Bad tabId";
 }
 
 var bg = chrome.extension.getBackgroundPage();
+var table = null;
 
 window.onload = function() {
+  table = document.getElementById("addr_table");
+  table.onmousedown = handleMouseDown;
   bg.popups.attachWindow(window);
 };
 
 // Clear the table, and fill it with new data.
 function pushAll(tuples) {
-  var table = document.getElementById("addr_table");
   while (table.hasChildNodes()) {
     table.removeChild(table.lastChild);
   }
@@ -39,8 +41,6 @@ function pushAll(tuples) {
 // Insert or update a single table row.
 function pushOne(tuple) {
   var domain = tuple[0];
-  var table = document.getElementById("addr_table");
-
   var insertHere = null;
   var isFirst = true;
   for (var tr = table.firstChild; tr; tr = tr.nextSibling) {
@@ -120,7 +120,8 @@ function makeRow(isFirst, tuple) {
   // Build the "Domain" column.
   var domainTd = document.createElement("td");
   domainTd.appendChild(document.createTextNode(domain));
-  domainTd.onclick = domainTd.oncontextmenu = selectCell;
+  domainTd.onclick = handleClick;
+  domainTd.oncontextmenu = handleContextMenu;
 
   // Build the "Address" column.
   var addrTd = document.createElement("td");
@@ -132,7 +133,8 @@ function makeRow(isFirst, tuple) {
   var connectedClass = (flags & bg.FLAG_CONNECTED) ? " highlight" : "";
   addrTd.className = "ipCell" + addrClass + connectedClass;
   addrTd.appendChild(document.createTextNode(addr));
-  addrTd.onclick = addrTd.oncontextmenu = selectCell;
+  addrTd.onclick = handleClick;
+  addrTd.oncontextmenu = handleContextMenu;
 
   // Build the (possibly invisible) "Cached" column.
   var cacheTd = document.createElement("td");
@@ -152,15 +154,58 @@ function makeRow(isFirst, tuple) {
   return tr;
 }
 
-function selectCell() {
+// Mac OS has an annoying feature where right-click selects the current
+// "word" (i.e. a useless fragment of the address) before showing a
+// context menu.  Detect this by watching for the selection to change
+// between consecutive onmousedown and oncontextmenu events.
+var oldTimeStamp = 0;
+var oldRanges = [];
+function handleMouseDown(e) {
+  oldTimeStamp = e.timeStamp;
+  oldRanges = [];
   var sel = window.getSelection();
-  // Don't interfere when user selects text manually.
-  if (!sel.isCollapsed && sel.containsNode(this, true)) {
-    return;
+  for (var i = 0; i < sel.rangeCount; i++) {
+    oldRanges.push(sel.getRangeAt(i));
   }
-  // Select the cell's contents, to make copying easier.
-  var range = document.createRange();
-  range.selectNodeContents(this);
-  sel.removeAllRanges();
-  sel.addRange(range);
+}
+
+function isSpuriousSelection(sel, newTimeStamp) {
+  if (newTimeStamp - oldTimeStamp > 10) {
+    return false;
+  }
+  if (sel.rangeCount != oldRanges.length) {
+    return true;
+  }
+  for (var i = 0; i < sel.rangeCount; i++) {
+    var r1 = sel.getRangeAt(i);
+    var r2 = oldRanges[i];
+    if (r1.compareBoundaryPoints(Range.START_TO_START, r2) != 0 ||
+        r1.compareBoundaryPoints(Range.END_TO_END, r2) != 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function handleContextMenu(e) {
+  var sel = window.getSelection();
+  if (isSpuriousSelection(sel, e.timeStamp)) {
+    sel.removeAllRanges();
+  }
+  selectWholeAddress(this, sel);
+}
+
+function handleClick() {
+  selectWholeAddress(this, window.getSelection());
+}
+
+// If the user hasn't manually selected part of the address, then select
+// the whole thing, to make copying easier.
+function selectWholeAddress(node, sel) {
+  if (sel.isCollapsed || !sel.containsNode(node, true)) {
+    var range = document.createRange();
+    range.selectNodeContents(node);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
 }

@@ -18,25 +18,21 @@ limitations under the License.
 Lifecycle documentation:
 
 The purpose of requestMap is to copy tabInfo from wR.onBeforeRequest to
-wR.onResponseStarted (where the IP address is available.)  A map entry
-normally begins/ends with these two calls, but it could also be deleted
-in wR.onCompleted or wR.onErrorOccurred if something bad happens.
+wR.onResponseStarted (where the IP address is available), and to maintain
+the highlighted cell when a connection is open.  A map entry lives from
+from onBeforeRequest to wR.onCompleted or wR.onErrorOccurred.
 
 An entry in tabMap tries to approximate one "page view".  It begins in
 wR.onBeforeRequest(main_frame), and goes away either when another page
 begins, or when the tab ceases to exist (see pollForTabDeath for details.)
 
-UI updates begin in wN.onCommitted, which (hopefully) comes after
-wR.onResponseStarted(main_frame).  Updates continue as new requests are made,
-and stop in wR.onBeforeRequest(main_frame), i.e. the next page load.
-
-Notes:
-- I considered starting the UI updates in wR.onCompleted(main_frame), but
-  that sometimes fires too early, and the icon gets erased.  Thus,
-  wN.onCommitted is the best "start drawing" event I could find.
+UI updates begin once tabs.get() succeeds AND (
+    wR.onResponseStarted reports the first IP address OR
+    wN.onCommitted fires).
+They stop in wR.onBeforeRequest(main_frame), i.e. the next page load.
 */
 
-// requestId -> {tabInfo, isMainFrame}
+// requestId -> {tabInfo, domain}
 requestMap = {};
 
 // tabId -> TabInfo
@@ -71,11 +67,10 @@ FLAG_UNCACHED = 0x4;
 FLAG_CONNECTED = 0x8;
 
 // Possible states for an instance of TabInfo.
-// We begin at NEW, and only ever move forward, not backward.
-TAB_NEW = 0;      // New, waiting for onCommitted().
-TAB_BIRTH = 1;    // Polling for tabs.get() success.
-TAB_ALIVE = 2;    // Polling for tabs.get() failure.
-TAB_DELETED = 3;  // Dead.
+// We begin at BIRTH, and only ever move forward, not backward.
+TAB_BIRTH = 0;    // Polling for tabs.get() success.
+TAB_ALIVE = 1;    // Polling for tabs.get() failure.
+TAB_DELETED = 2;  // Dead.
 
 // RequestFilter for webRequest events.
 FILTER_ALL_URLS = { urls: ["<all_urls>"] };
@@ -128,7 +123,7 @@ function parseUrl(url) {
   } else if (a.protocol == 'chrome:') {
     domain = "chrome://";
   } else {
-    domain = a.hostname;
+    domain = a.hostname || "";
     if (a.protocol == 'https:') {
       ssl = true;
     }
@@ -151,22 +146,29 @@ function pokeTabInfo(tabId, mustBeNew) {
 
 TabInfo = function(tabId) {
   this.tabId = tabId;
-  this.state = TAB_NEW;       // See the TAB_* constants above.
-  this.mainDomain = "";       // Set by wN.onCommitted()
+  this.state = TAB_BIRTH;     // See the TAB_* constants above.
+  this.mainDomain = "";       // Bare domain from the main_frame request.
+  this.mainOrigin = "";       // Origin from the main_frame request.
+  this.dataExists = false;    // True if we have data to publish.
   this.domains = {};          // Updated whenever we get some IPs.
   this.lastPattern = "";      // To avoid redundant icon redraws.
   this.birthPollCount = 15;   // Max number of times to poll for tab birth.
-  this.reqOrigin = "";        // Origin of the latest main_frame request.
   this.accessDenied = false;  // webRequest events aren't permitted.
 
   if (tabMap[tabId]) throw "Duplicate entry in tabMap";
   tabMap[tabId] = this;
+
+  // Start polling for the tab's existence.
+  this.pollForBirth();
 };
 
-TabInfo.prototype.setCommitted = function(mainDomain, origin) {
-  this.mainDomain = mainDomain;
+TabInfo.prototype.setInitialDomain = function(domain, origin) {
+  this.mainDomain = domain;
+  this.mainOrigin = origin;
+}
 
-  if (origin != this.reqOrigin) {
+TabInfo.prototype.setCommitted = function(domain, origin) {
+  if (origin != this.mainOrigin) {
     // We never saw a main_frame webRequest for this page, so it must've
     // been blocked by some policy.  Wipe all the state to avoid reporting
     // misleading information.  Known cases where this can occur:
@@ -177,16 +179,19 @@ TabInfo.prototype.setCommitted = function(mainDomain, origin) {
     this.accessDenied = true;
   }
 
-  if (this.state == TAB_NEW) {
-    // Start polling for the tab's existence.
-    this.state = TAB_BIRTH;
-    this.pollForBirth();
+  // In most cases, these updates are redundant.
+  this.mainDomain = domain;
+  this.dataExists = true;
+
+  if (this.state == TAB_ALIVE) {
+    this.updateIcon();
+    popups.pushAll(this.tabId);
   }
 };
 
 // If the pageAction is supposed to be visible now, then draw it again.
 TabInfo.prototype.refreshPageAction = function() {
-  if (this.state == TAB_ALIVE) {
+  if (this.state == TAB_ALIVE && this.dataExists) {
     this.lastPattern = "";
     this.updateIcon();
   }
@@ -233,6 +238,7 @@ TabInfo.prototype.addDomain = function(domain, addr, flags) {
     flags: flags,
     connCount: connCount,
   };
+  this.dataExists = true;
 
   if (this.state == TAB_ALIVE) {
     this.updateIcon();
@@ -245,7 +251,7 @@ TabInfo.prototype.disconnectDomain = function(domain) {
   if (d) {
     d.connCount.down();
   }
-}
+};
 
 TabInfo.prototype.updateIcon = function() {
   var domains = Object.keys(this.domains);
@@ -292,11 +298,12 @@ TabInfo.prototype.updateIcon = function() {
 
 // Build some [domain, addr, version, flags] tuples, for a popup.
 TabInfo.prototype.getTuples = function() {
+  var mainDomain = this.mainDomain || "---";
   if (this.accessDenied) {
-    return [[this.mainDomain, "(access denied)", "?", FLAG_UNCACHED]];
+    return [[mainDomain, "(access denied)", "?", FLAG_UNCACHED]];
   }
   var domains = Object.keys(this.domains).sort();
-  var mainTuple = [this.mainDomain, "(error?)", "?", 0];
+  var mainTuple = [mainDomain, "(no address)", "?", 0];
   var tuples = [mainTuple];
   for (var i = 0; i < domains.length; i++) {
     var domain = domains[i];
@@ -329,10 +336,12 @@ TabInfo.prototype.pollForBirth = function() {
       return;
     }
     if (tab) {
-      // Yay, the tab exists now; give it an icon.
+      // Yay, the tab exists; maybe give it an icon.
       that.state = TAB_ALIVE;
-      that.updateIcon();
-      popups.pushAll(that.tabId);
+      if (that.dataExists) {
+        that.updateIcon();
+        popups.pushAll(that.tabId);
+      }
       that.pollForDeath();
     } else if (--that.birthPollCount >= 0) {
       // This must be a hidden tab; poll again in a second.
@@ -513,9 +522,10 @@ chrome.webRequest.onBeforeRequest.addListener(
       // This request isn't related to a tab.
       return;
     }
-    var isMainFrame = (details.type == "main_frame");
-    if (isMainFrame) {
-      pokeTabInfo(details.tabId, true);
+    if (details.type == "main_frame") {
+      var parsed = parseUrl(details.url);
+      pokeTabInfo(details.tabId, true).setInitialDomain(
+          parsed.domain, parsed.origin);
     }
     var tabInfo = tabMap[details.tabId];
     if (!tabInfo) {
@@ -523,7 +533,6 @@ chrome.webRequest.onBeforeRequest.addListener(
     }
     requestMap[details.requestId] = {
       tabInfo: tabInfo,
-      isMainFrame: isMainFrame,
       domain: null,
     };
   },
@@ -539,9 +548,6 @@ chrome.webRequest.onResponseStarted.addListener(
       return;
     }
     var parsed = parseUrl(details.url);
-    if (requestInfo.isMainFrame) {
-      requestInfo.tabInfo.reqOrigin = parsed.origin;
-    }
     if (!parsed.domain) {
       return;
     }
@@ -558,34 +564,13 @@ chrome.webRequest.onResponseStarted.addListener(
   FILTER_ALL_URLS
 );
 
-function forgetRequest(requestId) {
-  var requestInfo = requestMap[requestId];
-  delete requestMap[requestId];
+function forgetRequest(details) {
+  var requestInfo = requestMap[details.requestId];
+  delete requestMap[details.requestId];
   if (requestInfo && requestInfo.domain) {
     requestInfo.tabInfo.disconnectDomain(requestInfo.domain);
     requestInfo.domain = null;
   }
-  return requestInfo;
 };
-
-chrome.webRequest.onCompleted.addListener(
-  function(details) {
-    forgetRequest(details.requestId);
-  },
-  FILTER_ALL_URLS
-);
-
-chrome.webRequest.onErrorOccurred.addListener(
-  function(details) {
-    var requestInfo = forgetRequest(details.requestId);
-
-    // If the main_frame request failed prior to wN.onCommitted, then we'll
-    // probably never get a chance to start the death poller, so just delete
-    // this immediately.
-    if (requestInfo && requestInfo.isMainFrame &&
-        requestInfo.tabInfo.state == TAB_NEW) {
-      requestInfo.tabInfo.deleteMe();
-    }
-  },
-  FILTER_ALL_URLS
-);
+chrome.webRequest.onCompleted.addListener(forgetRequest, FILTER_ALL_URLS);
+chrome.webRequest.onErrorOccurred.addListener(forgetRequest, FILTER_ALL_URLS);

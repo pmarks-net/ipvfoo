@@ -16,6 +16,9 @@ limitations under the License.
 <html>
 <head>
 <style type="text/css">
+body {
+  margin: 0;
+}
 table, td, tr {
   border-width: 1px;
   border-collapse: collapse;
@@ -47,12 +50,17 @@ table, td, tr {
 .highlight {
   background-color: #ffff90;
 }
+#border_div {
+  display: inline-block;
+  padding: 6px;
+  width: 1000px;  // Hack: changes to "auto" onload.
+}
 </style>
 <script type="text/javascript" src="popup.js"></script>
 </head>
 
 <body>
-<table id="addr_table"></table>
+<div id="border_div"><table id="addr_table"></table></div>
 </body>
 
 </html>

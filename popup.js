@@ -25,6 +25,10 @@ var table = null;
 window.onload = function() {
   table = document.getElementById("addr_table");
   table.onmousedown = handleMouseDown;
+
+  // Partial workaround for http://crbug.com/317880
+  document.getElementById("border_div").style.width = "auto";
+
   bg.popups.attachWindow(window);
 };
 

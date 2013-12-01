@@ -1,7 +1,7 @@
 {
   "name": "IPvFoo",
   "manifest_version": 2,
-  "version": "1.26",
+  "version": "1.26.999",
   "minimum_chrome_version": "23",
   "description": "Display the server IP address, with a realtime summary of IPv4, IPv6, and HTTPS information across all page elements.",
   "homepage_url": "http://ipvfoo.googlecode.com/",
@@ -9,7 +9,7 @@
     "128": "icon128.png"
   },
   "background": {
-    "page": "background.html"
+    "scripts": [ "background.js" ]
   },
   "page_action": {
     "dummy": "http://crbug.com/86449"

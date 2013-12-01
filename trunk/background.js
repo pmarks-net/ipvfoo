@@ -75,12 +75,35 @@ TAB_DELETED = 2;  // Dead.
 // RequestFilter for webRequest events.
 FILTER_ALL_URLS = { urls: ["<all_urls>"] };
 
+// Load spriteXX.png of a particular size.
+var spriteElements = {};
+function getSpriteImg(size) {
+  var s = spriteElements[size];
+  if (!s) {
+    s = spriteElements[size] = document.createElement("img");
+    s.src = "sprites" + size + ".png";
+  }
+  return s;
+}
+
+// Get a <canvas> element of the given size.  We could get away with just one,
+// but seeing them side-by-side helps with multi-DPI debugging.
+var canvasElements = {};
+function getCanvasContext(size) {
+  var c = canvasElements[size];
+  if (!c) {
+    c = canvasElements[size] = document.createElement("canvas");
+    c.width = c.height = size;
+    document.body.appendChild(c);
+  }
+  return c.getContext("2d");
+}
+
 // pattern is 0..3 characters, each '4', '6', or '?'.
-// size is either "19" or "38".
+// size is either 19 or 38.
 function buildIcon(pattern, size) {
-  var canvas = document.getElementById("canvas" + size);
-  var ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  var ctx = getCanvasContext(size);
+  ctx.clearRect(0, 0, size, size);
   if (pattern.length >= 1) {
     drawSprite(ctx, size, targetBig, spriteBig[pattern.charAt(0)]);
   }
@@ -90,13 +113,13 @@ function buildIcon(pattern, size) {
   if (pattern.length >= 3) {
     drawSprite(ctx, size, targetSmall2, spriteSmall[pattern.charAt(2)]);
   }
-  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  return ctx.getImageData(0, 0, size, size);
 }
 
 function drawSprite(ctx, size, target, source) {
   var m = spriteMults[size];
   // (image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
-  ctx.drawImage(document.getElementById("sprites" + size),
+  ctx.drawImage(getSpriteImg(size),
                 m*source[0], m*source[1], m*source[2], m*source[3],
                 m*target[0], m*target[1], m*source[2], m*source[3]);
 }
@@ -285,8 +308,8 @@ TabInfo.prototype.updateIcon = function() {
     "imageData": {
       // Note: It might be possible to avoid redundant operations by reading
       //       window.devicePixelRatio
-      "19": buildIcon(pattern, "19"),
-      "38": buildIcon(pattern, "38"),
+      "19": buildIcon(pattern, 19),
+      "38": buildIcon(pattern, 38),
     },
   });
   chrome.pageAction.setPopup({

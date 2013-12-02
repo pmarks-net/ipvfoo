@@ -29,13 +29,14 @@ window.onload = function() {
 };
 
 // Clear the table, and fill it with new data.
-function pushAll(tuples) {
+function pushAll(tuples, spillCount) {
   while (table.hasChildNodes()) {
     table.removeChild(table.lastChild);
   }
   for (var i = 0; i < tuples.length; i++) {
     table.appendChild(makeRow(i == 0, tuples[i]));
   }
+  pushSpillCount(spillCount);
 }
 
 // Insert or update a single table row.
@@ -58,6 +59,13 @@ function pushOne(tuple) {
   }
   // No exact match.  Insert the row in alphabetical order.
   table.insertBefore(makeRow(false, tuple), insertHere);
+}
+
+// Count must be a number.
+function pushSpillCount(count) {
+  document.getElementById("spill_count_container").style.display =
+      count == 0 ? "none" : "block";
+  document.getElementById("spill_count").innerHTML = count;
 }
 
 // Copy the contents of src into dst, making minimal changes.

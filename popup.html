@@ -56,12 +56,22 @@ table, td, tr {
   float: left;
   padding: 6px;
 }
+#spill_count_container {
+  text-align: center;
+  font-weight: bold;
+  color: #888;
+}
 </style>
 <script type="text/javascript" src="popup.js"></script>
 </head>
 
 <body>
-<div class="border"><table id="addr_table"></table></div>
+<div class="border">
+  <table id="addr_table"></table>
+  <div id="spill_count_container">
+  &#x22ee; <span id="spill_count">0</span> requests omitted
+  </div>
+</div>
 </body>
 
 </html>

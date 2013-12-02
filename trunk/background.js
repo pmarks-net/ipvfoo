@@ -26,10 +26,13 @@ An entry in tabMap tries to approximate one "page view".  It begins in
 wR.onBeforeRequest(main_frame), and goes away either when another page
 begins, or when the tab ceases to exist (see pollForTabDeath for details.)
 
-UI updates begin once tabs.get() succeeds AND (
+Icon updates begin once tabs.get() succeeds AND (
     wR.onResponseStarted reports the first IP address OR
     wN.onCommitted fires).
-They stop in wR.onBeforeRequest(main_frame), i.e. the next page load.
+Note that it's useful to prevent '?' from flashing during a page load.
+
+Popup updates begin sooner, in wR.onBeforeRequest(main_frame), because the
+user can demand a popup before any IP addresses are available.
 */
 
 // requestId -> {tabInfo, domain}
@@ -174,6 +177,7 @@ TabInfo = function(tabId) {
   this.mainOrigin = "";       // Origin from the main_frame request.
   this.dataExists = false;    // True if we have data to publish.
   this.domains = {};          // Updated whenever we get some IPs.
+  this.spillCount = 0;        // How many requests didn't fit in domains.
   this.lastPattern = "";      // To avoid redundant icon redraws.
   this.birthPollCount = 15;   // Max number of times to poll for tab birth.
   this.accessDenied = false;  // webRequest events aren't permitted.
@@ -188,9 +192,16 @@ TabInfo = function(tabId) {
 TabInfo.prototype.setInitialDomain = function(domain, origin) {
   this.mainDomain = domain;
   this.mainOrigin = origin;
+
+  // If anyone's watching, show some preliminary state.
+  popups.pushAll(this.tabId);
 }
 
 TabInfo.prototype.setCommitted = function(domain, origin) {
+  if (this.state == TAB_DELETED) throw "Impossible";
+
+  var oldState = [this.accessDenied, this.mainDomain];
+
   if (origin != this.mainOrigin) {
     // We never saw a main_frame webRequest for this page, so it must've
     // been blocked by some policy.  Wipe all the state to avoid reporting
@@ -199,28 +210,32 @@ TabInfo.prototype.setCommitted = function(domain, origin) {
     // - file:// URLs (when "allow" is unchecked)
     // - Pages in the Chrome Web Store
     this.domains = {};
+    this.spillCount = 0;
     this.accessDenied = true;
   }
 
-  // In most cases, these updates are redundant.
   this.mainDomain = domain;
   this.dataExists = true;
 
-  if (this.state == TAB_ALIVE) {
-    this.updateIcon();
+  // This is usually redundant, but lastPattern takes care of it.
+  this.updateIcon();
+
+  // If the table contents changed, then redraw it.
+  var newState = [this.accessDenied, this.mainDomain];
+  if (oldState.toString() != newState.toString()) {
     popups.pushAll(this.tabId);
   }
 };
 
 // If the pageAction is supposed to be visible now, then draw it again.
 TabInfo.prototype.refreshPageAction = function() {
-  if (this.state == TAB_ALIVE && this.dataExists) {
-    this.lastPattern = "";
-    this.updateIcon();
-  }
+  this.lastPattern = "";
+  this.updateIcon();
 };
 
 TabInfo.prototype.addDomain = function(domain, addr, flags) {
+  if (this.state == TAB_DELETED) throw "Impossible";
+
   var oldDomainInfo = this.domains[domain];
   var connCount = null;
   flags |= FLAG_CONNECTED;
@@ -228,15 +243,18 @@ TabInfo.prototype.addDomain = function(domain, addr, flags) {
   if (!oldDomainInfo) {
     // Limit the number of domains per page, to avoid wasting RAM.
     if (Object.keys(this.domains).length >= 100) {
+      popups.pushSpillCount(this.tabId, ++this.spillCount);
       return;
     }
     // Run this after the last connection goes away.
     var that = this;
     connCount = new ConnectionCounter(function() {
+      if (that.state == TAB_DELETED) {
+        return;
+      }
       var d = that.domains[domain];
-      if (!d) return;
-      d.flags &= ~FLAG_CONNECTED;
-      if (that.state == TAB_ALIVE) {
+      if (d) {
+        d.flags &= ~FLAG_CONNECTED;
         popups.pushOne(that.tabId, domain, d.addr, d.flags);
       }
     });
@@ -263,10 +281,8 @@ TabInfo.prototype.addDomain = function(domain, addr, flags) {
   };
   this.dataExists = true;
 
-  if (this.state == TAB_ALIVE) {
-    this.updateIcon();
-    popups.pushOne(this.tabId, domain, addr, flags);
-  }
+  this.updateIcon();
+  popups.pushOne(this.tabId, domain, addr, flags);
 };
 
 TabInfo.prototype.disconnectDomain = function(domain) {
@@ -277,6 +293,9 @@ TabInfo.prototype.disconnectDomain = function(domain) {
 };
 
 TabInfo.prototype.updateIcon = function() {
+  if (!(this.state == TAB_ALIVE && this.dataExists)) {
+    return;
+  }
   var domains = Object.keys(this.domains);
   var pattern = "?";
   var has4 = false;
@@ -321,6 +340,8 @@ TabInfo.prototype.updateIcon = function() {
 
 // Build some [domain, addr, version, flags] tuples, for a popup.
 TabInfo.prototype.getTuples = function() {
+  if (this.state == TAB_DELETED) throw "Impossible";
+
   var mainDomain = this.mainDomain || "---";
   if (this.accessDenied) {
     return [[mainDomain, "(access denied)", "?", FLAG_UNCACHED]];
@@ -361,17 +382,14 @@ TabInfo.prototype.pollForBirth = function() {
     if (tab) {
       // Yay, the tab exists; maybe give it an icon.
       that.state = TAB_ALIVE;
-      if (that.dataExists) {
-        that.updateIcon();
-        popups.pushAll(that.tabId);
-      }
+      that.updateIcon();
       that.pollForDeath();
     } else if (--that.birthPollCount >= 0) {
       // This must be a hidden tab; poll again in a second.
       setTimeout(function() { that.pollForBirth() }, 1000);
     } else {
       // Tab is taking too long to appear.  Give up.
-      console.log("Tab " + that.tabId + " never appeared.");
+      // console.log("Tab " + that.tabId + " never appeared.");
       that.deleteMe();
     }
   });
@@ -497,7 +515,7 @@ Popups.prototype.pushAll = function(tabId) {
   var win = this.map[tabId];
   var tabInfo = tabMap[tabId];
   if (win && tabInfo) {
-    win.pushAll(tabInfo.getTuples());
+    win.pushAll(tabInfo.getTuples(), tabInfo.spillCount);
   }
 };
 
@@ -505,6 +523,13 @@ Popups.prototype.pushOne = function(tabId, domain, addr, flags) {
   var win = this.map[tabId];
   if (win) {
     win.pushOne([domain, addr, addrToVersion(addr), flags]);
+  }
+};
+
+Popups.prototype.pushSpillCount = function(tabId, count) {
+  var win = this.map[tabId];
+  if (win) {
+    win.pushSpillCount(count);
   }
 };
 

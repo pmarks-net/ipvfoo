@@ -4,7 +4,7 @@
   "version": "1.27",
   "minimum_chrome_version": "26",
   "description": "Display the server IP address, with a realtime summary of IPv4, IPv6, and HTTPS information across all page elements.",
-  "homepage_url": "http://ipvfoo.googlecode.com/",
+  "homepage_url": "https://ipvfoo.googlecode.com/",
   "icons": {
     "128": "icon128.png"
   },

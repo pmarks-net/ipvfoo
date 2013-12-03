@@ -20,16 +20,16 @@ Lifecycle documentation:
 The purpose of requestMap is to copy tabInfo from wR.onBeforeRequest to
 wR.onResponseStarted (where the IP address is available), and to maintain
 the highlighted cell when a connection is open.  A map entry lives from
-from onBeforeRequest to wR.onCompleted or wR.onErrorOccurred.
+onBeforeRequest to wR.onCompleted or wR.onErrorOccurred.
 
 An entry in tabMap tries to approximate one "page view".  It begins in
 wR.onBeforeRequest(main_frame), and goes away either when another page
-begins, or when the tab ceases to exist (see pollForTabDeath for details.)
+begins, or when the tab ceases to exist (see TabTracker for details.)
 
-Icon updates begin once tabs.get() succeeds AND (
+Icon updates begin once TabTracker succeeds AND (
     wR.onResponseStarted reports the first IP address OR
     wN.onCommitted fires).
-Note that it's useful to prevent '?' from flashing during a page load.
+Note that we'd like to avoid flashing '?' during a page load.
 
 Popup updates begin sooner, in wR.onBeforeRequest(main_frame), because the
 user can demand a popup before any IP addresses are available.
@@ -71,8 +71,8 @@ FLAG_CONNECTED = 0x8;
 
 // Possible states for an instance of TabInfo.
 // We begin at BIRTH, and only ever move forward, not backward.
-TAB_BIRTH = 0;    // Polling for tabs.get() success.
-TAB_ALIVE = 1;    // Polling for tabs.get() failure.
+TAB_BIRTH = 0;    // Waiting for TabTracker onConnect
+TAB_ALIVE = 1;    // Waiting for TabTracker onDisconnect
 TAB_DELETED = 2;  // Dead.
 
 // RequestFilter for webRequest events.
@@ -159,17 +159,6 @@ function parseUrl(url) {
 
 // -- TabInfo --
 
-function pokeTabInfo(tabId, mustBeNew) {
-  var oldTabInfo = tabMap[tabId];
-  if (oldTabInfo) {
-    if (!mustBeNew) {
-      return oldTabInfo;
-    }
-    oldTabInfo.deleteMe();
-  }
-  return new TabInfo(tabId);
-}
-
 TabInfo = function(tabId) {
   this.tabId = tabId;
   this.state = TAB_BIRTH;     // See the TAB_* constants above.
@@ -179,14 +168,26 @@ TabInfo = function(tabId) {
   this.domains = {};          // Updated whenever we get some IPs.
   this.spillCount = 0;        // How many requests didn't fit in domains.
   this.lastPattern = "";      // To avoid redundant icon redraws.
-  this.birthPollCount = 15;   // Max number of times to poll for tab birth.
   this.accessDenied = false;  // webRequest events aren't permitted.
 
+  // First, clean up the previous TabInfo, if any.
+  tabTracker.disconnect(tabId);
   if (tabMap[tabId]) throw "Duplicate entry in tabMap";
   tabMap[tabId] = this;
 
   // Start polling for the tab's existence.
-  this.pollForBirth();
+  var that = this;
+  tabTracker.connect(tabId, function() {
+    // onConnect: Yay, the tab exists; maybe give it an icon.
+    if (that.state != TAB_BIRTH) throw "Unexpected onConnect!";
+    that.state = TAB_ALIVE;
+    that.updateIcon();
+  }, function() {
+    // onDisconnect: Tell in-flight requests/timeouts to ignore this instance.
+    if (that.state == TAB_DELETED) throw "Redundant onDisconnect!";
+    that.state = TAB_DELETED;
+    delete tabMap[that.tabId];
+  });
 };
 
 TabInfo.prototype.setInitialDomain = function(domain, origin) {
@@ -365,73 +366,6 @@ TabInfo.prototype.getTuples = function() {
   return tuples;
 };
 
-// Poll a tab until it appears for the first time.  Ideally, tabs.get() would
-// always succeed on the first try, but sometimes Chrome gives us a hidden tab
-// which we can't manipulate until the user performs some action
-// (see http://crbug.com/93646).  However, hidden tabs aren't guaranteed to
-// ever appear, so we have to abandon hope after enough attempts.
-TabInfo.prototype.pollForBirth = function() {
-  var that = this;
-  if (that.state != TAB_BIRTH) {
-    return;
-  }
-  chrome.tabs.get(that.tabId, function(tab) {
-    if (that.state != TAB_BIRTH) {
-      return;
-    }
-    if (tab) {
-      // Yay, the tab exists; maybe give it an icon.
-      that.state = TAB_ALIVE;
-      that.updateIcon();
-      that.pollForDeath();
-    } else if (--that.birthPollCount >= 0) {
-      // This must be a hidden tab; poll again in a second.
-      setTimeout(function() { that.pollForBirth() }, 1000);
-    } else {
-      // Tab is taking too long to appear.  Give up.
-      // console.log("Tab " + that.tabId + " never appeared.");
-      that.deleteMe();
-    }
-  });
-};
-
-// Poll a tab periodically, until it ceases to exist.
-//
-// After the tab is closed, the following error will appear in the console:
-//   "Error during tabs.get: No tab with id: 123."
-//
-// If http://crbug.com/93646 and http://crbug.com/124353 are ever fixed, then
-// we'll be able to switch back to the less-noisy tabs.connect() approach.
-TabInfo.prototype.pollForDeath = function() {
-  var that = this;
-  if (that.state != TAB_ALIVE) {
-    return;
-  }
-  chrome.tabs.get(that.tabId, function(tab) {
-    if (that.state != TAB_ALIVE) {
-      return;
-    }
-    if (tab) {
-      // Tab still exists.  Check again later.
-      setTimeout(function() { that.pollForDeath() }, 15000);
-    } else {
-      // Tab no longer exists; clean up.
-      that.deleteMe();
-    }
-  });
-};
-
-TabInfo.prototype.deleteMe = function() {
-  if (this.state == TAB_DELETED) {
-    return;
-  }
-
-  // Tell any in-flight requests/timeouts to ignore this instance.
-  this.state = TAB_DELETED;
-
-  delete tabMap[this.tabId];
-};
-
 // -- ConnectionCounter --
 // This class counts the number of active connections to a particular domain.
 // Whenever the count reaches zero, run the onZero function.  This will remove
@@ -535,6 +469,144 @@ Popups.prototype.pushSpillCount = function(tabId, count) {
 
 popups = new Popups();
 
+// -- TabTracker --
+
+// This class keeps track of every usable tabId, sending notifications when a
+// tab appears or disappears.
+//
+// Rationale:
+//
+// Sometimes a webRequest event belongs to a hidden tab (e.g. for a pre-rendered
+// page), and we can't set a pageAction on it until it becomes visible.
+// However, hidden tabs may vanish without a trace, so the best we can really
+// do is set a timer, and abandon hope if it doesn't appear.
+//
+// Once a tab has become visible, then hopefully we can rely on the onRemoved
+// event to fire sometime in the future, when the user closes it.
+TabTracker = function() {
+  this.tabSet = {};               // Set of all known tabIds
+  this.timers = {};               // tabId -> clearTimeout key
+  this.connectCallbacks = {};     // tabId -> onConnect callback
+  this.disconnectCallbacks = {};  // tabId -> onDisconnect callback
+
+  var that = this;
+  chrome.tabs.onCreated.addListener(function(tab) {
+    that.addTab_(tab.id, "onCreated");
+  });
+  chrome.tabs.onRemoved.addListener(function(tabId) {
+    that.removeTab_(tabId, "onRemoved");
+  });
+  chrome.tabs.onReplaced.addListener(function(addId, removeId) {
+    that.addTab_(addId, "onReplaced");
+    that.removeTab_(removeId, "onReplaced");
+  });
+  this.pollAllTabs_();
+}
+
+// Begin watching this tabId.  If the tab exists, then onConnect fires
+// immediately (or within 30 seconds), otherwise onDisconnect fires to indicate
+// failure.  After a successful connection, onDisconnect fires when the tab
+// finally does go away.
+TabTracker.prototype.connect = function(tabId, onConnect, onDisconnect) {
+  if (tabId in this.timers ||
+      tabId in this.connectCallbacks ||
+      tabId in this.disconnectCallbacks) {
+    throw "Duplicate connection: " + tabId;
+  }
+  this.connectCallbacks[tabId] = onConnect;
+  this.disconnectCallbacks[tabId] = onDisconnect;
+  if (tabId in this.tabSet) {
+    // Connect immediately.
+    this.finishConnect_(tabId);
+  } else {
+    // Disconnect if the tab doesn't appear within 30 seconds.
+    var that = this;
+    this.timers[tabId] = setTimeout(function() {
+      that.disconnect(tabId);
+    }, 30000);
+  }
+};
+
+// If a watcher is bound to this tabId, then disconnect it.
+TabTracker.prototype.disconnect = function(tabId) {
+  var timer = this.timers[tabId];
+  var onDisconnect = this.disconnectCallbacks[tabId];
+  delete this.timers[tabId];
+  delete this.connectCallbacks[tabId];
+  delete this.disconnectCallbacks[tabId];
+  if (timer) {
+    clearTimeout(timer);
+  }
+  if (onDisconnect) {
+    onDisconnect();
+  }
+};
+
+// If a watcher is waiting for this tabId, then connect it.
+TabTracker.prototype.finishConnect_ = function(tabId) {
+  var timer = this.timers[tabId];
+  var onConnect = this.connectCallbacks[tabId];
+  delete this.timers[tabId];
+  delete this.connectCallbacks[tabId];
+  if (timer) {
+    clearTimeout(timer);
+  }
+  if (onConnect) {
+    if (!this.disconnectCallbacks[tabId]) {
+      throw "onConnect requires an onDisconnect!";
+    }
+    onConnect();
+  }
+};
+
+// Given two set-like objects, return "a - b".
+function subtractSets(a, b) {
+  var out = [];
+  for (x in a) if (!(x in b)) {
+    out.push(x);
+  }
+  return out;
+}
+
+// Get the set of all known tabs, and synchronize our state by calling
+// add/remove on the differences.  After the startup run, this should ideally
+// become a no-op, provided that the events are all firing as expected.
+// But just in case, repeat every few minutes to check for garbage.
+TabTracker.prototype.pollAllTabs_ = function() {
+  var that = this;
+  chrome.tabs.query({}, function(result) {
+    var newTabSet = {};
+    for (var i = 0; i < result.length; i++) {
+      newTabSet[result[i].id] = true;
+    }
+    var toAdd = subtractSets(newTabSet, that.tabSet);
+    var toRemove = subtractSets(that.tabSet, newTabSet);
+    for (var i = 0; i < toAdd.length; i++) {
+      that.addTab_(toAdd[i], "pollAllTabs_");
+    }
+    for (var i = 0; i < toRemove.length; i++) {
+      console.log("Removing garbage tab: " + toRemove[i]);
+      that.removeTab_(toRemove[i], "pollAllTabs_");
+    }
+    // Check again in 5 minutes.
+    setTimeout(function() { that.pollAllTabs_() }, 5 * 60000);
+  });
+};
+
+// Record that this tabId now exists.
+TabTracker.prototype.addTab_ = function(tabId, logText) {
+  this.tabSet[tabId] = true;
+  this.finishConnect_(tabId);
+};
+
+// Record that this tabId no longer exists.
+TabTracker.prototype.removeTab_ = function(tabId, logText) {
+  delete this.tabSet[tabId];
+  this.disconnect(tabId);
+};
+
+var tabTracker = new TabTracker();
+
 // -- webNavigation --
 
 chrome.webNavigation.onCommitted.addListener(
@@ -543,8 +615,8 @@ chrome.webNavigation.onCommitted.addListener(
       return;
     }
     var parsed = parseUrl(details.url);
-    pokeTabInfo(details.tabId, false).setCommitted(
-        parsed.domain, parsed.origin);
+    var tabInfo = tabMap[details.tabId] || new TabInfo(details.tabId);
+    tabInfo.setCommitted(parsed.domain, parsed.origin);
   }
 );
 
@@ -572,7 +644,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     }
     if (details.type == "main_frame") {
       var parsed = parseUrl(details.url);
-      pokeTabInfo(details.tabId, true).setInitialDomain(
+      new TabInfo(details.tabId).setInitialDomain(
           parsed.domain, parsed.origin);
     }
     var tabInfo = tabMap[details.tabId];

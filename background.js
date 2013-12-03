@@ -43,8 +43,8 @@ tabMap = {};
 
 // Coordinate multiplier for each icon size
 spriteMults = {
-  "19": 1,
-  "38": 2,
+  19: 1,
+  38: 2,
 };
 
 // Images from sprites.png: [x, y, w, h]

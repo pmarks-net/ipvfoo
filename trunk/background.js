@@ -196,7 +196,7 @@ TabInfo.prototype.setInitialDomain = function(domain, origin) {
 
   // If anyone's watching, show some preliminary state.
   popups.pushAll(this.tabId);
-}
+};
 
 TabInfo.prototype.setCommitted = function(domain, origin) {
   if (this.state == TAB_DELETED) throw "Impossible";
@@ -375,7 +375,7 @@ ConnectionCounter = function(onZero) {
   this.onZero = onZero;
   this.count = 0;
   this.timer = null;
-}
+};
 
 ConnectionCounter.prototype.up = function() {
   var that = this;
@@ -387,14 +387,14 @@ ConnectionCounter.prototype.up = function() {
       }
     }, 500);
   }
-}
+};
 
 ConnectionCounter.prototype.down = function() {
   if (!(this.count > 0)) throw "Count went negative!";
   if (--this.count == 0 && !this.timer) {
     this.onZero();
   }
-}
+};
 
 // -- Popups --
 
@@ -501,7 +501,7 @@ TabTracker = function() {
     that.removeTab_(removeId, "onReplaced");
   });
   this.pollAllTabs_();
-}
+};
 
 // Begin watching this tabId.  If the tab exists, then onConnect fires
 // immediately (or within 30 seconds), otherwise onDisconnect fires to indicate
@@ -609,80 +609,71 @@ var tabTracker = new TabTracker();
 
 // -- webNavigation --
 
-chrome.webNavigation.onCommitted.addListener(
-  function(details) {
-    if (details.frameId != 0) {
-      return;
-    }
-    var parsed = parseUrl(details.url);
-    var tabInfo = tabMap[details.tabId] || new TabInfo(details.tabId);
-    tabInfo.setCommitted(parsed.domain, parsed.origin);
+chrome.webNavigation.onCommitted.addListener(function(details) {
+  if (details.frameId != 0) {
+    return;
   }
-);
+  var parsed = parseUrl(details.url);
+  var tabInfo = tabMap[details.tabId] || new TabInfo(details.tabId);
+  tabInfo.setCommitted(parsed.domain, parsed.origin);
+});
 
 // -- tabs --
 
 // Whenever anything tab-related happens, try to refresh the pageAction.  This
 // is hacky and inefficient, but the back-stabbing browser leaves me no choice.
 // This seems to fix http://crbug.com/124970 and some problems on Google+.
-chrome.tabs.onUpdated.addListener(
-  function(tabId, changeInfo, tab) {
-    var tabInfo = tabMap[tabId];
-    if (tabInfo) {
-      tabInfo.refreshPageAction();
-    }
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+  var tabInfo = tabMap[tabId];
+  if (tabInfo) {
+    tabInfo.refreshPageAction();
   }
-);
+});
 
 // -- webRequest --
 
-chrome.webRequest.onBeforeRequest.addListener(
-  function (details) {
-    if (!details.tabId || details.tabId == -1) {
-      // This request isn't related to a tab.
-      return;
-    }
-    if (details.type == "main_frame") {
-      var parsed = parseUrl(details.url);
-      new TabInfo(details.tabId).setInitialDomain(
-          parsed.domain, parsed.origin);
-    }
-    var tabInfo = tabMap[details.tabId];
-    if (!tabInfo) {
-      return;
-    }
-    requestMap[details.requestId] = {
-      tabInfo: tabInfo,
-      domain: null,
-    };
-  },
-  FILTER_ALL_URLS
-);
-
-chrome.webRequest.onResponseStarted.addListener(
-  function (details) {
-    var requestInfo = requestMap[details.requestId];
-    if (!requestInfo ||
-        requestInfo.tabInfo.state == TAB_DELETED ||
-        requestInfo.tabInfo.accessDenied) {
-      return;
-    }
+chrome.webRequest.onBeforeRequest.addListener(function (details) {
+  if (!details.tabId || details.tabId == -1) {
+    // This request isn't related to a tab.
+    return;
+  }
+  if (details.type == "main_frame") {
     var parsed = parseUrl(details.url);
-    if (!parsed.domain) {
-      return;
-    }
-    var addr = details.ip || "(no address)";
+    new TabInfo(details.tabId).setInitialDomain(
+        parsed.domain, parsed.origin);
+  }
+  var tabInfo = tabMap[details.tabId];
+  if (!tabInfo) {
+    return;
+  }
+  requestMap[details.requestId] = {
+    tabInfo: tabInfo,
+    domain: null,
+  };
+}, FILTER_ALL_URLS);
 
-    var flags = parsed.ssl ? FLAG_SSL : FLAG_NOSSL;
-    if (!details.fromCache) {
-      flags |= FLAG_UNCACHED;
-    }
-    if (requestInfo.domain) throw "Duplicate onResponseStarted!";
-    requestInfo.domain = parsed.domain;
-    requestInfo.tabInfo.addDomain(parsed.domain, addr, flags);
-  },
-  FILTER_ALL_URLS
-);
+chrome.webRequest.onResponseStarted.addListener(function (details) {
+  var requestInfo = requestMap[details.requestId];
+  if (!requestInfo ||
+      requestInfo.tabInfo.state == TAB_DELETED ||
+      requestInfo.tabInfo.accessDenied) {
+    return;
+  }
+  var parsed = parseUrl(details.url);
+  if (!parsed.domain) {
+    return;
+  }
+  var addr = details.ip || "(no address)";
+
+  var flags = parsed.ssl ? FLAG_SSL : FLAG_NOSSL;
+  if (!details.fromCache) {
+    flags |= FLAG_UNCACHED;
+  }
+  if (requestInfo.domain) throw "Duplicate onResponseStarted!";
+  requestInfo.domain = parsed.domain;
+  requestInfo.tabInfo.addDomain(parsed.domain, addr, flags);
+},
+FILTER_ALL_URLS);
 
 function forgetRequest(details) {
   var requestInfo = requestMap[details.requestId];

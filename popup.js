@@ -142,7 +142,7 @@ function makeRow(isFirst, tuple) {
   addrTd.className = "ipCell" + addrClass + connectedClass;
   addrTd.appendChild(document.createTextNode(addr));
   addrTd.onclick = handleClick;
-  addrTd.oncontextmenu = handleContextMenu;
+  addrTd.oncontextmenu = handleAddrContextMenu;
 
   // Build the (possibly invisible) "Cached" column.
   var cacheTd = document.createElement("td");
@@ -195,12 +195,26 @@ function isSpuriousSelection(sel, newTimeStamp) {
   return false;
 }
 
+function handleAddrContextMenu(e) {
+  var sel = handleContextMenu.call(this, e);
+  var text = sel.toString();
+  if (text == this.innerText) {
+    bg.updateContextMenu(text);
+    e.cancelBubble = true;  // Inhibits the handler below.
+  }
+}
+
+document.oncontextmenu = function() {
+  bg.updateContextMenu("");
+};
+
 function handleContextMenu(e) {
   var sel = window.getSelection();
   if (isSpuriousSelection(sel, e.timeStamp)) {
     sel.removeAllRanges();
   }
   selectWholeAddress(this, sel);
+  return sel;
 }
 
 function handleClick() {

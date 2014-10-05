@@ -78,6 +78,9 @@ TAB_DELETED = 2;  // Dead.
 // RequestFilter for webRequest events.
 FILTER_ALL_URLS = { urls: ["<all_urls>"] };
 
+// Simple whitelist of IP address characters.
+IP_CHARS = /^[0-9A-Fa-f:.]+$/;
+
 // Load spriteXX.png of a particular size.
 var spriteElements = {};
 function getSpriteImg(size) {
@@ -131,7 +134,7 @@ function drawSprite(ctx, size, target, source) {
 // but let's keep it simple and stick with text for now.
 function addrToVersion(addr) {
   if (addr) {
-    if (addr.match(/^64:ff9b::/)) return "4";  // RFC6052
+    if (/^64:ff9b::/.test(addr)) return "4";  // RFC6052
     if (addr.indexOf(".") >= 0) return "4";
     if (addr.indexOf(":") >= 0) return "6";
   }
@@ -685,3 +688,36 @@ function forgetRequest(details) {
 };
 chrome.webRequest.onCompleted.addListener(forgetRequest, FILTER_ALL_URLS);
 chrome.webRequest.onErrorOccurred.addListener(forgetRequest, FILTER_ALL_URLS);
+
+// -- contextMenus --
+
+// When the user right-clicks an IP address in the popup window, add a menu
+// item to look up the address on bgp.he.net.  I don't like picking favorites,
+// so I'm open to making this a config option if someone recommends another
+// useful non-spammy service.
+var menuIsEnabled = false;
+var menuId = chrome.contextMenus.create({
+  enabled: menuIsEnabled,
+  title: "Look up address on bgp.he.net",
+  // Scope the menu to text selection in our popup windows.
+  contexts: ['selection'],
+  documentUrlPatterns: [document.location.origin + "/popup.html"],
+  onclick: function(info) {
+    var text = info.selectionText;
+    if (IP_CHARS.test(text)) {
+      window.open("http://bgp.he.net/ip/" + text);
+    }
+  }
+});
+
+// Enable the context menu iff the text might be an IP address.  I think it's
+// technically a race to do this from a contextmenu handler, but trivial updates
+// seem to work okay.  http://crbug.com/60758 would be helpful here.
+function updateContextMenu(text) {
+  var enabled = IP_CHARS.test(text);
+  if (enabled == menuIsEnabled) {
+    return;
+  }
+  chrome.contextMenus.update(menuId, {enabled: enabled});
+  menuIsEnabled = enabled;
+}

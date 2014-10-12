@@ -35,11 +35,16 @@ Popup updates begin sooner, in wR.onBeforeRequest(main_frame), because the
 user can demand a popup before any IP addresses are available.
 */
 
+// Returns an Object with no default properties.
+function newMap() {
+  return Object.create(null);
+}
+
 // requestId -> {tabInfo, domain}
-requestMap = {};
+requestMap = newMap(); 
 
 // tabId -> TabInfo
-tabMap = {};
+tabMap = newMap();
 
 // Coordinate multiplier for each icon size
 spriteMults = {
@@ -82,7 +87,7 @@ FILTER_ALL_URLS = { urls: ["<all_urls>"] };
 IP_CHARS = /^[0-9A-Fa-f:.]+$/;
 
 // Load spriteXX.png of a particular size.
-var spriteElements = {};
+var spriteElements = newMap();
 function getSpriteImg(size) {
   var s = spriteElements[size];
   if (!s) {
@@ -94,7 +99,7 @@ function getSpriteImg(size) {
 
 // Get a <canvas> element of the given size.  We could get away with just one,
 // but seeing them side-by-side helps with multi-DPI debugging.
-var canvasElements = {};
+var canvasElements = newMap();
 function getCanvasContext(size) {
   var c = canvasElements[size];
   if (!c) {
@@ -147,13 +152,13 @@ function parseUrl(url) {
 
   var a = document.createElement("a");
   a.href = url;
-  if (a.protocol == 'file:') {
+  if (a.protocol == "file:") {
     domain = "file://";
-  } else if (a.protocol == 'chrome:') {
+  } else if (a.protocol == "chrome:") {
     domain = "chrome://";
   } else {
     domain = a.hostname || "";
-    if (a.protocol == 'https:') {
+    if (a.protocol == "https:") {
       ssl = true;
     }
   }
@@ -168,7 +173,7 @@ TabInfo = function(tabId) {
   this.mainDomain = "";       // Bare domain from the main_frame request.
   this.mainOrigin = "";       // Origin from the main_frame request.
   this.dataExists = false;    // True if we have data to publish.
-  this.domains = {};          // Updated whenever we get some IPs.
+  this.domains = newMap();    // Updated whenever we get some IPs.
   this.spillCount = 0;        // How many requests didn't fit in domains.
   this.lastPattern = "";      // To avoid redundant icon redraws.
   this.accessDenied = false;  // webRequest events aren't permitted.
@@ -213,7 +218,7 @@ TabInfo.prototype.setCommitted = function(domain, origin) {
     // - chrome:// URLs
     // - file:// URLs (when "allow" is unchecked)
     // - Pages in the Chrome Web Store
-    this.domains = {};
+    this.domains = newMap();
     this.spillCount = 0;
     this.accessDenied = true;
   }
@@ -404,7 +409,7 @@ ConnectionCounter.prototype.down = function() {
 // This class keeps track of the visible popup windows,
 // and streams changes to them as they occur.
 Popups = function() {
-  this.map = {};            // tabId -> popup window
+  this.map = newMap();      // tabId -> popup window
   this.hasTimeout = false;  // Is the GC scheduled?
 };
 
@@ -427,7 +432,7 @@ Popups.prototype.garbageCollect = function() {
   var that = this;
   setTimeout(function() {
     // Find all the tabs with active popups.
-    var popupTabs = {};
+    var popupTabs = newMap();
     var popups = chrome.extension.getViews({type:"popup"});
     for (var i = 0; i < popups.length; i++) {
       popupTabs[popups[i].tabId] = true;
@@ -487,10 +492,10 @@ popups = new Popups();
 // Once a tab has become visible, then hopefully we can rely on the onRemoved
 // event to fire sometime in the future, when the user closes it.
 TabTracker = function() {
-  this.tabSet = {};               // Set of all known tabIds
-  this.timers = {};               // tabId -> clearTimeout key
-  this.connectCallbacks = {};     // tabId -> onConnect callback
-  this.disconnectCallbacks = {};  // tabId -> onDisconnect callback
+  this.tabSet = newMap();               // Set of all known tabIds
+  this.timers = newMap();               // tabId -> clearTimeout key
+  this.connectCallbacks = newMap();     // tabId -> onConnect callback
+  this.disconnectCallbacks = newMap();  // tabId -> onDisconnect callback
 
   var that = this;
   chrome.tabs.onCreated.addListener(function(tab) {
@@ -578,7 +583,7 @@ function subtractSets(a, b) {
 TabTracker.prototype.pollAllTabs_ = function() {
   var that = this;
   chrome.tabs.query({}, function(result) {
-    var newTabSet = {};
+    var newTabSet = newMap();
     for (var i = 0; i < result.length; i++) {
       newTabSet[result[i].id] = true;
     }
@@ -700,12 +705,12 @@ var menuId = chrome.contextMenus.create({
   enabled: menuIsEnabled,
   title: "Look up address on bgp.he.net",
   // Scope the menu to text selection in our popup windows.
-  contexts: ['selection'],
+  contexts: ["selection"],
   documentUrlPatterns: [document.location.origin + "/popup.html"],
   onclick: function(info) {
     var text = info.selectionText;
     if (IP_CHARS.test(text)) {
-      window.open("http://bgp.he.net/ip/" + text);
+      chrome.tabs.create({url: "http://bgp.he.net/ip/" + text});
     }
   }
 });

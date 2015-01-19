@@ -148,8 +148,8 @@ function makeRow(isFirst, tuple) {
   var cacheTd = document.createElement("td");
   cacheTd.className = "cacheCell" + connectedClass;
   if (!(flags & bg.FLAG_UNCACHED)) {
-    cacheTd.title = "Data from cached requests only.";
-    cacheTd.appendChild(document.createTextNode("\u21BB"));
+    cacheTd.appendChild(
+        makeImg("cached_arrow.png", "Data from cached requests only."));
   } else {
     cacheTd.style.padding = 0;
   }

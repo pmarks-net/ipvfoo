@@ -9,4 +9,4 @@ https://chrome.google.com/webstore/detail/ecanpcehffngcegjmadlcijfolapggal
 ![Screenshot](/misc/screenshot_webstore_640x400.png?raw=true)
 
 #### Firefox Port:
-Somebody named "Dagger" reimplemented IPvFoo for Firefox, and called it "[IPvFox](https://addons.mozilla.org/en-US/firefox/addon/ipvfox/)".  It uses the same concept and images, but [different code](https://github.com/Dagger0/IPvFox).
+There exists an IPvFoo-like extension for Firefox named [IPvFox](https://github.com/Dagger0/IPvFox).  It's based on the same images, but is otherwise an independent project.

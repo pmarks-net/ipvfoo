@@ -176,6 +176,7 @@ TabInfo = function(tabId) {
   this.domains = newMap();    // Updated whenever we get some IPs.
   this.spillCount = 0;        // How many requests didn't fit in domains.
   this.lastPattern = "";      // To avoid redundant icon redraws.
+  this.lastTooltip = "";      // To avoid redundant tooltip updates.
   this.accessDenied = false;  // webRequest events aren't permitted.
 
   // First, clean up the previous TabInfo, if any.
@@ -239,6 +240,7 @@ TabInfo.prototype.setCommitted = function(domain, origin) {
 // If the pageAction is supposed to be visible now, then draw it again.
 TabInfo.prototype.refreshPageAction = function() {
   this.lastPattern = "";
+  this.lastTooltip = "";
   this.updateIcon();
 };
 
@@ -251,7 +253,7 @@ TabInfo.prototype.addDomain = function(domain, addr, flags) {
 
   if (!oldDomainInfo) {
     // Limit the number of domains per page, to avoid wasting RAM.
-    if (Object.keys(this.domains).length >= 100) {
+    if (Object.keys(this.domains).length >= 256) {
       popups.pushSpillCount(this.tabId, ++this.spillCount);
       return;
     }
@@ -309,12 +311,14 @@ TabInfo.prototype.updateIcon = function() {
   var pattern = "?";
   var has4 = false;
   var has6 = false;
+  var tooltip = "";
   for (var i = 0; i < domains.length; i++) {
     var domain = domains[i];
     var addr = this.domains[domain].addr;
     var version = addrToVersion(addr);
     if (domain == this.mainDomain) {
       pattern = version;
+      tooltip = addr + " - IPvFoo";
     } else {
       switch (version) {
         case "4": has4 = true; break;
@@ -324,6 +328,15 @@ TabInfo.prototype.updateIcon = function() {
   }
   if (has4) pattern += "4";
   if (has6) pattern += "6";
+
+  // Don't waste time rewriting the same tooltip.
+  if (this.lastTooltip != tooltip) {
+    chrome.pageAction.setTitle({
+      "tabId": this.tabId,
+      "title": tooltip,
+    });
+    this.lastTooltip = tooltip;
+  }
 
   // Don't waste time redrawing the same icon.
   if (this.lastPattern == pattern) {

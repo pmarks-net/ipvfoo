@@ -518,8 +518,8 @@ TabTracker = function() {
     that.removeTab_(tabId, "onRemoved");
   });
   chrome.tabs.onReplaced.addListener(function(addId, removeId) {
-    that.addTab_(addId, "onReplaced");
     that.removeTab_(removeId, "onReplaced");
+    that.addTab_(addId, "onReplaced");
   });
   this.pollAllTabs_();
 };

@@ -46,27 +46,43 @@ requestMap = newMap();
 // tabId -> TabInfo
 tabMap = newMap();
 
-// Coordinate multiplier for each icon size
-spriteMults = {
-  19: 1,
-  38: 2,
-};
-
-// Images from sprites.png: [x, y, w, h]
+// Images from spritesXX.png: [x, y, w, h]
 spriteBig = {
-  "4": [1,  1, 12, 16],
-  "6": [14, 1, 12, 16],
-  "?": [27, 1, 12, 16],
+  "4": {16: [1, 1, 9, 14],
+        19: [1, 1, 12, 16],
+        38: [2, 2, 24, 32]},
+  "6": {16: [11, 1, 9, 14],
+        19: [14, 1, 12, 16],
+        38: [28, 2, 24, 32]},
+  "?": {16: [21, 1, 9, 14],
+        19: [27, 1, 12, 16],
+        38: [54, 2, 24, 32]},
 };
 spriteSmall = {
-  "4": [40, 1, 6, 6],
-  "6": [40, 8, 6, 6],
+  "4": {16: [31, 1, 6, 6],
+        19: [40, 1, 6, 6],
+        38: [80, 2, 12, 12]},
+  "6": {16: [31, 8, 6, 6],
+        19: [40, 8, 6, 6],
+        38: [80, 16, 12, 12]},
 };
 
 // Destination coordinates: [x, y]
-targetBig = [1, 2];
-targetSmall1 = [13, 2];
-targetSmall2 = [13, 9];
+targetBig = {
+  16: [0, 1],
+  19: [1, 2],
+  38: [2, 4],
+};
+targetSmall1 = {
+  16: [10, 1],
+  19: [13, 2],
+  38: [26, 4],
+};
+targetSmall2 = {
+  16: [10, 8],
+  19: [13, 9],
+  38: [26, 18],
+};
 
 // Flags are bitwise-OR'd across all connections to a domain.
 FLAG_SSL = 0x1;
@@ -111,7 +127,7 @@ function getCanvasContext(size) {
 }
 
 // pattern is 0..3 characters, each '4', '6', or '?'.
-// size is either 19 or 38.
+// size is 16, 19, or 38.
 function buildIcon(pattern, size) {
   var ctx = getCanvasContext(size);
   ctx.clearRect(0, 0, size, size);
@@ -127,12 +143,13 @@ function buildIcon(pattern, size) {
   return ctx.getImageData(0, 0, size, size);
 }
 
-function drawSprite(ctx, size, target, source) {
-  var m = spriteMults[size];
+function drawSprite(ctx, size, targets, sources) {
+  var source = sources[size];
+  var target = targets[size];
   // (image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
   ctx.drawImage(getSpriteImg(size),
-                m*source[0], m*source[1], m*source[2], m*source[3],
-                m*target[0], m*target[1], m*source[2], m*source[3]);
+                source[0], source[1], source[2], source[3],
+                target[0], target[1], source[2], source[3]);
 }
 
 // In theory, we should be using a full-blown subnet parser/matcher here,
@@ -349,6 +366,7 @@ TabInfo.prototype.updateIcon = function() {
     "imageData": {
       // Note: It might be possible to avoid redundant operations by reading
       //       window.devicePixelRatio
+      "16": buildIcon(pattern, 16),
       "19": buildIcon(pattern, 19),
       "38": buildIcon(pattern, 38),
     },

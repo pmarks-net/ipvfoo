@@ -150,8 +150,9 @@ function makeRow(isFirst, tuple) {
   if (!(flags & bg.FLAG_UNCACHED)) {
     cacheTd.appendChild(
         makeImg("cached_arrow.png", "Data from cached requests only."));
+    cacheTd.style.paddingLeft = '6pt';
   } else {
-    cacheTd.style.padding = 0;
+    cacheTd.style.paddingLeft = '0';
   }
 
   tr._domain = domain;

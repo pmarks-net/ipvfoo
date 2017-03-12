@@ -89,6 +89,7 @@ FLAG_SSL = 0x1;
 FLAG_NOSSL = 0x2;
 FLAG_UNCACHED = 0x4;
 FLAG_CONNECTED = 0x8;
+FLAG_WEBSOCKET = 0x10;
 
 // Possible states for an instance of TabInfo.
 // We begin at BIRTH, and only ever move forward, not backward.
@@ -166,6 +167,7 @@ function addrToVersion(addr) {
 function parseUrl(url) {
   var domain = null;
   var ssl = false;
+  var ws = false;
 
   var a = document.createElement("a");
   a.href = url;
@@ -175,11 +177,19 @@ function parseUrl(url) {
     domain = "chrome://";
   } else {
     domain = a.hostname || "";
-    if (a.protocol == "https:") {
-      ssl = true;
+    switch (a.protocol) {
+      case "https:":
+        ssl = true;
+        break;
+      case "wss:":
+        ssl = true;
+        // fallthrough
+      case "ws:":
+        ws = true;
+        break;
     }
   }
-  return { domain: domain, ssl: ssl, origin: a.origin };
+  return { domain: domain, ssl: ssl, ws: ws, origin: a.origin };
 }
 
 // -- TabInfo --
@@ -705,6 +715,9 @@ chrome.webRequest.onResponseStarted.addListener(function (details) {
   var addr = details.ip || "(no address)";
 
   var flags = parsed.ssl ? FLAG_SSL : FLAG_NOSSL;
+  if (parsed.ws) {
+    flags |= FLAG_WEBSOCKET;
+  }
   if (!details.fromCache) {
     flags |= FLAG_UNCACHED;
   }

@@ -144,10 +144,16 @@ function makeRow(isFirst, tuple) {
   addrTd.onclick = handleClick;
   addrTd.oncontextmenu = handleAddrContextMenu;
 
-  // Build the (possibly invisible) "Cached" column.
+  // Build the (possibly invisible) "WebSocket/Cached" column.
+  // We don't need to worry about drawing both, because a cached WebSocket
+  // would be nonsensical.
   var cacheTd = document.createElement("td");
   cacheTd.className = "cacheCell" + connectedClass;
-  if (!(flags & bg.FLAG_UNCACHED)) {
+  if (flags & bg.FLAG_WEBSOCKET) {
+    cacheTd.appendChild(
+        makeImg("websocket.png", "WebSocket handshake; connection may still be active."));
+    cacheTd.style.paddingLeft = '6pt';
+  } else if (!(flags & bg.FLAG_UNCACHED)) {
     cacheTd.appendChild(
         makeImg("cached_arrow.png", "Data from cached requests only."));
     cacheTd.style.paddingLeft = '6pt';

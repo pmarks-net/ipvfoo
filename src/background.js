@@ -17,13 +17,13 @@ limitations under the License.
 /*
 Lifecycle documentation:
 
-The purpose of requestMap is to copy tabInfo from wR.onBeforeRequest to
+The purpose of requestMap is to copy tabInfo from wR.onSendHeaders to
 wR.onResponseStarted (where the IP address is available), and to maintain
 the highlighted cell when a connection is open.  A map entry lives from
-onBeforeRequest to wR.onCompleted or wR.onErrorOccurred.
+onSendHeaders until wR.onCompleted or wR.onErrorOccurred.
 
 An entry in tabMap tries to approximate one "page view".  It begins in
-wR.onBeforeRequest(main_frame), and goes away either when another page
+wR.onSendHeaders(main_frame), and goes away either when another page
 begins, or when the tab ceases to exist (see TabTracker for details.)
 
 Icon updates begin once TabTracker succeeds AND (
@@ -31,8 +31,12 @@ Icon updates begin once TabTracker succeeds AND (
     wN.onCommitted fires).
 Note that we'd like to avoid flashing '?' during a page load.
 
-Popup updates begin sooner, in wR.onBeforeRequest(main_frame), because the
+Popup updates begin sooner, in wR.onSendHeaders(main_frame), because the
 user can demand a popup before any IP addresses are available.
+
+Note that the request lifetime begins with onSendHeaders, because in the
+event of an HSTS redirect, onBeforeRequest fires too early, before the
+change to "https:" (see https://github.com/pmarks-net/ipvfoo/issues/30).
 */
 
 // Returns an Object with no default properties.
@@ -681,7 +685,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
 
 // -- webRequest --
 
-chrome.webRequest.onBeforeRequest.addListener(function (details) {
+chrome.webRequest.onSendHeaders.addListener(function (details) {
   if (!details.tabId || details.tabId == -1) {
     // This request isn't related to a tab.
     return;
@@ -724,8 +728,7 @@ chrome.webRequest.onResponseStarted.addListener(function (details) {
   if (requestInfo.domain) throw "Duplicate onResponseStarted!";
   requestInfo.domain = parsed.domain;
   requestInfo.tabInfo.addDomain(parsed.domain, addr, flags);
-},
-FILTER_ALL_URLS);
+}, FILTER_ALL_URLS);
 
 function forgetRequest(details) {
   var requestInfo = requestMap[details.requestId];

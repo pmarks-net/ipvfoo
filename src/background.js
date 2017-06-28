@@ -17,13 +17,13 @@ limitations under the License.
 /*
 Lifecycle documentation:
 
-The purpose of requestMap is to copy tabInfo from wR.onSendHeaders to
+The purpose of requestMap is to copy tabInfo from wR.onBeforeRequest to
 wR.onResponseStarted (where the IP address is available), and to maintain
 the highlighted cell when a connection is open.  A map entry lives from
-onSendHeaders until wR.onCompleted or wR.onErrorOccurred.
+onBeforeRequest until wR.onCompleted or wR.onErrorOccurred.
 
 An entry in tabMap tries to approximate one "page view".  It begins in
-wR.onSendHeaders(main_frame), and goes away either when another page
+wR.onBeforeRequest(main_frame), and goes away either when another page
 begins, or when the tab ceases to exist (see TabTracker for details.)
 
 Icon updates begin once TabTracker succeeds AND (
@@ -31,12 +31,8 @@ Icon updates begin once TabTracker succeeds AND (
     wN.onCommitted fires).
 Note that we'd like to avoid flashing '?' during a page load.
 
-Popup updates begin sooner, in wR.onSendHeaders(main_frame), because the
+Popup updates begin sooner, in wR.onBeforeRequest(main_frame), because the
 user can demand a popup before any IP addresses are available.
-
-Note that the request lifetime begins with onSendHeaders, because in the
-event of an HSTS redirect, onBeforeRequest fires too early, before the
-change to "https:" (see https://github.com/pmarks-net/ipvfoo/issues/30).
 */
 
 // Returns an Object with no default properties.
@@ -204,6 +200,7 @@ TabInfo = function(tabId) {
   this.mainDomain = "";       // Bare domain from the main_frame request.
   this.mainOrigin = "";       // Origin from the main_frame request.
   this.dataExists = false;    // True if we have data to publish.
+  this.committed = false;     // True if onCommitted has fired.
   this.domains = newMap();    // Updated whenever we get some IPs.
   this.spillCount = 0;        // How many requests didn't fit in domains.
   this.lastPattern = "";      // To avoid redundant icon redraws.
@@ -257,6 +254,7 @@ TabInfo.prototype.setCommitted = function(domain, origin) {
 
   this.mainDomain = domain;
   this.dataExists = true;
+  this.committed = true;
 
   // This is usually redundant, but lastPattern takes care of it.
   this.updateIcon();
@@ -685,7 +683,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
 
 // -- webRequest --
 
-chrome.webRequest.onSendHeaders.addListener(function (details) {
+chrome.webRequest.onBeforeRequest.addListener(function (details) {
   if (!details.tabId || details.tabId == -1) {
     // This request isn't related to a tab.
     return;
@@ -703,6 +701,32 @@ chrome.webRequest.onSendHeaders.addListener(function (details) {
     tabInfo: tabInfo,
     domain: null,
   };
+}, FILTER_ALL_URLS);
+
+// In the event of an HSTS redirect, the mainOrigin may change
+// (from http: to https:) between the onBeforeRequest and onCommitted events,
+// triggering an "access denied" error.  We use onSendHeaders to patch this,
+// because it fires in between, providing the correct origin.
+//
+// However, we must treat this event as optional, because file:// and
+// ServiceWorker URLs are known to skip over it.
+chrome.webRequest.onSendHeaders.addListener(function (details) {
+  if (details.type != "main_frame") {
+    return;
+  }
+  var requestInfo = requestMap[details.requestId];
+  if (!requestInfo) {
+    return;
+  }
+  var tabInfo = requestInfo.tabInfo;
+  if (tabInfo.state == TAB_DELETED) {
+    return;
+  }
+  if (tabInfo.committed) {
+    throw "onCommitted before onSendHeaders!";
+  }
+  var parsed = parseUrl(details.url);
+  tabInfo.setInitialDomain(parsed.domain, parsed.origin);
 }, FILTER_ALL_URLS);
 
 chrome.webRequest.onResponseStarted.addListener(function (details) {

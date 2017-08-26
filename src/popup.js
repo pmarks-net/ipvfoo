@@ -30,9 +30,7 @@ window.onload = function() {
 
 // Clear the table, and fill it with new data.
 function pushAll(tuples, spillCount) {
-  while (table.hasChildNodes()) {
-    table.removeChild(table.lastChild);
-  }
+  removeChildren(table);
   for (var i = 0; i < tuples.length; i++) {
     table.appendChild(makeRow(i == 0, tuples[i]));
   }
@@ -65,7 +63,15 @@ function pushOne(tuple) {
 function pushSpillCount(count) {
   document.getElementById("spill_count_container").style.display =
       count == 0 ? "none" : "block";
-  document.getElementById("spill_count").innerHTML = count;
+  removeChildren(document.getElementById("spill_count")).appendChild(
+      document.createTextNode(count));
+}
+
+function removeChildren(n) {
+  while (n.hasChildNodes()) {
+    n.removeChild(n.lastChild);
+  }
+  return n;
 }
 
 // Copy the contents of src into dst, making minimal changes.

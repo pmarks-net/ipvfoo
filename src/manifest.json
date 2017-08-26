@@ -21,5 +21,10 @@
     "webNavigation",
     "webRequest",
     "<all_urls>"
-  ]
+  ],
+  "applications": {
+      "gecko": {
+          "id": "ipvfoo@pmarks.net"
+      }
+  }
 }

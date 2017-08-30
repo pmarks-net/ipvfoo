@@ -8,5 +8,5 @@ https://chrome.google.com/webstore/detail/ecanpcehffngcegjmadlcijfolapggal
 #### Screenshot:
 ![Screenshot](/misc/screenshot_webstore_640x400.png?raw=true)
 
-#### Firefox Port:
-There exists an IPvFoo-like extension for Firefox named [IPvFox](https://github.com/Dagger0/IPvFox).  It's based on the same images, but is otherwise an independent project.
+#### Firefox Support:
+IPvFoo now [runs on Firefox](https://addons.mozilla.org/en-US/firefox/addon/ipvfoo-pmarks/), but there are [a few bugs](https://github.com/pmarks-net/ipvfoo/issues/32) to work out.

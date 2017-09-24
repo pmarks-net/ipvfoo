@@ -10,7 +10,7 @@
     "128": "icon128.png"
   },
   "background": {
-    "scripts": [ "background.js" ]
+    "scripts": [ "common.js", "background.js" ]
   },
   "page_action": {
     "dummy": "http://crbug.com/86449"
@@ -21,10 +21,5 @@
     "webNavigation",
     "webRequest",
     "<all_urls>"
-  ],
-  "applications": {
-      "gecko": {
-          "id": "ipvfoo@pmarks.net"
-      }
-  }
+  ]
 }

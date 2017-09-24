@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-var tabId = Number(window.location.hash.substr(1));
+window.tabId = Number(window.location.hash.substr(1));
 if (!isFinite(tabId)) {
   throw "Bad tabId";
 }
 
-var bg = chrome.extension.getBackgroundPage();
-var table = null;
+const bg = chrome.extension.getBackgroundPage();
+let table = null;
 
 window.onload = function() {
   table = document.getElementById("addr_table");
@@ -31,7 +31,7 @@ window.onload = function() {
 // Clear the table, and fill it with new data.
 function pushAll(tuples, spillCount) {
   removeChildren(table);
-  for (var i = 0; i < tuples.length; i++) {
+  for (let i = 0; i < tuples.length; i++) {
     table.appendChild(makeRow(i == 0, tuples[i]));
   }
   pushSpillCount(spillCount);
@@ -39,10 +39,10 @@ function pushAll(tuples, spillCount) {
 
 // Insert or update a single table row.
 function pushOne(tuple) {
-  var domain = tuple[0];
-  var insertHere = null;
-  var isFirst = true;
-  for (var tr = table.firstChild; tr; tr = tr.nextSibling) {
+  const domain = tuple[0];
+  let insertHere = null;
+  let isFirst = true;
+  for (let tr = table.firstChild; tr; tr = tr.nextSibling) {
     if (tr._domain == domain) {
       // Found an exact match.  Update the row.
       minimalCopy(makeRow(isFirst, tuple), tr);
@@ -77,10 +77,11 @@ function removeChildren(n) {
 // Copy the contents of src into dst, making minimal changes.
 function minimalCopy(src, dst) {
   dst.className = src.className;
-  for (var s = src.firstChild, d = dst.firstChild;
-       s && d; s = sNext, d = dNext) {
-    var sNext = s.nextSibling;
-    var dNext = d.nextSibling;
+  for (let s = src.firstChild, d = dst.firstChild, sNext, dNext;
+       s && d;
+       s = sNext, d = dNext) {
+    sNext = s.nextSibling;
+    dNext = d.nextSibling;
     // First, sync up the class names.
     d.className = s.className = s.className;
     // Only replace the whole node if something changes.
@@ -92,19 +93,19 @@ function minimalCopy(src, dst) {
 }
 
 function makeImg(src, title) {
-  var img = document.createElement("img");
+  const img = document.createElement("img");
   img.src = src;
   img.title = title;
   return img;
 }
 
 function makeSslImg(flags) {
-  switch (flags & (bg.FLAG_SSL | bg.FLAG_NOSSL)) {
-    case bg.FLAG_SSL | bg.FLAG_NOSSL:
+  switch (flags & (FLAG_SSL | FLAG_NOSSL)) {
+    case FLAG_SSL | FLAG_NOSSL:
       return makeImg(
           "gray_schrodingers_lock.png",
           "Mixture of HTTPS and non-HTTPS connections.");
-    case bg.FLAG_SSL:
+    case FLAG_SSL:
       return makeImg(
           "gray_lock.png",
           "Connection uses HTTPS.\n" +
@@ -117,34 +118,34 @@ function makeSslImg(flags) {
 }
 
 function makeRow(isFirst, tuple) {
-  var domain = tuple[0];
-  var addr = tuple[1];
-  var version = tuple[2];
-  var flags = tuple[3];
+  const domain = tuple[0];
+  const addr = tuple[1];
+  const version = tuple[2];
+  const flags = tuple[3];
 
-  var tr = document.createElement("tr");
+  const tr = document.createElement("tr");
   if (isFirst) {
     tr.className = "mainRow";
   }
 
   // Build the "SSL" column.
-  var sslTd = document.createElement("td");
+  const sslTd = document.createElement("td");
   sslTd.appendChild(makeSslImg(flags));
 
   // Build the "Domain" column.
-  var domainTd = document.createElement("td");
+  const domainTd = document.createElement("td");
   domainTd.appendChild(document.createTextNode(domain));
   domainTd.onclick = handleClick;
   domainTd.oncontextmenu = handleContextMenu;
 
   // Build the "Address" column.
-  var addrTd = document.createElement("td");
-  var addrClass = "";
+  const addrTd = document.createElement("td");
+  let addrClass = "";
   switch (version) {
     case "4": addrClass = " ip4"; break;
     case "6": addrClass = " ip6"; break;
   }
-  var connectedClass = (flags & bg.FLAG_CONNECTED) ? " highlight" : "";
+  const connectedClass = (flags & FLAG_CONNECTED) ? " highlight" : "";
   addrTd.className = "ipCell" + addrClass + connectedClass;
   addrTd.appendChild(document.createTextNode(addr));
   addrTd.onclick = handleClick;
@@ -153,13 +154,13 @@ function makeRow(isFirst, tuple) {
   // Build the (possibly invisible) "WebSocket/Cached" column.
   // We don't need to worry about drawing both, because a cached WebSocket
   // would be nonsensical.
-  var cacheTd = document.createElement("td");
+  const cacheTd = document.createElement("td");
   cacheTd.className = "cacheCell" + connectedClass;
-  if (flags & bg.FLAG_WEBSOCKET) {
+  if (flags & FLAG_WEBSOCKET) {
     cacheTd.appendChild(
         makeImg("websocket.png", "WebSocket handshake; connection may still be active."));
     cacheTd.style.paddingLeft = '6pt';
-  } else if (!(flags & bg.FLAG_UNCACHED)) {
+  } else if (!(flags & FLAG_UNCACHED)) {
     cacheTd.appendChild(
         makeImg("cached_arrow.png", "Data from cached requests only."));
     cacheTd.style.paddingLeft = '6pt';
@@ -179,13 +180,13 @@ function makeRow(isFirst, tuple) {
 // "word" (i.e. a useless fragment of the address) before showing a
 // context menu.  Detect this by watching for the selection to change
 // between consecutive onmousedown and oncontextmenu events.
-var oldTimeStamp = 0;
-var oldRanges = [];
+let oldTimeStamp = 0;
+let oldRanges = [];
 function handleMouseDown(e) {
   oldTimeStamp = e.timeStamp;
   oldRanges = [];
-  var sel = window.getSelection();
-  for (var i = 0; i < sel.rangeCount; i++) {
+  const sel = window.getSelection();
+  for (let i = 0; i < sel.rangeCount; i++) {
     oldRanges.push(sel.getRangeAt(i));
   }
 }
@@ -197,9 +198,9 @@ function isSpuriousSelection(sel, newTimeStamp) {
   if (sel.rangeCount != oldRanges.length) {
     return true;
   }
-  for (var i = 0; i < sel.rangeCount; i++) {
-    var r1 = sel.getRangeAt(i);
-    var r2 = oldRanges[i];
+  for (let i = 0; i < sel.rangeCount; i++) {
+    const r1 = sel.getRangeAt(i);
+    const r2 = oldRanges[i];
     if (r1.compareBoundaryPoints(Range.START_TO_START, r2) != 0 ||
         r1.compareBoundaryPoints(Range.END_TO_END, r2) != 0) {
       return true;
@@ -209,8 +210,8 @@ function isSpuriousSelection(sel, newTimeStamp) {
 }
 
 function handleAddrContextMenu(e) {
-  var sel = handleContextMenu.call(this, e);
-  var text = sel.toString();
+  const sel = handleContextMenu.call(this, e);
+  const text = sel.toString();
   if (text == this.innerText) {
     bg.updateContextMenu(text);
     e.cancelBubble = true;  // Inhibits the handler below.
@@ -222,7 +223,7 @@ document.oncontextmenu = function() {
 };
 
 function handleContextMenu(e) {
-  var sel = window.getSelection();
+  const sel = window.getSelection();
   if (isSpuriousSelection(sel, e.timeStamp)) {
     sel.removeAllRanges();
   }
@@ -238,7 +239,7 @@ function handleClick() {
 // the whole thing, to make copying easier.
 function selectWholeAddress(node, sel) {
   if (sel.isCollapsed || !sel.containsNode(node, true)) {
-    var range = document.createRange();
+    const range = document.createRange();
     range.selectNodeContents(node);
     sel.removeAllRanges();
     sel.addRange(range);

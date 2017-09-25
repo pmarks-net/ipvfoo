@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright (C) 2017  Paul Marks  http://www.pmarks.net/
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<head>
+<meta charset="UTF-8">
+<style type="text/css">
+table, td, tr {
+  border-width: 1px;
+  border-collapse: collapse;
+  border-color: #888;
+  border-style: solid;
+  padding: 0;
+}
+label {
+  display: flex;
+  padding: 1em;
+  align-items: center;
+}
+input[type="radio"] {
+  margin-right: 1em;
+}
+.darkfg_frame {
+  background-color: #f2f2f2;
+  font-size: 0;
+  padding: 8px; 
+}
+.lightfg_frame {
+  background-color: #505050;
+  font-size: 0;
+  padding: 8px;
+}
+.colorscheme_title {
+  padding: 1em;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+  <form name="optionsForm">
+    <h1>Color Scheme</h1>
+    <table>
+      <tr>
+        <td class="colorscheme_title">Regular tabs:</td>
+        <td>
+          <label>
+            <input type="radio" name="regularColorScheme" value="darkfg" class="disabler">
+            <div class="darkfg_frame">
+              <canvas id="regularColorScheme:darkfg" width="16px" height="16px"></canvas>
+            </div>
+          </label>
+        </td>
+        <td>
+          <label>
+            <input type="radio" name="regularColorScheme" value="lightfg" class="disabler">
+            <div class="lightfg_frame">
+              <canvas id="regularColorScheme:lightfg" width="16px" height="16px"></canvas>
+            </div>
+          </label>
+        </td>
+      </tr>
+      <tr>
+        <td class="colorscheme_title">Incognito tabs:</td>
+        <td>
+          <label>
+            <input type="radio" name="incognitoColorScheme" value="darkfg" class="disabler">
+            <div class="darkfg_frame">
+              <canvas id="incognitoColorScheme:darkfg" width="16px" height="16px"></canvas>
+            </div>
+          </label>
+        </td>
+        <td>
+          <label>
+            <input type="radio" name="incognitoColorScheme" value="lightfg" class="disabler">
+            <div class="lightfg_frame">
+              <canvas id="incognitoColorScheme:lightfg" width="16px" height="16px"></canvas>
+            </div>
+          </label>
+        </td>
+      </tr>
+    </table>
+  </form>
+
+  <div style="display:inline-block; padding-top:1.5em; width:100%">
+    <button id="revert_btn" style="float:left" class="disabler">Revert to Defaults</button>
+    <button id="dismiss_btn" style="float:right">Dismiss</button>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

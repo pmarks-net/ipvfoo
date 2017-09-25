@@ -47,6 +47,7 @@ const requestMap = newMap();
 const tabMap = newMap();
 
 // Images from spritesXX.png: [x, y, w, h]
+// TODO: Finish migrating from [16 19 38] -> [16 32].
 const spriteBig = {
   "4": {16: [1, 1, 9, 14],
         19: [1, 1, 12, 16],
@@ -97,15 +98,18 @@ const FILTER_ALL_URLS = { urls: ["<all_urls>"] };
 const IP_CHARS = /^[0-9A-Fa-f:.]+$/;
 
 // Load spriteXX.png of a particular size.
-const spriteElements = newMap();
-function getSpriteImg(size) {
-  let s = spriteElements[size];
-  if (!s) {
-    s = spriteElements[size] = document.createElement("img");
-    s.src = "sprites" + size + ".png";
-  }
+// Executing this inline ensures that the images load before
+// firing the onload handler.
+function loadSpriteImg(size) {
+  const s = document.createElement("img");
+  s.src = "sprites" + size + ".png";
   return s;
 }
+const spriteImg = {
+  16: loadSpriteImg(16),
+  19: loadSpriteImg(19),
+  38: loadSpriteImg(38),
+};
 
 // Get a <canvas> element of the given size.  We could get away with just one,
 // but seeing them side-by-side helps with multi-DPI debugging.
@@ -122,7 +126,7 @@ function getCanvasContext(size) {
 
 // pattern is 0..3 characters, each '4', '6', or '?'.
 // size is 16, 19, or 38.
-function buildIcon(pattern, size) {
+function buildIcon(pattern, size, color) {
   const ctx = getCanvasContext(size);
   ctx.clearRect(0, 0, size, size);
   if (pattern.length >= 1) {
@@ -134,14 +138,25 @@ function buildIcon(pattern, size) {
   if (pattern.length >= 3) {
     drawSprite(ctx, size, targetSmall2, spriteSmall[pattern.charAt(2)]);
   }
-  return ctx.getImageData(0, 0, size, size);
+  const imageData = ctx.getImageData(0, 0, size, size);
+  if (color == "lightfg") {
+    // Apply the light foreground color.
+    const px = imageData.data;
+    const floor = 128;
+    for (var i = 0; i < px.length; i += 4) {
+      px[i+0] += floor;
+      px[i+1] += floor;
+      px[i+2] += floor;
+    }
+  }
+  return imageData;
 }
 
 function drawSprite(ctx, size, targets, sources) {
   const source = sources[size];
   const target = targets[size];
   // (image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
-  ctx.drawImage(getSpriteImg(size),
+  ctx.drawImage(spriteImg[size],
                 source[0], source[1], source[2], source[3],
                 target[0], target[1], source[2], source[3]);
 }
@@ -199,6 +214,7 @@ const TabInfo = function(tabId) {
   this.lastPattern = "";      // To avoid redundant icon redraws.
   this.lastTooltip = "";      // To avoid redundant tooltip updates.
   this.accessDenied = false;  // webRequest events aren't permitted.
+  this.color = "regularColorScheme";  // ... or incognitoColorScheme.
 
   // First, clean up the previous TabInfo, if any.
   tabTracker.disconnect(tabId);
@@ -365,14 +381,15 @@ TabInfo.prototype.updateIcon = function() {
   }
   this.lastPattern = pattern;
 
+  const color = options[this.color];
   chrome.pageAction.setIcon({
     "tabId": this.tabId,
     "imageData": {
       // Note: It might be possible to avoid redundant operations by reading
       //       window.devicePixelRatio
-      "16": buildIcon(pattern, 16),
-      "19": buildIcon(pattern, 19),
-      "38": buildIcon(pattern, 38),
+      "16": buildIcon(pattern, 16, color),
+      "19": buildIcon(pattern, 19, color),
+      "38": buildIcon(pattern, 38, color),
     },
   });
   chrome.pageAction.setPopup({
@@ -667,6 +684,8 @@ chrome.webNavigation.onCommitted.addListener(function(details) {
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
   const tabInfo = tabMap[tabId];
   if (tabInfo) {
+    tabInfo.color = tab.incognito ?
+        "incognitoColorScheme" : "regularColorScheme";
     tabInfo.refreshPageAction();
   }
 });
@@ -787,3 +806,61 @@ function updateContextMenu(text) {
   chrome.contextMenus.update(menuId, {enabled: enabled});
   menuIsEnabled = enabled;
 }
+
+
+// -- Options Storage --
+
+const DEFAULT_OPTIONS = {
+  regularColorScheme: "darkfg",
+  incognitoColorScheme: "lightfg",
+};
+
+function setOptions(newOptions, onDone) {
+  const added = subtractSets(newOptions, options);
+  const removed = subtractSets(options, newOptions);
+  if (added.length > 0) {
+    throw "Unexpected options: " + added;
+  }
+  if (removed.length > 0) {
+    throw "Missing options: " + removed;
+  }
+  chrome.storage.sync.set(newOptions, function() {
+    loadOptions(onDone);
+  });
+}
+
+function clearOptions(onDone) {
+  chrome.storage.sync.clear(function() {
+    loadOptions(onDone);
+  });
+}
+
+function loadOptions(onDone) {
+  chrome.storage.sync.get(Object.keys(options), function(items) {
+    for (const option of Object.keys(options)) {
+      const optValue = items[option] || DEFAULT_OPTIONS[option];
+      if (optValue == options[option]) {
+        continue;
+      }
+      options[option] = optValue;
+
+      if (option.endsWith("ColorScheme")) {
+        for (const tabId of Object.keys(tabMap)) {
+          const tabInfo = tabMap[tabId];
+          if (tabInfo.color == option) {
+            tabInfo.refreshPageAction();
+          }
+        }
+      }
+    }
+
+    onDone();
+  });
+}
+
+// Use DEFAULT_OPTIONS until loading completes.
+window.options = {};
+for (const option of Object.keys(DEFAULT_OPTIONS)) {
+  options[option] = DEFAULT_OPTIONS[option];
+}
+loadOptions(function() {});

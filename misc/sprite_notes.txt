@@ -5,10 +5,6 @@ sprites16:
 - Large: Arial Bold 19px
 - Small: Custom
 
-sprites19:
-- Large: Arial Bold 22px
-- Small: Custom
-
-sprites38:
-- Large: Arial Bold 44px
-- Small: DejaVu Sans Bold 17px
+sprites32:
+- Large: Arial Bold 39px
+- Small: DejaVu Sans Bold 14px

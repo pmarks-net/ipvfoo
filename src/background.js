@@ -47,42 +47,33 @@ const requestMap = newMap();
 const tabMap = newMap();
 
 // Images from spritesXX.png: [x, y, w, h]
-// TODO: Finish migrating from [16 19 38] -> [16 32].
 const spriteBig = {
   "4": {16: [1, 1, 9, 14],
-        19: [1, 1, 12, 16],
-        38: [2, 2, 24, 32]},
+        32: [1, 1, 21, 28]},
   "6": {16: [11, 1, 9, 14],
-        19: [14, 1, 12, 16],
-        38: [28, 2, 24, 32]},
+        32: [23, 1, 21, 28]},
   "?": {16: [21, 1, 9, 14],
-        19: [27, 1, 12, 16],
-        38: [54, 2, 24, 32]},
+        32: [45, 1, 21, 28]},
 };
 const spriteSmall = {
   "4": {16: [31, 1, 6, 6],
-        19: [40, 1, 6, 6],
-        38: [80, 2, 12, 12]},
+        32: [67, 1, 10, 10]},
   "6": {16: [31, 8, 6, 6],
-        19: [40, 8, 6, 6],
-        38: [80, 16, 12, 12]},
+        32: [67, 12, 10, 10]},
 };
 
 // Destination coordinates: [x, y]
 const targetBig = {
   16: [0, 1],
-  19: [1, 2],
-  38: [2, 4],
+  32: [0, 2],
 };
 const targetSmall1 = {
   16: [10, 1],
-  19: [13, 2],
-  38: [26, 4],
+  32: [22, 2],
 };
 const targetSmall2 = {
   16: [10, 8],
-  19: [13, 9],
-  38: [26, 18],
+  32: [22, 14],
 };
 
 // Possible states for an instance of TabInfo.
@@ -107,8 +98,7 @@ function loadSpriteImg(size) {
 }
 const spriteImg = {
   16: loadSpriteImg(16),
-  19: loadSpriteImg(19),
-  38: loadSpriteImg(38),
+  32: loadSpriteImg(32),
 };
 
 // Get a <canvas> element of the given size.  We could get away with just one,
@@ -125,7 +115,8 @@ function getCanvasContext(size) {
 }
 
 // pattern is 0..3 characters, each '4', '6', or '?'.
-// size is 16, 19, or 38.
+// size is 16 or 32.
+// color is "lightfg" or "darkfg".
 function buildIcon(pattern, size, color) {
   const ctx = getCanvasContext(size);
   ctx.clearRect(0, 0, size, size);
@@ -388,8 +379,7 @@ TabInfo.prototype.updateIcon = function() {
       // Note: It might be possible to avoid redundant operations by reading
       //       window.devicePixelRatio
       "16": buildIcon(pattern, 16, color),
-      "19": buildIcon(pattern, 19, color),
-      "38": buildIcon(pattern, 38, color),
+      "32": buildIcon(pattern, 32, color),
     },
   });
   chrome.pageAction.setPopup({

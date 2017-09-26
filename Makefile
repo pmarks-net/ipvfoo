@@ -13,7 +13,7 @@ firefox: prepare
 	rm -f ${BUILDDIR}${NAME}-${VERSION}.xpi
 	cd src && zip -9r ../${BUILDDIR}${NAME}-${VERSION}.xpi *
 
-chrome:
+chrome: prepare
 	rm -f ${BUILDDIR}${NAME}-${VERSION}.zip
 	zip -9r ${BUILDDIR}${NAME}-${VERSION}.zip src
 

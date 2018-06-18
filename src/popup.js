@@ -29,12 +29,14 @@ window.onload = function() {
 };
 
 // Clear the table, and fill it with new data.
-function pushAll(tuples, spillCount) {
+function pushAll(tuples, spillCount, googleBlocked) {
   removeChildren(table);
   for (let i = 0; i < tuples.length; i++) {
     table.appendChild(makeRow(i == 0, tuples[i]));
   }
   pushSpillCount(spillCount);
+  document.getElementById("google_blocked_container").style.display =
+      googleBlocked ? "block" : "none";
 }
 
 // Insert or update a single table row.

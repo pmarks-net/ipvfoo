@@ -415,6 +415,14 @@ TabInfo.prototype.getTuples = function() {
   return tuples;
 };
 
+// Passively (but approximately) detect whether we're getting blocked by
+// Google corporate policy.
+TabInfo.prototype.googleBlocked = function() {
+  return (this.accessDenied &&
+          this.mainDomain.match(/[.]google[.]com$/) &&
+          this.mainDomain != "chrome.google.com");
+}
+
 // -- ConnectionCounter --
 // This class counts the number of active connections to a particular domain.
 // Whenever the count reaches zero, run the onZero function.  This will remove
@@ -497,7 +505,9 @@ Popups.prototype.pushAll = function(tabId) {
   const win = this.map[tabId];
   const tabInfo = tabMap[tabId];
   if (win && tabInfo) {
-    win.pushAll(tabInfo.getTuples(), tabInfo.spillCount);
+    win.pushAll(tabInfo.getTuples(),
+                tabInfo.spillCount,
+                tabInfo.googleBlocked());
   }
 };
 

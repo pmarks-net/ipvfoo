@@ -766,35 +766,34 @@ chrome.webRequest.onErrorOccurred.addListener(forgetRequest, FILTER_ALL_URLS);
 
 // -- contextMenus --
 
-// When the user right-clicks an IP address in the popup window, add a menu
-// item to look up the address on bgp.he.net.  I don't like picking favorites,
-// so I'm open to making this a config option if someone recommends another
-// useful non-spammy service.
-let menuIsEnabled = false;
+// When the user right-clicks an IP address or a domain in the popup window,
+// add a menu item to look it up on bgp.he.net. I don't like picking,
+// favourites so I'm open to making this a config option if someone recommends
+// another useful non-spammy service.
+let ip_onclick = function(info) {
+  chrome.tabs.create({url: "https://bgp.he.net/ip/" + info.selectionText});
+}
+
+let domain_onclick = function(info) {
+  chrome.tabs.create({url: "https://bgp.he.net/dns/" + info.selectionText});
+}
+
 const menuId = chrome.contextMenus.create({
-  enabled: menuIsEnabled,
-  title: "Look up address on bgp.he.net",
+  title: "dummy",
   // Scope the menu to text selection in our popup windows.
   contexts: ["selection"],
   documentUrlPatterns: [document.location.origin + "/popup.html"],
-  onclick: function(info) {
-    const text = info.selectionText;
-    if (IP_CHARS.test(text)) {
-      chrome.tabs.create({url: "http://bgp.he.net/ip/" + text});
-    }
-  }
 });
 
-// Enable the context menu iff the text might be an IP address.  I think it's
+// Enable the context menu if the text might be an IP address. I think it's
 // technically a race to do this from a contextmenu handler, but trivial updates
-// seem to work okay.  http://crbug.com/60758 would be helpful here.
+// seem to work okay. http://crbug.com/60758 would be helpful here.
 function updateContextMenu(text) {
-  const enabled = IP_CHARS.test(text);
-  if (enabled == menuIsEnabled) {
-    return;
-  }
-  chrome.contextMenus.update(menuId, {enabled: enabled});
-  menuIsEnabled = enabled;
+  const ip_address = IP_CHARS.test(text);
+  chrome.contextMenus.update(menuId, {
+    title: ip_address ? "Look up address on bgp.he.net" : "Look up domain on bgp.he.net",
+    onclick: ip_address ? ip_onclick : domain_onclick,
+  });
 }
 
 

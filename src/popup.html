@@ -65,6 +65,22 @@ tr {
   font-weight: bold;
   color: #888;
 }
+
+@keyframes shake {
+  from, to {
+    transform: translate3d(0, 0, 0);
+  }
+  20%, 60% {
+    transform: translate3d(5px, 0, 0);
+  }
+  40%, 80% {
+    transform: translate3d(-5px, 0, 0);
+  }
+}
+.shake {
+  animation-name: shake;
+  animation-duration: 500ms;
+}
 </style>
 <script type="text/javascript" src="common.js"></script>
 <script type="text/javascript" src="popup.js"></script>

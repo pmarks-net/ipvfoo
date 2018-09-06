@@ -67,6 +67,14 @@ function pushSpillCount(count) {
       document.createTextNode(count));
 }
 
+// Shake the content (for 500ms) to signal an error.
+function shake() {
+  document.body.className = "shake";
+  setTimeout(function() {
+    document.body.className = "";
+  }, 600);
+}
+
 function removeChildren(n) {
   while (n.hasChildNodes()) {
     n.removeChild(n.lastChild);
@@ -149,7 +157,7 @@ function makeRow(isFirst, tuple) {
   addrTd.className = "ipCell" + addrClass + connectedClass;
   addrTd.appendChild(document.createTextNode(addr));
   addrTd.onclick = handleClick;
-  addrTd.oncontextmenu = handleAddrContextMenu;
+  addrTd.oncontextmenu = handleContextMenu;
 
   // Build the (possibly invisible) "WebSocket/Cached" column.
   // We don't need to worry about drawing both, because a cached WebSocket
@@ -208,19 +216,6 @@ function isSpuriousSelection(sel, newTimeStamp) {
   }
   return false;
 }
-
-function handleAddrContextMenu(e) {
-  const sel = handleContextMenu.call(this, e);
-  const text = sel.toString();
-  if (text == this.innerText) {
-    bg.updateContextMenu(text);
-    e.cancelBubble = true;  // Inhibits the handler below.
-  }
-}
-
-document.oncontextmenu = function() {
-  bg.updateContextMenu("");
-};
 
 function handleContextMenu(e) {
   const sel = window.getSelection();

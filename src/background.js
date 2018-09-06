@@ -85,8 +85,9 @@ const TAB_DELETED = 2;  // Dead.
 // RequestFilter for webRequest events.
 const FILTER_ALL_URLS = { urls: ["<all_urls>"] };
 
-// Simple whitelist of IP address characters.
+// Whitelist IP address and domain name characters.
 const IP_CHARS = /^[0-9A-Fa-f:.]+$/;
+const DNS_CHARS = /^[0-9A-Za-z._-]+$/;
 
 // Load spriteXX.png of a particular size.
 // Executing this inline ensures that the images load before
@@ -515,6 +516,13 @@ Popups.prototype.pushSpillCount = function(tabId, count) {
   }
 };
 
+Popups.prototype.shake = function(tabId) {
+  const win = this.map[tabId];
+  if (win) {
+    win.shake();
+  }
+}
+
 window.popups = new Popups();
 
 // -- TabTracker --
@@ -770,32 +778,29 @@ chrome.webRequest.onErrorOccurred.addListener(forgetRequest, FILTER_ALL_URLS);
 // item to look up the address on bgp.he.net.  I don't like picking favorites,
 // so I'm open to making this a config option if someone recommends another
 // useful non-spammy service.
-let menuIsEnabled = false;
+//
+// Unless http://crbug.com/60758 gets resolved, the context menu's appearance
+// cannot vary based on content.
 const menuId = chrome.contextMenus.create({
-  enabled: menuIsEnabled,
-  title: "Look up address on bgp.he.net",
+  title: "Look up on bgp.he.net",
   // Scope the menu to text selection in our popup windows.
   contexts: ["selection"],
   documentUrlPatterns: [document.location.origin + "/popup.html"],
   onclick: function(info) {
     const text = info.selectionText;
     if (IP_CHARS.test(text)) {
-      chrome.tabs.create({url: "http://bgp.he.net/ip/" + text});
+      chrome.tabs.create({url: "https://bgp.he.net/ip/" + text});
+    } else if (DNS_CHARS.test(text)) {
+      chrome.tabs.create({url: "https://bgp.he.net/dns/" + text});
+    } else {
+      // Malformed selection; shake the popup content.
+      const tabId = /#(\d+)$/.exec(info.pageUrl);
+      if (tabId) {
+        popups.shake(Number(tabId[1]));
+      }
     }
   }
 });
-
-// Enable the context menu iff the text might be an IP address.  I think it's
-// technically a race to do this from a contextmenu handler, but trivial updates
-// seem to work okay.  http://crbug.com/60758 would be helpful here.
-function updateContextMenu(text) {
-  const enabled = IP_CHARS.test(text);
-  if (enabled == menuIsEnabled) {
-    return;
-  }
-  chrome.contextMenus.update(menuId, {enabled: enabled});
-  menuIsEnabled = enabled;
-}
 
 
 // -- Options Storage --

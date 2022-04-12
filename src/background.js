@@ -157,7 +157,7 @@ function drawSprite(ctx, size, targets, sources) {
 // but let's keep it simple and stick with text for now.
 function addrToVersion(addr) {
   if (addr) {
-    if (/^64:ff9b::/.test(addr)) return "4";  // RFC6052
+    if (addr.startsWith(options["nat64Prefix"])) return "4";  // RFC6052
     if (addr.indexOf(".") >= 0) return "4";
     if (addr.indexOf(":") >= 0) return "6";
   }
@@ -808,6 +808,7 @@ const menuId = chrome.contextMenus.create({
 const DEFAULT_OPTIONS = {
   regularColorScheme: "darkfg",
   incognitoColorScheme: "lightfg",
+  nat64Prefix: "64:ff9b::",
 };
 
 function setOptions(newOptions, onDone) {

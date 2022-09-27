@@ -14,56 +14,55 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-const bg = chrome.extension.getBackgroundPage();
-const colorSchemeOptions = ["regularColorScheme", "incognitoColorScheme"];
+// Requires <script src="common.js">
+
+window.onload = async () => {
+  disableAll(true);
+  await spriteImgReady;
+
+  for (const option of Object.keys(DEFAULT_OPTIONS)) {
+    if (!option.endsWith("ColorScheme")) continue;
+    for (const color of ["darkfg", "lightfg"]) {
+      const canvas = document.getElementById(`${option}:${color}`);
+      const ctx = canvas.getContext("2d");
+      const imageData = buildIcon("646", 16, color);
+      ctx.putImageData(imageData, 0, 0);
+    }
+  }
+
+  watchOptions(function(optionsChanged) {
+    for (const option of optionsChanged) {
+      if (!option.endsWith("ColorScheme")) continue;
+      const radio = document.optionsForm[option];
+      radio.value = options[option];
+    }
+    disableAll(false);
+  });
+
+  document.optionsForm.onchange = function(evt) {
+    const newOptions = {};
+    for (const option of Object.keys(DEFAULT_OPTIONS)) {
+      if (!option.endsWith("ColorScheme")) continue;
+      newOptions[option] = document.optionsForm[option].value;
+    }
+    if (setOptions(newOptions)) {
+      disableAll(true);
+    }
+  };
+
+  document.getElementById("revert_btn").onclick = function() {
+    if (setOptions(DEFAULT_OPTIONS)) {
+      disableAll(true);
+    }
+  };
+
+  document.getElementById("dismiss_btn").onclick = function() {
+    window.close();
+  };
+}
 
 function disableAll(disabled) {
   for (const e of document.getElementsByClassName("disabler")) {
     e.disabled = disabled;
   }
 }
-
-function copyOptionsToForm() {
-  for (const option of colorSchemeOptions) {
-    const radio = document.optionsForm[option];
-    radio.value = bg.options[option];
-  }
-}
-
-document.optionsForm.onchange = function(evt) {
-  const options = {};
-  for (const option of colorSchemeOptions) {
-    options[option] = document.optionsForm[option].value;
-  }
-  disableAll(true);
-  bg.setOptions(options, function() {
-    disableAll(false);
-  });
-};
-
-document.getElementById("revert_btn").onclick = function() {
-  disableAll(true);
-  bg.clearOptions(function() {
-    copyOptionsToForm();
-    disableAll(false);
-  });
-};
-
-document.getElementById("dismiss_btn").onclick = function() {
-  window.close();
-};
-
-for (const option of colorSchemeOptions) {
-  for (const color of ["darkfg", "lightfg"]) {
-    const canvas = document.getElementById(option + ":" + color);
-    const ctx = canvas.getContext("2d");
-    const imageData = bg.buildIcon("646", 16, color);
-    ctx.putImageData(imageData, 0, 0);
-  }
-}
-
-disableAll(true);
-bg.loadOptions(function() {
-  copyOptionsToForm();
-  disableAll(false);
-});

@@ -1,8 +1,7 @@
 {
   "name": "IPvFoo",
-  "manifest_version": 2,
-  "version": "1.44",
-  "minimum_chrome_version": "26",
+  "manifest_version": 3,
+  "version": "2.0",
   "description": "Display the server IP address, with a realtime summary of IPv4, IPv6, and HTTPS information across all page elements.",
   "homepage_url": "https://github.com/pmarks-net/ipvfoo",
   "icons": {
@@ -10,20 +9,19 @@
     "128": "icon128.png"
   },
   "background": {
-    "scripts": [ "common.js", "background.js" ]
+    "service_worker": "background.js"
   },
-  "page_action": {
-    "dummy": "http://crbug.com/86449"
-  },
+  "action": {},
   "options_ui": {
-    "page": "options.html",
-    "chrome_style": true
+    "page": "options.html"
   },
   "permissions": [
     "contextMenus",
     "storage",
     "webNavigation",
-    "webRequest",
+    "webRequest"
+  ],
+  "host_permissions": [
     "<all_urls>"
   ],
   "applications": {

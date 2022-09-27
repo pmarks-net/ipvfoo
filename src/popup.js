@@ -14,18 +14,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-window.tabId = Number(window.location.hash.substr(1));
-if (!isFinite(tabId)) {
+const tabId = window.location.hash.substr(1);
+if (!isFinite(Number(tabId))) {
   throw "Bad tabId";
 }
 
-const bg = chrome.extension.getBackgroundPage();
 let table = null;
 
 window.onload = function() {
   table = document.getElementById("addr_table");
   table.onmousedown = handleMouseDown;
-  bg.popups.attachWindow(window);
+  const port = chrome.runtime.connect(null, {name: tabId});
+  port.onMessage.addListener((msg) => {
+    console.log("onMessage", msg.cmd, msg);
+    switch (msg.cmd) {
+      case "pushAll":
+        return pushAll(msg.tuples, msg.spillCount);
+      case "pushOne":
+        return pushOne(msg.tuple);
+      case "pushSpillCount":
+        return pushSpillCount(msg.spillCount);
+      case "shake":
+        return shake();
+    }
+  });
+
+  port.onDisconnect.addListener(() => {
+    console.error("popup disconnected?");
+    document.bgColor = "lightpink";
+  });
 };
 
 // Clear the table, and fill it with new data.
@@ -154,7 +171,7 @@ function makeRow(isFirst, tuple) {
     case "6": addrClass = " ip6"; break;
   }
   const connectedClass = (flags & FLAG_CONNECTED) ? " highlight" : "";
-  addrTd.className = "ipCell" + addrClass + connectedClass;
+  addrTd.className = `ipCell${addrClass}${connectedClass}`;
   addrTd.appendChild(document.createTextNode(addr));
   addrTd.onclick = handleClick;
   addrTd.oncontextmenu = handleContextMenu;
@@ -163,7 +180,7 @@ function makeRow(isFirst, tuple) {
   // We don't need to worry about drawing both, because a cached WebSocket
   // would be nonsensical.
   const cacheTd = document.createElement("td");
-  cacheTd.className = "cacheCell" + connectedClass;
+  cacheTd.className = `cacheCell${connectedClass}`;
   if (flags & FLAG_WEBSOCKET) {
     cacheTd.appendChild(
         makeImg("websocket.png", "WebSocket handshake; connection may still be active."));

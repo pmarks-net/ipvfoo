@@ -709,7 +709,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 chrome.webRequest.onBeforeRequest.addListener(async (details) => {
   await storageReady;
-  if (!details.tabId || details.tabId == -1) {
+  if (!(details.tabId > 0)) {
     // This request isn't related to a tab.
     return;
   }
@@ -736,14 +736,12 @@ chrome.webRequest.onBeforeRequest.addListener(async (details) => {
   requestInfo.save();
 }, FILTER_ALL_URLS);
 
-// In the event of an HSTS redirect, the mainOrigin may change
+// In the event of a redirect, the mainOrigin may change
 // (from http: to https:) between the onBeforeRequest and onCommitted events,
-// triggering an "access denied" error.  We use onSendHeaders to patch this,
-// because it fires in between, providing the correct origin.
+// triggering an "access denied" error.  Patch this from onBeforeRedirect.
 //
-// However, we must treat this event as optional, because file:// and
-// ServiceWorker URLs are known to skip over it.
-chrome.webRequest.onSendHeaders.addListener(async (details) => {
+// As of 2022, this can be tested by visiting http://maps.google.com/
+chrome.webRequest.onBeforeRedirect.addListener(async (details) => {
   await storageReady;
   if (!(details.type == "main_frame" ||
         details.type == "outermost_frame")) {
@@ -758,9 +756,9 @@ chrome.webRequest.onSendHeaders.addListener(async (details) => {
     return;
   }
   if (tabInfo.committed) {
-    throw "onCommitted before onSendHeaders!";
+    throw "onCommitted before onBeforeRedirect!";
   }
-  const parsed = parseUrl(details.url);
+  const parsed = parseUrl(details.redirectUrl);
   tabInfo.setInitialDomain(parsed.domain, parsed.origin);
 }, FILTER_ALL_URLS);
 

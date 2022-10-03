@@ -672,7 +672,7 @@ class TabTracker {
     if (tabMap[tabId]?.tooYoungToDie()) {
       return;
     }
-    tabMap.remove(tabId).makeDead();
+    tabMap.remove(tabId)?.makeDead();
   }
 }
 

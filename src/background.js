@@ -316,9 +316,6 @@ class TabInfo extends SaveableEntry {
   }
 
   addDomain(domain, addr, flags) {
-    if (!(flags & FLAG_CONNECTED)) {
-      throw "addDomain requires FLAG_CONNECTED";
-    }
     let d = this.domains[domain];
     if (!d) {
       // Limit the number of domains per page, to avoid wasting RAM.
@@ -478,6 +475,7 @@ class DomainInfo {
   }
 
   async countUp() {
+    this.flags |= FLAG_CONNECTED;
     if (++this.count == 1 && !this.inhibitZero) {
       // Keep the address highlighted for at least 500ms.
       this.inhibitZero = true;
@@ -518,7 +516,7 @@ class RequestInfo extends SaveableEntry {
     if (!this.domain) {
       return;  // still waiting for onResponseStarted
     }
-    tabInfo.addDomain(this.domain, null, FLAG_CONNECTED);
+    tabInfo.addDomain(this.domain, null, 0);
   }
 }
 
@@ -790,7 +788,6 @@ chrome.webRequest.onResponseStarted.addListener(async (details) => {
   if (!details.fromCache) {
     flags |= FLAG_UNCACHED;
   }
-  flags |= FLAG_CONNECTED;
   if (requestInfo.domain) throw `Duplicate onResponseStarted: ${parsed.domain}`;
   requestInfo.domain = parsed.domain;
   requestInfo.save();

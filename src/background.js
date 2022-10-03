@@ -35,6 +35,7 @@ Popup updates begin sooner, in wR.onBeforeRequest(main_frame), because the
 user can demand a popup before any IP addresses are available.
 */
 
+"use strict";
 importScripts("common.js");
 
 /*
@@ -256,6 +257,7 @@ class TabInfo extends SaveableEntry {
 
   makeDead() {
     this.#state = TAB_DEAD;
+    this.domains = newMap();
   }
 
   setInitialDomain(domain, origin) {
@@ -405,10 +407,6 @@ class TabInfo extends SaveableEntry {
   }
 
   pushOne(domain) {
-    if (this.#state == TAB_DEAD) {
-      // This could happen if checkZero() hits a stale TabInfo.
-      return;
-    }
     popups.pushOne(this.id(), this.getTuple(domain));
   }
 
@@ -435,7 +433,8 @@ class TabInfo extends SaveableEntry {
   getTuple(domain) {
     const d = this.domains[domain];
     if (!d) {
-      throw `missing domain: ${domain}`;
+      // Perhaps this.domains was cleared during the request's lifetime.
+      return null;
     }
     return [domain, d.addr, d.addrVersion(), d.flags];
   }
@@ -581,6 +580,9 @@ class Popups {
   };
 
   pushOne(tabId, tuple) {
+    if (!tuple) {
+      return;
+    }
     this.ports[tabId]?.postMessage({
       cmd: "pushOne",
       tuple: tuple

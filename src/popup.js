@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+"use strict";
+
 const tabId = window.location.hash.substr(1);
 if (!isFinite(Number(tabId))) {
   throw "Bad tabId";

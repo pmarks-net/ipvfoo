@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+"use strict";
+
 // Flags are bitwise-OR'd across all connections to a domain.
 const FLAG_SSL = 0x1;
 const FLAG_NOSSL = 0x2;
@@ -34,7 +36,15 @@ const spriteImg = {ready: false};
 const spriteImgReady = (async function() {
   //await sleep(1000);
   for (const size of [16, 32]) {
-    const response = await fetch(chrome.runtime.getURL(`sprites${size}.png`));
+    const url = chrome.runtime.getURL(`sprites${size}.png`);
+    console.log("fetching resource:", url);
+    let response;
+    try {
+      response = await fetch(url);
+    } catch (err) {
+      // XXX why does this sometimes fail?
+      throw `failed to fetch ${url}: ${err}`;
+    }
     const blob = await response.blob();
     spriteImg[size] = await createImageBitmap(blob);
   }

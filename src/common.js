@@ -34,22 +34,32 @@ function sleep(ms) {
 
 const spriteImg = {ready: false};
 const spriteImgReady = (async function() {
-  //await sleep(1000);
   for (const size of [16, 32]) {
     const url = chrome.runtime.getURL(`sprites${size}.png`);
-    console.log("fetching resource:", url);
-    let response;
     try {
-      response = await fetch(url);
+      const response = await fetch(url);
+      const blob = await response.blob();
+      spriteImg[size] = await createImageBitmap(blob);
     } catch (err) {
-      // XXX why does this sometimes fail?
-      throw `failed to fetch ${url}: ${err}`;
+      // Why does this sometimes fail?  My best guess is that running
+      // the unpacked extension from a ChromeOS Linux container exposes
+      // it to filesystem reliability issues. If this happens in the wild,
+      // maybe consider base64-inlining the PNGs?
+      console.error(`failed to fetch ${url}: ${err}`);
+      spriteImg[size] = redFailImg();
     }
-    const blob = await response.blob();
-    spriteImg[size] = await createImageBitmap(blob);
   }
   spriteImg.ready = true;
 })();
+
+function redFailImg() {
+  const size = 100;
+  const c = new OffscreenCanvas(size, size);
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "darkred";
+  ctx.fillRect(0, 0, size, size);
+  return c;
+}
 
 // Get a <canvas> element of the given size.
 const _canvasElements = newMap();

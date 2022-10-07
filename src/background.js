@@ -212,7 +212,6 @@ class TabInfo extends SaveableEntry {
   born = Date.now();     // For TabTracker timeout.
   mainDomain = "";       // Bare domain from the main_frame request.
   mainOrigin = "";       // Origin from the main_frame request.
-  dataExists = false;    // True if we have data to publish.
   committed = false;     // True if onCommitted has fired.
   domains = newMap();    // Updated whenever we get some IPs.
   spillCount = 0;        // How many requests didn't fit in domains.
@@ -293,7 +292,6 @@ class TabInfo extends SaveableEntry {
       this.mainDomain = domain;
       changed = true;
     }
-    this.dataExists = true;
     this.committed = true;
 
     // This is usually redundant, but lastPattern takes care of it.
@@ -342,14 +340,13 @@ class TabInfo extends SaveableEntry {
       }
     }
 
-    this.dataExists = true;
     this.updateIcon();
     this.pushOne(domain);
     this.save();
   }
 
   updateIcon() {
-    if (!(this.#state == TAB_ALIVE && this.dataExists)) {
+    if (!(this.#state == TAB_ALIVE)) {
       return;
     }
     let pattern = "?";
@@ -507,8 +504,6 @@ class RequestInfo extends SaveableEntry {
   afterLoad() {
     const tabInfo = tabMap[this.tabId];
     if (tabInfo?.born != this.tabBorn) {
-      // In theory this shouldn't happen, because every request terminates
-      // with forgetRequest(), but MV3 probably adds chaos.
       requestMap.remove(this.id());
       console.log("garbage-collected RequestInfo", this.id());
       return;

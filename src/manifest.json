@@ -11,7 +11,11 @@
   "background": {
     "service_worker": "background.js"
   },
-  "action": {},
+  "action": {
+    "default_icon": {
+      "16": "icon16_transparent.png"
+    }
+  },
   "options_ui": {
     "page": "options.html"
   },

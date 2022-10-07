@@ -356,7 +356,7 @@ class TabInfo extends SaveableEntry {
     for (const [domain, d] of Object.entries(this.domains)) {
       if (domain == this.mainDomain) {
         pattern = d.addrVersion();
-        tooltip = `${d.addr} - IPvFoo`;
+        tooltip = `${d.addr}\nIPvFoo`;
       } else {
         switch (d.addrVersion()) {
           case "4": has4 = true; break;

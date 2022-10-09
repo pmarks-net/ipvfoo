@@ -66,6 +66,13 @@ const IP4_CHARS = /^[0-9.]+$/;
 const IP6_CHARS = /^[0-9A-Fa-f]*:[0-9A-Fa-f:.]*$/;
 const DNS_CHARS = /^[0-9A-Za-z._-]+$/;
 
+let debug = false;
+function debugLog() {
+  if (debug) {
+    console.log(...arguments);
+  }
+}
+
 function parseUrl(url) {
   let domain = null;
   let ssl = false;
@@ -661,11 +668,13 @@ class TabTracker {
   }
 
   #addTab(tabId, logText) {
+    debugLog("addTab", tabId, logText);
     this.tabSet[tabId] = true;
     tabMap[tabId]?.makeAlive();
   }
 
   #removeTab(tabId, logText) {
+    debugLog("removeTab", tabId, logText);
     delete this.tabSet[tabId];
     if (tabMap[tabId]?.tooYoungToDie()) {
       return;
@@ -679,6 +688,7 @@ const tabTracker = new TabTracker();
 // -- webNavigation --
 
 chrome.webNavigation.onCommitted.addListener(async (details) => {
+  debugLog("wN.oC", details?.tabId, details?.url, details);
   await storageReady;
   if (details.frameId != 0) {
     return;
@@ -694,6 +704,7 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 // is hacky and inefficient, but the back-stabbing browser leaves me no choice.
 // This seems to fix http://crbug.com/124970 and some problems on Google+.
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  debugLog("tabs.oU", tabId);
   await storageReady;
   const tabInfo = tabMap[tabId];
   if (tabInfo) {

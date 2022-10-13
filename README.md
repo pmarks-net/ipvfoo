@@ -2,7 +2,7 @@
 
 Everything is captured privately using the webRequest API, without creating any additional network traffic.
 
-## Chrome installer
+## Add to Chrome link
 https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapggal
 
 ## Screenshot:

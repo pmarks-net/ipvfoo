@@ -3,7 +3,7 @@
 Everything is captured privately using the webRequest API, without creating any additional network traffic.
 
 ## Chrome installer
-https://chrome.google.com/webstore/detail/ecanpcehffngcegjmadlcijfolapggal
+https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapggal
 
 ## Screenshot:
 ![Screenshot](/misc/screenshot_webstore_640x400.png?raw=true)

@@ -2,6 +2,10 @@
 
 Everything is captured privately using the webRequest API, without creating any additional network traffic.
 
+## Manifest v3 bug?
+
+I rewrote IPvFoo for Manifest V3 because Google is mandating it soon, but there is a bug (suspecting [crbug/1316588](https://bugs.chromium.org/p/chromium/issues/detail?id=1316588)) where Chrome forgets to send events to MV3 extensions after a day or two.  The easiest workaround is: Right-click the IPvFoo icon > Manage extension > turn it off and on again.
+
 ## Add to Chrome link
 https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapggal
 

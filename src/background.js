@@ -66,6 +66,8 @@ const IP4_CHARS = /^[0-9.]+$/;
 const IP6_CHARS = /^[0-9A-Fa-f]*:[0-9A-Fa-f:.]*$/;
 const DNS_CHARS = /^[0-9A-Za-z._-]+$/;
 
+const SECONDS = 1000;  // to milliseconds
+
 let debug = false;
 function debugLog() {
   if (debug) {
@@ -250,7 +252,7 @@ class TabInfo extends SaveableEntry {
   tooYoungToDie() {
     // Spare new tabs from garbage collection for a minute or so.
     return (this.#state == TAB_BIRTH &&
-            this.born >= Date.now() - 60 * 1000);
+            this.born >= Date.now() - 60*SECONDS);
   }
 
   makeAlive() {
@@ -663,7 +665,7 @@ class TabTracker {
           this.#removeTab(tabId, "pollAllTabs");
         }
       }
-      await sleep(300 * 1000);
+      await sleep(300*SECONDS);
     }
   }
 
@@ -684,6 +686,36 @@ class TabTracker {
 }
 
 const tabTracker = new TabTracker();
+
+// Attempted workaround for http://crbug.com/1316588
+(async function lostEventsWatchdog() {
+  let quietCount = 0;
+  while (true) {
+    // This service worker doesn't usually live longer than 30 seconds,
+    // but I think the event-loss bug might also leave the worker running.
+    await sleep(60*SECONDS);
+
+    const age = Date.now() - lastWebRequest;
+    debugLog(`Last webRequest ${age/1000}s ago`);
+
+    if (age < 90*SECONDS) {
+      quietCount = 0;  // webRequest still works
+    } else {
+      ++quietCount;
+      debugLog("++quietCount =", quietCount);
+      if (quietCount >= 3) {
+        console.error("Missing webRequest events; reloading!");
+        return chrome.runtime.reload();
+      }
+      // Tickle the webRequest API with a dummy fetch.
+      try {
+        await fetch("https://0.0.0.0:0/ipvfoo/keepalive");
+      } catch {
+        // expected
+      }
+    }
+  }
+})();
 
 // -- webNavigation --
 
@@ -716,7 +748,11 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 // -- webRequest --
 
+let lastWebRequest = 0;  // timestamp of last webRequest.oBR event
+
 chrome.webRequest.onBeforeRequest.addListener(async (details) => {
+  lastWebRequest = Date.now();
+
   await storageReady;
   if (!(details.tabId > 0)) {
     // This request isn't related to a tab.

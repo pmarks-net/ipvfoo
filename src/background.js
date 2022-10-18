@@ -615,6 +615,14 @@ chrome.runtime.onConnect.addListener(async (port) => {
   });
 });
 
+// Refresh icons after chrome.runtime.reload()
+chrome.runtime.onInstalled.addListener(async () => {
+  await storageReady;
+  for (const tabInfo of Object.values(tabMap)) {
+    tabInfo.refreshPageAction();
+  }
+});
+
 // -- TabTracker --
 
 // This class keeps track of every usable tabId, sending notifications when a
@@ -633,13 +641,16 @@ class TabTracker {
   tabSet = newMap();               // Set of all known tabIds
 
   constructor() {
-    chrome.tabs.onCreated.addListener((tab) => {
+    chrome.tabs.onCreated.addListener(async (tab) => {
+      await storageReady;
       this.#addTab(tab.id, "onCreated");
     });
-    chrome.tabs.onRemoved.addListener((tabId) => {
+    chrome.tabs.onRemoved.addListener(async (tabId) => {
+      await storageReady;
       this.#removeTab(tabId, "onRemoved");
     });
-    chrome.tabs.onReplaced.addListener((addId, removeId) => {
+    chrome.tabs.onReplaced.addListener(async (addId, removeId) => {
+      await storageReady;
       this.#removeTab(removeId, "onReplaced");
       this.#addTab(addId, "onReplaced");
     });
@@ -687,12 +698,12 @@ class TabTracker {
 
 const tabTracker = new TabTracker();
 
-// Attempted workaround for http://crbug.com/1316588
+// Workaround for http://crbug.com/1316588
 (async function lostEventsWatchdog() {
   let quietCount = 0;
   while (true) {
     // This service worker doesn't usually live longer than 30 seconds,
-    // but I think the event-loss bug might also leave the worker running.
+    // but the event-loss bug seems to leave the worker running.
     await sleep(60*SECONDS);
 
     const age = Date.now() - lastWebRequest;
@@ -888,10 +899,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   }
 });
 
-watchOptions((optionsChanged) => {
+watchOptions(async (optionsChanged) => {
+  await storageReady;
   for (const option of optionsChanged) {
     if (!option.endsWith("ColorScheme")) continue;
-    for (const [tabId, tabInfo] of Object.entries(tabMap)) {
+    for (const tabInfo of Object.values(tabMap)) {
       if (tabInfo.color == option) {
         tabInfo.refreshPageAction();
       }

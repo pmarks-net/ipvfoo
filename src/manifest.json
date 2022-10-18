@@ -27,10 +27,5 @@
   ],
   "host_permissions": [
     "<all_urls>"
-  ],
-  "applications": {
-      "gecko": {
-          "id": "ipvfoo@pmarks.net"
-      }
-  }
+  ]
 }

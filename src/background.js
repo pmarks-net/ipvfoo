@@ -103,15 +103,18 @@ function parseUrl(url) {
 }
 
 class SaveableEntry {
+  #storage;
   #prefix;
   #id;
   #dirty = false;
   #remove = false;
   #savedJSON = null;
 
-  constructor(prefix, id) {
+  constructor(storage, prefix, id) {
+    if (!storage) throw "missing storage";
     if (!prefix) throw "missing prefix";
     if (!id) throw "missing id";
+    this.#storage = storage;
     this.#prefix = prefix;
     this.#id = id;
   }
@@ -142,7 +145,7 @@ class SaveableEntry {
       this.#dirty = false;
       const key = `${this.#prefix}${this.#id}`
       if (this.#remove) {
-        await chrome.storage.local.remove(key);
+        await this.#storage.remove(key);
         return;
       }
       const j = JSON.stringify(this);
@@ -150,7 +153,7 @@ class SaveableEntry {
         return;
       }
       //console.log("saving", key, j);
-      await chrome.storage.local.set({[key]: j});
+      await this.#storage.set({[key]: j});
       this.#savedJSON = j;
     }
   }
@@ -164,10 +167,12 @@ class SaveableEntry {
 
 class SaveableMap {
   #factory;
+  #storage;
   #prefix;
 
-  constructor(factory, prefix) {
+  constructor(factory, storage, prefix) {
     this.#factory = factory;
+    this.#storage = storage;
     this.#prefix = prefix;
   }
 
@@ -191,7 +196,7 @@ class SaveableMap {
       console.error(err);
       return false;
     }
-    this[id] = new this.#factory(this.#prefix, id).load(savedJSON);
+    this[id] = new this.#factory(this.#storage, this.#prefix, id).load(savedJSON);
     return true;
   }
 
@@ -199,7 +204,7 @@ class SaveableMap {
     id = this.validateId(id);
     let o = this[id];
     if (!o) {
-      o = this[id] = new this.#factory(this.#prefix, id);
+      o = this[id] = new this.#factory(this.#storage, this.#prefix, id);
     }
     return o;
   }
@@ -231,8 +236,8 @@ class TabInfo extends SaveableEntry {
   // Private, to avoid writing to storage.
   #state = TAB_BIRTH;
 
-  constructor(prefix, tabId) {
-    super(prefix, tabId);
+  constructor(storage, prefix, tabId) {
+    super(storage, prefix, tabId);
 
     if (!spriteImg.ready) throw "must await spriteImgReady!";
     if (!options.ready) throw "must await optionsReady!";
@@ -525,21 +530,38 @@ class RequestInfo extends SaveableEntry {
 }
 
 // tabId -> TabInfo
-const tabMap = new SaveableMap(TabInfo, "tab/")
+// Tabs use 'local' storage because they might exceed the 1MB limit.
+// TODO: Switch to 'session' if Chrome removes that ridiculous limit.
+const tabMap = new SaveableMap(TabInfo, chrome.storage.local, "tab/")
 
 // requestId -> {tabInfo, domain}
-const requestMap = new SaveableMap(RequestInfo, "req/");
+// Requests use 'session' storage to avoid excessive disk writes.
+const requestMap = new SaveableMap(RequestInfo, chrome.storage.session, "req/");
 
 // Must "await storageReady;" before reading maps.
 const storageReady = (async () => {
-  const items = await chrome.storage.local.get();
   await spriteImgReady;
   await optionsReady;
 
   const unparseable = [];
-  for (const [k, v] of Object.entries(items)) {
-    if (!(tabMap.load(k, v) || requestMap.load(k, v))) {
-      unparseable.push(k);
+  const items1 = await chrome.storage.local.get();
+  for (const [k, v] of Object.entries(items1)) {
+    // Migrate requests from local storage to session storage.
+    // This only happens after upgrading from v2.3 to v2.4:
+    if (k.startsWith("req/")) {
+      console.log(`migrating ${k} to storage.session`);
+      await chrome.storage.session.set({[k]: v});
+      await chrome.storage.local.remove(k);
+      continue;
+    }
+    if (!tabMap.load(k, v)) {
+      unparseable.push(`local:${k}`);
+    }
+  }
+  const items2 = await chrome.storage.session.get();
+  for (const [k, v] of Object.entries(items2)) {
+    if (!requestMap.load(k, v)) {
+      unparseable.push(`session:${k}`);
     }
   }
   if (unparseable.length) {

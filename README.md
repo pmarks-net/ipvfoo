@@ -6,7 +6,7 @@ Everything is captured privately using the webRequest API, without creating any 
 https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapggal
 
 ## Screenshot:
-![Screenshot](/misc/screenshot_webstore_640x400.png?raw=true)
+![Screenshot](/misc/screenshot_webstore_1_640x400.png?raw=true)
 
 ## Firefox Support:
 IPvFoo now [runs on Firefox](https://addons.mozilla.org/firefox/addon/ipvfoo-pmarks/), but there are [a few bugs](https://github.com/pmarks-net/ipvfoo/issues/32) to work out.

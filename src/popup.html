@@ -30,21 +30,40 @@ table, td, tr {
   border-style: solid;
   padding: 0pt 3pt 0pt 3pt;
   white-space: nowrap;
+  user-select: none;
 }
 tr {
   height: 21px;
 }
+img {
+  user-select: none;
+}
 .mainRow {
   font-weight: bold;
 }
-.cacheCell {
-  border-left-width: 0;
+/* We want copy-paste to keep the domain in the first column,
+   so this span makes a vertical line to fake the "zeroth" column. */
+.sslBorder {
+  display: inline-block;
+  height: 100%;
+  border-width: 0;
+  border-right-width: 1px;
+  border-color: #888;
+  border-style: solid;
+  margin: 0 3pt -3pt 3pt;
 }
-.ipCell {
+.domainTd {
+  user-select: text;
+}
+.addrTd {
   font-family: monospace;
   border-right-width: 0;
   color: #000080;
   padding-right: 0;
+  user-select: text;
+}
+.cacheTd {
+  border-left-width: 0;
 }
 .ip4 {
   color: #800000;
@@ -88,7 +107,7 @@ tr {
 
 <body>
 <div class="border">
-  <table id="addr_table"></table>
+  <table id="addr_table" height="1px"></table>
   <div id="spill_count_container">
   &#x22ee; <span id="spill_count">0</span> requests omitted
   </div>

@@ -155,13 +155,16 @@ function makeRow(isFirst, tuple) {
     tr.className = "mainRow";
   }
 
-  // Build the "SSL" column.
-  const sslTd = document.createElement("td");
-  sslTd.appendChild(makeSslImg(flags));
+  // Border for the "zeroth" column.
+  const sslBorder = document.createElement("span");
+  sslBorder.className = "sslBorder";
 
   // Build the "Domain" column.
   const domainTd = document.createElement("td");
+  domainTd.appendChild(makeSslImg(flags));
+  domainTd.appendChild(sslBorder);
   domainTd.appendChild(document.createTextNode(domain));
+  domainTd.className = "domainTd";
   domainTd.onclick = handleClick;
   domainTd.oncontextmenu = handleContextMenu;
 
@@ -173,7 +176,7 @@ function makeRow(isFirst, tuple) {
     case "6": addrClass = " ip6"; break;
   }
   const connectedClass = (flags & FLAG_CONNECTED) ? " highlight" : "";
-  addrTd.className = `ipCell${addrClass}${connectedClass}`;
+  addrTd.className = `addrTd${addrClass}${connectedClass}`;
   addrTd.appendChild(document.createTextNode(addr));
   addrTd.onclick = handleClick;
   addrTd.oncontextmenu = handleContextMenu;
@@ -182,7 +185,7 @@ function makeRow(isFirst, tuple) {
   // We don't need to worry about drawing both, because a cached WebSocket
   // would be nonsensical.
   const cacheTd = document.createElement("td");
-  cacheTd.className = `cacheCell${connectedClass}`;
+  cacheTd.className = `cacheTd${connectedClass}`;
   if (flags & FLAG_WEBSOCKET) {
     cacheTd.appendChild(
         makeImg("websocket.png", "WebSocket handshake; connection may still be active."));
@@ -196,7 +199,6 @@ function makeRow(isFirst, tuple) {
   }
 
   tr._domain = domain;
-  tr.appendChild(sslTd);
   tr.appendChild(domainTd);
   tr.appendChild(addrTd);
   tr.appendChild(cacheTd);

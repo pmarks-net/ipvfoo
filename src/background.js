@@ -38,19 +38,6 @@ user can demand a popup before any IP addresses are available.
 "use strict";
 importScripts("common.js");
 
-/*
-(async () => {
-  const bootTime = Date.now();
-  const key = `heartbeat/${bootTime}`;
-  while (true) {
-    const msg = `service_worker running for ${(Date.now()-bootTime)/1000}s`;
-    chrome.storage.local.set({[key]: msg});
-    console.log(msg);
-    await sleep(10000);
-  }
-})();
-*/
-
 // Possible states for an instance of TabInfo.
 // We begin at BIRTH, and only ever move forward, not backward.
 const TAB_BIRTH = 0;    // Waiting for makeAlive() or makeDead()
@@ -103,18 +90,15 @@ function parseUrl(url) {
 }
 
 class SaveableEntry {
-  #storage;
   #prefix;
   #id;
   #dirty = false;
   #remove = false;
   #savedJSON = null;
 
-  constructor(storage, prefix, id) {
-    if (!storage) throw "missing storage";
+  constructor(prefix, id) {
     if (!prefix) throw "missing prefix";
     if (!id) throw "missing id";
-    this.#storage = storage;
     this.#prefix = prefix;
     this.#id = id;
   }
@@ -145,7 +129,7 @@ class SaveableEntry {
       this.#dirty = false;
       const key = `${this.#prefix}${this.#id}`
       if (this.#remove) {
-        await this.#storage.remove(key);
+        await chrome.storage.session.remove(key);
         return;
       }
       const j = JSON.stringify(this);
@@ -153,7 +137,7 @@ class SaveableEntry {
         return;
       }
       //console.log("saving", key, j);
-      await this.#storage.set({[key]: j});
+      await chrome.storage.session.set({[key]: j});
       this.#savedJSON = j;
     }
   }
@@ -167,12 +151,10 @@ class SaveableEntry {
 
 class SaveableMap {
   #factory;
-  #storage;
   #prefix;
 
-  constructor(factory, storage, prefix) {
+  constructor(factory, prefix) {
     this.#factory = factory;
-    this.#storage = storage;
     this.#prefix = prefix;
   }
 
@@ -196,7 +178,7 @@ class SaveableMap {
       console.error(err);
       return false;
     }
-    this[id] = new this.#factory(this.#storage, this.#prefix, id).load(savedJSON);
+    this[id] = new this.#factory(this.#prefix, id).load(savedJSON);
     return true;
   }
 
@@ -204,7 +186,7 @@ class SaveableMap {
     id = this.validateId(id);
     let o = this[id];
     if (!o) {
-      o = this[id] = new this.#factory(this.#storage, this.#prefix, id);
+      o = this[id] = new this.#factory(this.#prefix, id);
     }
     return o;
   }
@@ -236,8 +218,8 @@ class TabInfo extends SaveableEntry {
   // Private, to avoid writing to storage.
   #state = TAB_BIRTH;
 
-  constructor(storage, prefix, tabId) {
-    super(storage, prefix, tabId);
+  constructor(prefix, tabId) {
+    super(prefix, tabId);
 
     if (!spriteImg.ready) throw "must await spriteImgReady!";
     if (!options.ready) throw "must await optionsReady!";
@@ -530,38 +512,31 @@ class RequestInfo extends SaveableEntry {
 }
 
 // tabId -> TabInfo
-// Tabs use 'local' storage because they might exceed the 1MB limit.
-// TODO: Switch to 'session' if Chrome removes that ridiculous limit.
-const tabMap = new SaveableMap(TabInfo, chrome.storage.local, "tab/")
+const tabMap = new SaveableMap(TabInfo, "tab/")
 
 // requestId -> {tabInfo, domain}
-// Requests use 'session' storage to avoid excessive disk writes.
-const requestMap = new SaveableMap(RequestInfo, chrome.storage.session, "req/");
+const requestMap = new SaveableMap(RequestInfo, "req/");
 
 // Must "await storageReady;" before reading maps.
 const storageReady = (async () => {
   await spriteImgReady;
   await optionsReady;
 
-  const unparseable = [];
-  const items1 = await chrome.storage.local.get();
-  for (const [k, v] of Object.entries(items1)) {
-    // Migrate requests from local storage to session storage.
-    // This only happens after upgrading from v2.3 to v2.4:
-    if (k.startsWith("req/")) {
+  // Migrate previous-version data from local to session storage.
+  const oldItems = await chrome.storage.local.get();
+  for (const [k, v] of Object.entries(oldItems)) {
+    if (k.startsWith("tab/") || k.startsWith("req/")) {
       console.log(`migrating ${k} to storage.session`);
       await chrome.storage.session.set({[k]: v});
       await chrome.storage.local.remove(k);
-      continue;
-    }
-    if (!tabMap.load(k, v)) {
-      unparseable.push(`local:${k}`);
     }
   }
-  const items2 = await chrome.storage.session.get();
-  for (const [k, v] of Object.entries(items2)) {
-    if (!requestMap.load(k, v)) {
-      unparseable.push(`session:${k}`);
+
+  const items = await chrome.storage.session.get();
+  const unparseable = [];
+  for (const [k, v] of Object.entries(items)) {
+    if (!(tabMap.load(k, v) || requestMap.load(k, v))) {
+      unparseable.push(k);
     }
   }
   if (unparseable.length) {

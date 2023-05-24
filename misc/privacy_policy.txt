@@ -6,3 +6,9 @@ not transmitted over the network.
 
 If you use the "Look up on bgp.he.net" feature, the selected domain name
 or IP address will be sent to Hurricane Electric via URL request.
+
+
+My other Chrome extensions do not use personal information at all:
+- Incognito Proxy
+- Endless Whisper
+- <pre> Line Wrapper

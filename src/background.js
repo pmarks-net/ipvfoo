@@ -58,7 +58,7 @@ const SECONDS = 1000;  // to milliseconds
 let debug = false;
 function debugLog() {
   if (debug) {
-    console.log(...arguments);
+    console.log(new Date().toISOString(), ...arguments);
   }
 }
 
@@ -712,7 +712,7 @@ const tabTracker = new TabTracker();
       ++quietCount;
       debugLog("++quietCount =", quietCount);
       if (quietCount >= 3) {
-        console.error("Missing webRequest events; reloading!");
+        console.error(new Date().toISOString(), "Missing webRequest events; reloading!");
         return chrome.runtime.reload();
       }
       // Tickle the webRequest API with a dummy fetch.

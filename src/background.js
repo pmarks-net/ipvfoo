@@ -206,6 +206,7 @@ class SaveableMap {
 
 class TabInfo extends SaveableEntry {
   born = Date.now();     // For TabTracker timeout.
+  mainRequestId = null;  // Request that constructed this tab, if any.
   mainDomain = "";       // Bare domain from the main_frame request.
   mainOrigin = "";       // Origin from the main_frame request.
   committed = false;     // True if onCommitted has fired.
@@ -255,7 +256,12 @@ class TabInfo extends SaveableEntry {
     this.domains = newMap();
   }
 
-  setInitialDomain(domain, origin) {
+  setInitialDomain(requestId, domain, origin) {
+    if (this.mainRequestId == null) {
+      this.mainRequestId = requestId;
+    } else if (this.mainRequestId != requestId) {
+      console.error("mainRequestId changed!");
+    }
     this.mainDomain = domain;
     this.mainOrigin = origin;
 
@@ -402,7 +408,7 @@ class TabInfo extends SaveableEntry {
 
   // Build some [domain, addr, version, flags] tuples, for a popup.
   getTuples() {
-    const mainDomain = this.mainDomain || "---";
+    const mainDomain = this.mainDomain || "(no domain)";
     const domains = Object.keys(this.domains).sort();
     const mainTuple = [mainDomain, "(no address)", "?", FLAG_UNCACHED];
     const tuples = [mainTuple];
@@ -727,6 +733,32 @@ const tabTracker = new TabTracker();
 
 // -- webNavigation --
 
+// Typically, onBeforeNavigate fires between the main_frame
+// onBeforeRequest and onResponseStarted events, and we don't have to do
+// anything here.
+//
+// However, when the site is using a service worker, the main_frame request
+// never happens, so we need to initialize the tab here instead.
+//
+// This logic also catches file:// and chrome:// URLs, but that doesn't
+// seem to cause problems.
+chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
+  if (!(details.frameId == 0 && details.tabId > 0)) {
+    return;
+  }
+  await storageReady;
+  let tabInfo = tabMap[details.tabId];
+  const requestInfo = requestMap[tabInfo?.mainRequestId];
+  if (requestInfo && requestInfo.domain == null) {
+    return;  // Typical no-op case.
+  }
+  debugLog(`tabId=${details.tabId} is a service worker or special URL`);
+  const parsed = parseUrl(details.url);
+  tabMap.remove(details.tabId);
+  tabInfo = tabMap.lookupOrNew(details.tabId);
+  tabInfo.setInitialDomain(-1, parsed.domain, parsed.origin);
+});
+
 chrome.webNavigation.onCommitted.addListener(async (details) => {
   debugLog("wN.oC", details?.tabId, details?.url, details);
   await storageReady;
@@ -771,7 +803,7 @@ chrome.webRequest.onBeforeRequest.addListener(async (details) => {
     const parsed = parseUrl(details.url);
     tabMap.remove(details.tabId);
     tabInfo = tabMap.lookupOrNew(details.tabId);
-    tabInfo.setInitialDomain(parsed.domain, parsed.origin);
+    tabInfo.setInitialDomain(details.requestId, parsed.domain, parsed.origin);
   } else {
     tabInfo = tabMap[details.tabId];
     if (!tabInfo) {
@@ -812,7 +844,7 @@ chrome.webRequest.onBeforeRedirect.addListener(async (details) => {
     throw "onCommitted before onBeforeRedirect!";
   }
   const parsed = parseUrl(details.redirectUrl);
-  tabInfo.setInitialDomain(parsed.domain, parsed.origin);
+  tabInfo.setInitialDomain(details.requestId, parsed.domain, parsed.origin);
 }, FILTER_ALL_URLS);
 
 chrome.webRequest.onResponseStarted.addListener(async (details) => {

@@ -184,11 +184,18 @@ function makeRow(isFirst, tuple) {
   // Build the (possibly invisible) "WebSocket/Cached" column.
   // We don't need to worry about drawing both, because a cached WebSocket
   // would be nonsensical.
+  //
+  // Now that we also have a Service Worker icon, I just made it replace
+  // the Cached icon because I'm too lazy to align multiple columns properly.
   const cacheTd = document.createElement("td");
   cacheTd.className = `cacheTd${connectedClass}`;
   if (flags & FLAG_WEBSOCKET) {
     cacheTd.appendChild(
         makeImg("websocket.png", "WebSocket handshake; connection may still be active."));
+    cacheTd.style.paddingLeft = '6pt';
+  } else if (!(flags & FLAG_NOTWORKER)) {
+    cacheTd.appendChild(
+        makeImg("serviceworker.png", "Service Worker request; possibly from a different tab"));
     cacheTd.style.paddingLeft = '6pt';
   } else if (!(flags & FLAG_UNCACHED)) {
     cacheTd.appendChild(

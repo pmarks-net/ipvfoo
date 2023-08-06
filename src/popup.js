@@ -26,8 +26,13 @@ let table = null;
 window.onload = function() {
   table = document.getElementById("addr_table");
   table.onmousedown = handleMouseDown;
+  connectToExtension();
+};
+
+function connectToExtension() {
   const port = chrome.runtime.connect(null, {name: tabId});
   port.onMessage.addListener((msg) => {
+    document.bgColor = "";
     console.log("onMessage", msg.cmd, msg);
     switch (msg.cmd) {
       case "pushAll":
@@ -42,10 +47,10 @@ window.onload = function() {
   });
 
   port.onDisconnect.addListener(() => {
-    console.error("popup disconnected?");
     document.bgColor = "lightpink";
+    setTimeout(connectToExtension, 1);
   });
-};
+}
 
 // Clear the table, and fill it with new data.
 function pushAll(tuples, spillCount) {

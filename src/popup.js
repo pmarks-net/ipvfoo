@@ -200,7 +200,7 @@ function makeRow(isFirst, tuple) {
     cacheTd.style.paddingLeft = '6pt';
   } else if (!(flags & FLAG_NOTWORKER)) {
     cacheTd.appendChild(
-        makeImg("serviceworker.png", "Service Worker request; possibly from a different tab"));
+        makeImg("serviceworker.png", "Service Worker request; possibly from a different tab."));
     cacheTd.style.paddingLeft = '6pt';
   } else if (!(flags & FLAG_UNCACHED)) {
     cacheTd.appendChild(

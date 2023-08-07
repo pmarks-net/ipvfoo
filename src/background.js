@@ -55,6 +55,11 @@ const DNS_CHARS = /^[0-9A-Za-z._-]+$/;
 
 const SECONDS = 1000;  // to milliseconds
 
+const NAME_VERSION = (() => {
+  const m = chrome.runtime.getManifest();
+  return `${m.name} v${m.version}`;
+})();
+
 let debug = false;
 function debugLog() {
   if (debug) {
@@ -345,7 +350,7 @@ class TabInfo extends SaveableEntry {
     for (const [domain, d] of Object.entries(this.domains)) {
       if (domain == this.mainDomain) {
         pattern = d.addrVersion();
-        tooltip = `${d.addr}\nIPvFoo`;
+        tooltip = `${d.addr}\n${NAME_VERSION}`;
       } else {
         switch (d.addrVersion()) {
           case "4": has4 = true; break;

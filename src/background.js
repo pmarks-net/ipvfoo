@@ -36,7 +36,11 @@ user can demand a popup before any IP addresses are available.
 */
 
 "use strict";
-importScripts("common.js");
+
+if (chrome.runtime.getManifest().background.service_worker) {
+  // This line runs on Chrome, but not Firefox.
+  importScripts("common.js");
+}
 
 // Possible states for an instance of TabInfo.
 // We begin at BIRTH, and only ever move forward, not backward.
@@ -842,10 +846,12 @@ chrome.webRequest.onBeforeRequest.addListener(async (details) => {
         tabInfos.push(tabInfo);
       }
     }
-  } else if (tabId == -1 && details.initiator) {
+  } else if (tabId == -1 && (details.initiator || details.documentUrl)) {
+    // Chrome uses initiator, Firefox uses documentUrl.
+    const initiator = details.initiator || parseUrl(details.documentUrl).origin;
     // Request is from a tabless Service Worker.
     // Find all tabs matching the initiator's origin.
-    for (const tabId of lookupOriginMap(details.initiator)) {
+    for (const tabId of lookupOriginMap(initiator)) {
       const tabInfo = tabMap[tabId];
       if (tabInfo) {
         tabInfos.push(tabInfo);

@@ -102,6 +102,7 @@ function shake() {
 }
 
 // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1395025
+let redrawn = false;
 function scrollbarHack() {
   if (typeof browser == "undefined") {
     return;  // nothing to do on Chrome.
@@ -110,8 +111,11 @@ function scrollbarHack() {
     const e = document.documentElement;
     if (e.scrollHeight > e.clientHeight) {
       document.body.style.paddingRight = '20px';
+    } else if (!redrawn) {
+      document.body.classList.toggle('force-redraw');
+      redrawn = true;
     }
-  }, 20);
+  }, 200);
 }
 
 function removeChildren(n) {

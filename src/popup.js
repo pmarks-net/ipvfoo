@@ -160,14 +160,13 @@ function makeRow(isFirst, tuple) {
     tr.className = "mainRow";
   }
 
-  // Border for the "zeroth" column.
-  const sslBorder = document.createElement("span");
-  sslBorder.className = "sslBorder";
+  // Build the SSL icon for the "zeroth" pseudo-column.
+  const sslImg = makeSslImg(flags);
+  sslImg.className = "sslImg";
 
   // Build the "Domain" column.
   const domainTd = document.createElement("td");
-  domainTd.appendChild(makeSslImg(flags));
-  domainTd.appendChild(sslBorder);
+  domainTd.appendChild(sslImg);
   domainTd.appendChild(document.createTextNode(domain));
   domainTd.className = "domainTd";
   domainTd.onclick = handleClick;

@@ -168,11 +168,16 @@ class SaveableMap {
   }
 
   validateId(id) {
-    const idNumeric = parseInt(id, 10);
-    if (!idNumeric) {
-      throw `malformed id: ${id}`;
+    if (this.#prefix == "ip/") {
+      // Don't restrict ipCache domain name keys.
+      return id;
+    } else {
+      const idNumeric = parseInt(id, 10);
+      if (idNumeric) {
+        return idNumeric;
+      }
     }
-    return idNumeric;
+    throw `malformed id: ${id}`;
   }
 
   load(key, savedJSON) {
@@ -527,11 +532,40 @@ class RequestInfo extends SaveableEntry {
   }
 }
 
+class IPCacheEntry extends SaveableEntry {
+  time = 0;
+  addr = "";
+}
+
 // tabId -> TabInfo
 const tabMap = new SaveableMap(TabInfo, "tab/")
 
 // requestId -> {tabInfo, domain}
 const requestMap = new SaveableMap(RequestInfo, "req/");
+
+// Firefox-only domain->ip cache, to help work around
+// https://bugzilla.mozilla.org/show_bug.cgi?id=1395020
+const IP_CACHE_LIMIT = 1024;
+const ipCache = (typeof browser == "undefined") ? null : new SaveableMap(IPCacheEntry, "ip/");
+let ipCacheSize = 0;
+
+function ipCacheGrew() {
+  ++ipCacheSize;
+  //console.log("ipCache", ipCacheSize, Object.keys(ipCache).length);
+  if (ipCacheSize <= IP_CACHE_LIMIT) {
+    return;
+  }
+  // Garbage collect half the entries.
+  const flat = Object.values(ipCache);
+  flat.sort((a, b) => a.time - b.time);
+  ipCacheSize = flat.length;  // redundant
+  for (const cachedAddr of flat) {
+    ipCache.remove(cachedAddr.id());
+    if (--ipCacheSize <= IP_CACHE_LIMIT/2) {
+      break;
+    }
+  }
+}
 
 // mainOrigin -> Set of tabIds, for tabless service workers.
 const originMap = newMap();
@@ -583,7 +617,7 @@ const initStorage = async () => {
   const items = await chrome.storage.session.get();
   const unparseable = [];
   for (const [k, v] of Object.entries(items)) {
-    if (!(tabMap.load(k, v) || requestMap.load(k, v))) {
+    if (!(tabMap.load(k, v) || requestMap.load(k, v) || ipCache?.load(k, v))) {
       unparseable.push(k);
     }
   }
@@ -596,6 +630,9 @@ const initStorage = async () => {
   }
   for (const requestInfo of Object.values(requestMap)) {
     requestInfo.afterLoad();
+  }
+  if (ipCache) {
+    ipCacheSize = Object.keys(ipCache).length;
   }
 };
 const storageReady = initStorage();
@@ -742,6 +779,9 @@ const tabTracker = new TabTracker();
 
 // Workaround for http://crbug.com/1316588
 (async function lostEventsWatchdog() {
+  if (typeof browser != "undefined") {
+    return;  // Don't run this on Firefox.
+  }
   let quietCount = 0;
   while (true) {
     // This service worker doesn't usually live longer than 30 seconds,
@@ -928,13 +968,35 @@ chrome.webRequest.onResponseStarted.addListener(async (details) => {
   if (!parsed.domain) {
     return;
   }
-  const addr = details.ip || "(no address)";
+
+  let addr = details.ip;
+  let fromCache = details.fromCache;
+  if (ipCache) {
+    // This runs on Firefox only.
+    if (addr) {
+      const cachedAddr = ipCache.lookupOrNew(parsed.domain);
+      const grew = !cachedAddr.addr;
+      cachedAddr.time = Date.now();
+      cachedAddr.addr = addr;
+      cachedAddr.save();
+      if (grew) {
+        ipCacheGrew();
+      }
+    } else {
+      const cachedAddr = ipCache[parsed.domain];
+      if (cachedAddr) {
+        fromCache = true;
+        addr = cachedAddr.addr;
+      }
+    }
+  }
+  addr = addr || "(no address)";
 
   let flags = parsed.ssl ? FLAG_SSL : FLAG_NOSSL;
   if (parsed.ws) {
     flags |= FLAG_WEBSOCKET;
   }
-  if (!details.fromCache) {
+  if (!fromCache) {
     flags |= FLAG_UNCACHED;
   }
   if (details.tabId > 0) {

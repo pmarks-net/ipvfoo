@@ -219,7 +219,7 @@ class TabInfo extends SaveableEntry {
   mainDomain = "";       // Bare domain from the main_frame request.
   mainOrigin = "";       // Origin from the main_frame request.
   committed = false;     // True if onCommitted has fired.
-  domains = new Map();   // Updated whenever we get some IPs.
+  domains = newMap();    // Updated whenever we get some IPs.
   spillCount = 0;        // How many requests didn't fit in domains.
   lastPattern = "";      // To avoid redundant icon redraws.
   lastTooltip = "";      // To avoid redundant tooltip updates.
@@ -235,7 +235,7 @@ class TabInfo extends SaveableEntry {
     if (!options.ready) throw "must await optionsReady!";
 
     if (tabMap[tabId]) throw "Duplicate entry in tabMap";
-    if (tabTracker.exists(tabId)) {
+    if (tabTracker.tabSet.has(tabId)) {
       this.makeAlive();
     }
   }
@@ -264,7 +264,7 @@ class TabInfo extends SaveableEntry {
   remove() {
     super.remove();  // no await
     this.#state = TAB_DEAD;
-    this.domains = new Map();
+    this.domains = newMap();
     updateOriginMap(this.id(), this.mainOrigin, null);
   }
 
@@ -504,16 +504,10 @@ class DomainInfo {
 class RequestInfo extends SaveableEntry {
   // Typically this contains one {tabId: tabBorn} entry,
   // but for Service Worker requests there may be multiple tabs.
-  tabIdToBorn = new Map();
+  tabIdToBorn = newMap();
   domain = null;
 
   afterLoad() {
-    try {
-      this.tabIdToBorn = new Map(Object.entries(this.tabIdToBorn));
-    } catch {
-      // This will be garbage collected shortly.
-      this.tabIdToBorn = new Map();
-    }
     for (const [tabId, tabBorn] of Object.entries(this.tabIdToBorn)) {
       const tabInfo = tabMap[tabId];
       if (tabInfo?.born != tabBorn) {
@@ -525,7 +519,7 @@ class RequestInfo extends SaveableEntry {
       }
       tabInfo.addDomain(this.domain, null, 0);
     }
-    if (!this.tabIdToBorn.size) {
+    if (Object.keys(this.tabIdToBorn).length == 0) {
       requestMap.remove(this.id());
       console.log("garbage-collected RequestInfo", this.id());
       return;
@@ -540,7 +534,7 @@ const tabMap = new SaveableMap(TabInfo, "tab/")
 const requestMap = new SaveableMap(RequestInfo, "req/");
 
 // mainOrigin -> Set of tabIds, for tabless service workers.
-const originMap = new Map();
+const originMap = newMap();
 
 function updateOriginMap(tabId, oldOrigin, newOrigin) {
   if (oldOrigin && oldOrigin != newOrigin) {
@@ -567,7 +561,8 @@ function lookupOriginMap(origin) {
 }
 
 // Must "await storageReady;" before reading maps.
-const storageReady = (async () => {
+// You can force initStorage() from the console for debugging purposes.
+const initStorage = async () => {
   await spriteImgReady;
   await optionsReady;
 
@@ -580,6 +575,10 @@ const storageReady = (async () => {
       await chrome.storage.local.remove(k);
     }
   }
+
+  // These are be no-ops unless initStorage() is called manually.
+  clearMap(tabMap);
+  clearMap(requestMap);
 
   const items = await chrome.storage.session.get();
   const unparseable = [];
@@ -598,14 +597,15 @@ const storageReady = (async () => {
   for (const requestInfo of Object.values(requestMap)) {
     requestInfo.afterLoad();
   }
-})();
+};
+const storageReady = initStorage();
 
 // -- Popups --
 
 // This class keeps track of the visible popup windows,
 // and streams changes to them as they occur.
 class Popups {
-  ports = new Map();      // tabId -> Port
+  ports = newMap();  // tabId -> Port
 
   // Attach a new popup window, and start sending it updates.
   attachPort(port) {
@@ -684,7 +684,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 // Once a tab has become visible, then hopefully we can rely on the onRemoved
 // event to fire sometime in the future, when the user closes it.
 class TabTracker {
-  tabSet = new Map();               // Set of all known tabIds
+  tabSet = new Set();  // Set of all known tabIds
 
   constructor() {
     chrome.tabs.onCreated.addListener(async (tab) => {
@@ -703,22 +703,18 @@ class TabTracker {
     this.#pollAllTabs();
   }
 
-  exists(tabId) {
-    return !!this.tabSet[tabId];
-  }
-
   // Every 5 minutes (or after a service_worker restart),
   // poke any tabs that have become out of sync.
   async #pollAllTabs() {
     await storageReady;  // load 'born' timestamps first.
     while (true) {
       const result = await chrome.tabs.query({});
-      this.tabSet = new Map();
+      this.tabSet.clear();
       for (const tab of result) {
         this.#addTab(tab.id, "pollAlltabs")
       }
       for (const tabId of Object.keys(tabMap)) {
-        if (!this.tabSet[tabId]) {
+        if (!this.tabSet.has(tabId)) {
           this.#removeTab(tabId, "pollAllTabs");
         }
       }
@@ -728,13 +724,13 @@ class TabTracker {
 
   #addTab(tabId, logText) {
     debugLog("addTab", tabId, logText);
-    this.tabSet[tabId] = true;
+    this.tabSet.add(tabId);
     tabMap[tabId]?.makeAlive();
   }
 
   #removeTab(tabId, logText) {
     debugLog("removeTab", tabId, logText);
-    delete this.tabSet[tabId];
+    this.tabSet.delete(tabId);
     if (tabMap[tabId]?.tooYoungToDie()) {
       return;
     }

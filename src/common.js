@@ -24,6 +24,17 @@ const FLAG_CONNECTED = 0x8;
 const FLAG_WEBSOCKET = 0x10;
 const FLAG_NOTWORKER = 0x20;  // from a tab, not a service worker
 
+// Returns an Object with no default properties.
+function newMap() {
+  return Object.create(null);
+}
+
+function clearMap(m) {
+  for (const k of Object.keys(m)) {
+    delete m[k];
+  }
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -58,7 +69,7 @@ function redFailImg() {
 }
 
 // Get a <canvas> element of the given size.
-const _canvasElements = new Map();
+const _canvasElements = newMap();
 function _getCanvasContext(size) {
   let c = _canvasElements[size];
   if (!c) {

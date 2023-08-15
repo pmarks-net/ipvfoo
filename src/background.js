@@ -240,7 +240,7 @@ class TabInfo extends SaveableEntry {
     if (!options.ready) throw "must await optionsReady!";
 
     if (tabMap[tabId]) throw "Duplicate entry in tabMap";
-    if (tabTracker.tabSet.has(tabId)) {
+    if (tabTracker.exists(tabId)) {
       this.makeAlive();
     }
   }
@@ -721,7 +721,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 // Once a tab has become visible, then hopefully we can rely on the onRemoved
 // event to fire sometime in the future, when the user closes it.
 class TabTracker {
-  tabSet = new Set();  // Set of all known tabIds
+  tabSet = newMap();  // Set of all known tabIds
 
   constructor() {
     chrome.tabs.onCreated.addListener(async (tab) => {
@@ -740,18 +740,22 @@ class TabTracker {
     this.#pollAllTabs();
   }
 
+  exists(tabId) {
+    return !!this.tabSet[tabId];
+  }
+
   // Every 5 minutes (or after a service_worker restart),
   // poke any tabs that have become out of sync.
   async #pollAllTabs() {
     await storageReady;  // load 'born' timestamps first.
     while (true) {
       const result = await chrome.tabs.query({});
-      this.tabSet.clear();
+      this.tabSet = newMap();
       for (const tab of result) {
         this.#addTab(tab.id, "pollAlltabs")
       }
       for (const tabId of Object.keys(tabMap)) {
-        if (!this.tabSet.has(tabId)) {
+        if (!this.tabSet[tabId]) {
           this.#removeTab(tabId, "pollAllTabs");
         }
       }
@@ -761,13 +765,13 @@ class TabTracker {
 
   #addTab(tabId, logText) {
     debugLog("addTab", tabId, logText);
-    this.tabSet.add(tabId);
+    this.tabSet[tabId] = true;
     tabMap[tabId]?.makeAlive();
   }
 
   #removeTab(tabId, logText) {
     debugLog("removeTab", tabId, logText);
-    this.tabSet.delete(tabId);
+    delete this.tabSet[tabId];
     if (tabMap[tabId]?.tooYoungToDie()) {
       return;
     }

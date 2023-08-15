@@ -16,7 +16,7 @@
       "id": "ipvfoo@pmarks.net"
     }
   },
-  "action": {
+  "page_action": {
     "default_icon": {
       "16": "icon16_transparent.png"
     }

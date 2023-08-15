@@ -365,9 +365,13 @@ class TabInfo extends SaveableEntry {
     if (has4) pattern += "4";
     if (has6) pattern += "6";
 
+    // Firefox might drop support for pageAction someday, but until then
+    // let's keep the icon in the address bar.
+    const action = chrome.pageAction || chrome.action;
+
     // Don't waste time rewriting the same tooltip.
     if (this.lastTooltip != tooltip) {
-      chrome.action.setTitle({
+      action.setTitle({
         "tabId": this.id(),
         "title": tooltip,
       });
@@ -378,17 +382,20 @@ class TabInfo extends SaveableEntry {
     // Don't waste time redrawing the same icon.
     if (this.lastPattern != pattern) {
       const color = options[this.color];
-      chrome.action.setIcon({
+      action.setIcon({
         "tabId": this.id(),
         "imageData": {
           "16": buildIcon(pattern, 16, color),
           "32": buildIcon(pattern, 32, color),
         },
       });
-      chrome.action.setPopup({
+      action.setPopup({
         "tabId": this.id(),
         "popup": `popup.html#${this.id()}`,
       });
+      if (action.show) {
+        action.show(this.id());  // Firefox only
+      }
       this.lastPattern = pattern;
       this.save();
     }

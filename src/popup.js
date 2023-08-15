@@ -81,6 +81,7 @@ function pushOne(tuple) {
   }
   // No exact match.  Insert the row in alphabetical order.
   table.insertBefore(makeRow(false, tuple), insertHere);
+  scrollbarHack();
 }
 
 // Count must be a number.
@@ -89,6 +90,7 @@ function pushSpillCount(count) {
       count == 0 ? "none" : "block";
   removeChildren(document.getElementById("spill_count")).appendChild(
       document.createTextNode(count));
+  scrollbarHack();
 }
 
 // Shake the content (for 500ms) to signal an error.
@@ -97,6 +99,19 @@ function shake() {
   setTimeout(function() {
     document.body.className = "";
   }, 600);
+}
+
+// Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1395025
+function scrollbarHack() {
+  if (typeof browser == "undefined") {
+    return;  // nothing to do on Chrome.
+  }
+  setTimeout(() => {
+    const e = document.documentElement;
+    if (e.scrollHeight > e.clientHeight) {
+      document.body.style.paddingRight = '20px';
+    }
+  }, 20);
 }
 
 function removeChildren(n) {

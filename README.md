@@ -1,4 +1,4 @@
-**IPvFoo** is a Chrome extension that adds an icon to your location bar, indicating whether the current page was fetched using IPv4 or IPv6. When you click the icon, a pop-up appears, listing the IP address for each domain that served the page elements.
+**IPvFoo** is a Chrome/Firefox extension that adds an icon to your location bar, indicating whether the current page was fetched using IPv4 or IPv6. When you click the icon, a pop-up appears, listing the IP address for each domain that served the page elements.
 
 Everything is captured privately using the webRequest API, without creating any additional network traffic.
 

@@ -81,6 +81,12 @@ img::selection {
   float: left;
   padding: 6px;
 }
+#beg {
+  display: none;
+  margin-bottom: 10px;
+  padding: 10px;
+  width: 100%
+}
 #spill_count_container {
   text-align: center;
   font-weight: bold;
@@ -108,6 +114,7 @@ img::selection {
 </head>
 <body>
 <div class="border">
+  <button id="beg">Click to grant permission</button>
   <table id="addr_table" height="1px"></table>
   <div id="spill_count_container">
   &#x22ee; <span id="spill_count">0</span> requests omitted

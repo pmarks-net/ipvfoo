@@ -16,6 +16,8 @@ limitations under the License.
 
 "use strict";
 
+const ALL_URLS = "<all_urls>";
+
 const tabId = window.location.hash.substr(1);
 if (!isFinite(Number(tabId))) {
   throw "Bad tabId";
@@ -23,11 +25,28 @@ if (!isFinite(Number(tabId))) {
 
 let table = null;
 
-window.onload = function() {
+window.onload = async function() {
   table = document.getElementById("addr_table");
   table.onmousedown = handleMouseDown;
+  await beg();
   connectToExtension();
 };
+
+async function beg() {
+  const p = await chrome.permissions.getAll();
+  for (const origin of p.origins) {
+    if (origin == ALL_URLS) {
+      return;  // We already have permission.
+    }
+  }
+  const button = document.getElementById("beg");
+  button.style.display = "block";  // visible
+  button.addEventListener("click", async () => {
+    if (await chrome.permissions.request({origins: [ALL_URLS]})) {
+      button.style.display = "none";
+    }
+  });
+}
 
 function connectToExtension() {
   const port = chrome.runtime.connect(null, {name: tabId});

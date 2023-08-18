@@ -42,9 +42,12 @@ async function beg() {
   const button = document.getElementById("beg");
   button.style.display = "block";  // visible
   button.addEventListener("click", async () => {
-    if (await chrome.permissions.request({origins: [ALL_URLS]})) {
-      button.style.display = "none";
-    }
+    // We need to close the popup before awaiting, otherwise
+    // Firefox (at least version 116 on Windows) renders the
+    // permission dialog underneath the popup.
+    const promise = chrome.permissions.request({origins: [ALL_URLS]});
+    window.close();
+    await promise;
   });
 }
 

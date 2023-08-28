@@ -8,5 +8,9 @@ https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapgga
 ## Add to Firefox
 https://addons.mozilla.org/firefox/addon/ipvfoo-pmarks/
 
+## Add to Edge
+https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobedeiaiofod  
+*(You can also run the Chrome version on Edge, as they are identical.)*
+
 ## Screenshot
 ![Screenshot](/misc/screenshot_webstore_1_640x400.png?raw=true)

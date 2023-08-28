@@ -1,11 +1,12 @@
 Privacy Policy
 
-IPvFoo monitors all of your web traffic, in order to present a table of
-connection information.  This information is stored in local RAM, and is
-not transmitted over the network.
+IPvFoo has full access to your web traffic, as this is necessary to present
+the table of connection information.  All information is kept in RAM on your
+computer, and never transmitted over the network.
 
-If you use the "Look up on bgp.he.net" feature, the selected domain name
-or IP address will be sent to Hurricane Electric via URL request.
+Technically there is one exception: if you use the "Look up on bgp.he.net"
+feature, your browser will navigate to a URL managed by Hurricane Electric,
+containing the selected domain name or IP address.
 
 
 My other Chrome extensions do not use personal information at all:

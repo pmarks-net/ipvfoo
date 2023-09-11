@@ -21,6 +21,7 @@ limitations under the License.
   body {
     font-family: "Noto Sans", Arial, sans-serif;
     font-size: 10pt;
+    background-color: #fff;
     color: #444;
     margin: 20px;
   }
@@ -56,6 +57,14 @@ limitations under the License.
   .colorscheme_title {
     padding: 1em;
     font-weight: bold;
+  }
+
+  /* dark mode */
+  @media (prefers-color-scheme: dark) {
+    body {
+      background-color: #222;
+      color: #eee;
+    }
   }
   </style>
   <script src="common.js"></script>

@@ -22,18 +22,20 @@ body {
   margin: 0;
   font-family: serif;
   font-size: medium;
+  background-color: #fff;
+  color: #000;
 }
 /* We want copy-paste to keep the domain in the first column,
    so this draws a vertical line to fake the "zeroth" column. */
 table {
-  background-image: url("1x1_888.png");
+  background-image: url("1x1_808080.png");
   background-position: top 0px left 23px;
   background-repeat: repeat-y;
 }
 table, td, tr {
   border-width: 1px;
   border-collapse: collapse;
-  border-color: #888;
+  border-color: #808080;
   border-style: solid;
   padding: 0pt 3pt 0pt 3pt;
   white-space: nowrap;
@@ -90,7 +92,30 @@ img::selection {
 #spill_count_container {
   text-align: center;
   font-weight: bold;
-  color: #888;
+  color: #808080;
+}
+
+/* dark mode */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #222;
+    color: #eee;
+  }
+  .sslImg {
+    filter: invert(1);
+  }
+  .addrTd {
+    color: #8080ff;
+  }
+  .ip4 {
+    color: #ff8080;
+  }
+  .ip6 {
+    color: #80ff80;
+  }
+  .highlight {
+    background-color: #505030;
+  }
 }
 
 @keyframes shake {

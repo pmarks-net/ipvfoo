@@ -12,5 +12,10 @@ https://addons.mozilla.org/firefox/addon/ipvfoo-pmarks/
 https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobedeiaiofod  
 *(You can also run the Chrome version on Edge, as they are identical.)*
 
+## Safari?
+
+IPvFoo cannot be [ported to Safari](https://github.com/pmarks-net/ipvfoo/issues/39) because the `webRequest` API does not report IP addresses.  In theory, a Safari extension could do its own DNS lookups over HTTPS, but such behavior is beyond the scope of IPvFoo.
+
 ## Screenshot
 ![Screenshot](/misc/screenshot_webstore_1_640x400.png?raw=true)
+

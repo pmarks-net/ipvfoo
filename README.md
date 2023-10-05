@@ -7,6 +7,7 @@ https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapgga
 
 ## Add to Firefox
 https://addons.mozilla.org/firefox/addon/ipvfoo-pmarks/
+*(Now also works in Firefox Nightly 120 for Android)*
 
 ## Add to Edge
 https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobedeiaiofod  

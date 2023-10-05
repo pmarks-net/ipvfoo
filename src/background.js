@@ -64,6 +64,8 @@ const NAME_VERSION = (() => {
   return `${m.name} v${m.version}`;
 })();
 
+const IS_MOBILE = /\bMobile\b/.test(navigator.userAgent);
+
 let debug = false;
 function debugLog() {
   if (debug) {
@@ -359,7 +361,11 @@ class TabInfo extends SaveableEntry {
     for (const [domain, d] of Object.entries(this.domains)) {
       if (domain == this.mainDomain) {
         pattern = d.addrVersion();
-        tooltip = `${d.addr}\n${NAME_VERSION}`;
+        if (IS_MOBILE) {
+          tooltip = d.addr;  // Limited tooltip space on Android.
+        } else {
+          tooltip = `${d.addr}\n${NAME_VERSION}`;
+        }
       } else {
         switch (d.addrVersion()) {
           case "4": has4 = true; break;
@@ -1041,7 +1047,7 @@ chrome.webRequest.onErrorOccurred.addListener(forgetRequest, FILTER_ALL_URLS);
 // cannot vary based on content.
 const MENU_ID = "ipvfoo-lookup";
 
-chrome.contextMenus.removeAll(() => {
+chrome.contextMenus?.removeAll(() => {
   chrome.contextMenus.create({
     title: "Look up on bgp.he.net",
     id: MENU_ID,
@@ -1051,7 +1057,7 @@ chrome.contextMenus.removeAll(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus?.onClicked.addListener((info, tab) => {
   if (info.menuItemId != MENU_ID) return;
   const text = info.selectionText;
   if (IP4_CHARS.test(text) || IP6_CHARS.test(text)) {

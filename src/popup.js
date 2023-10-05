@@ -17,6 +17,7 @@ limitations under the License.
 "use strict";
 
 const ALL_URLS = "<all_urls>";
+const IS_MOBILE = /\bMobile\b/.test(navigator.userAgent);
 
 const tabId = window.location.hash.substr(1);
 if (!isFinite(Number(tabId))) {
@@ -29,6 +30,9 @@ window.onload = async function() {
   table = document.getElementById("addr_table");
   table.onmousedown = handleMouseDown;
   await beg();
+  if (IS_MOBILE) {
+    document.getElementById("options_link").style.display = "block";
+  }
   connectToExtension();
 };
 
@@ -103,7 +107,11 @@ function pushOne(tuple) {
   }
   // No exact match.  Insert the row in alphabetical order.
   table.insertBefore(makeRow(false, tuple), insertHere);
-  scrollbarHack();
+  if (IS_MOBILE) {
+    zoomHack();
+  } else {
+    scrollbarHack();
+  }
 }
 
 // Count must be a number.
@@ -112,7 +120,11 @@ function pushSpillCount(count) {
       count == 0 ? "none" : "block";
   removeChildren(document.getElementById("spill_count")).appendChild(
       document.createTextNode(count));
-  scrollbarHack();
+  if (IS_MOBILE) {
+    zoomHack();
+  } else {
+    scrollbarHack();
+  }
 }
 
 // Shake the content (for 500ms) to signal an error.
@@ -121,6 +133,12 @@ function shake() {
   setTimeout(function() {
     document.body.className = "";
   }, 600);
+}
+
+// On mobile, zoom in so the table fills the viewport.
+function zoomHack() {
+  const tableWidth = document.querySelector('table').offsetWidth;
+  document.querySelector('meta[name="viewport"]').setAttribute('content', `width=${tableWidth}`);
 }
 
 // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1395025

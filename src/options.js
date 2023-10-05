@@ -59,7 +59,11 @@ window.onload = async () => {
   };
 
   document.getElementById("dismiss_btn").onclick = function() {
-    window.close();
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.close();
+    }
   };
 }
 

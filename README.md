@@ -6,7 +6,7 @@ Everything is captured privately using the webRequest API, without creating any 
 https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapggal
 
 ## Add to Firefox
-https://addons.mozilla.org/firefox/addon/ipvfoo-pmarks/
+https://addons.mozilla.org/firefox/addon/ipvfoo-pmarks/  
 *(Now also works in Firefox Nightly 120 for Android)*
 
 ## Add to Edge

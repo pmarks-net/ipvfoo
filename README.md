@@ -5,9 +5,17 @@ Everything is captured privately using the webRequest API, without creating any 
 ## Add to Chrome
 https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapggal
 
+<picture><img src="https://badgen.net/chrome-web-store/v/ecanpcehffngcegjmadlcijfolapggal"></picture>
+<picture><img src="https://badgen.net/chrome-web-store/users/ecanpcehffngcegjmadlcijfolapggal"></picture>
+<picture><img src="https://badgen.net/chrome-web-store/rating/ecanpcehffngcegjmadlcijfolapggal"></picture>
+
 ## Add to Firefox
 https://addons.mozilla.org/firefox/addon/ipvfoo-pmarks/  
 *(Now also works in Firefox Nightly 120 for Android)*
+
+<picture><img src="https://badgen.net/amo/v/ipvfoo-pmarks"></picture>
+<picture><img src="https://badgen.net/amo/users/ipvfoo-pmarks"></picture>
+<picture><img src="https://badgen.net/amo/rating/ipvfoo-pmarks"></picture>
 
 ## Add to Edge
 https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobedeiaiofod  

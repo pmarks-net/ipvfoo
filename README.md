@@ -9,7 +9,7 @@ https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapgga
 <picture><img src="https://badgen.net/chrome-web-store/users/ecanpcehffngcegjmadlcijfolapggal"></picture>
 <picture><img src="https://badgen.net/chrome-web-store/rating/ecanpcehffngcegjmadlcijfolapggal"></picture>
 
-## Add to Firefox (Desktop 115+, Android 120+)
+## Add to Firefox (Desktop ≥115, Android ≥120)
 https://addons.mozilla.org/firefox/addon/ipvfoo-pmarks/  
 
 <picture><img src="https://badgen.net/amo/v/ipvfoo-pmarks"></picture>

@@ -400,6 +400,8 @@ class TabInfo extends SaveableEntry {
           "32": buildIcon(pattern, 32, color),
         },
       });
+      // Send icon to the popup window (mobile only)
+      popups.pushPattern(this.id(), pattern);
       action.setPopup({
         "tabId": this.id(),
         "popup": `popup.html#${this.id()}`,
@@ -413,7 +415,7 @@ class TabInfo extends SaveableEntry {
   }
 
   pushAll() {
-    popups.pushAll(this.id(), this.getTuples(), this.spillCount);
+    popups.pushAll(this.id(), this.getTuples(), this.lastPattern, this.spillCount);
   }
 
   pushOne(domain) {
@@ -662,11 +664,12 @@ class Popups {
     delete this.ports[tabId];
   };
 
-  pushAll(tabId, tuples, spillCount) {
+  pushAll(tabId, tuples, pattern, spillCount) {
     this.ports[tabId]?.postMessage({
       cmd: "pushAll",
       tuples: tuples,
-      spillCount: spillCount
+      pattern: pattern,
+      spillCount: spillCount,
     });
   };
 
@@ -676,7 +679,14 @@ class Popups {
     }
     this.ports[tabId]?.postMessage({
       cmd: "pushOne",
-      tuple: tuple
+      tuple: tuple,
+    });
+  };
+
+  pushPattern(tabId, pattern) {
+    this.ports[tabId]?.postMessage({
+      cmd: "pushPattern",
+      pattern: pattern,
     });
   };
 

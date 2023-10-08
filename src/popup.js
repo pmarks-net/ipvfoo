@@ -31,7 +31,7 @@ window.onload = async function() {
   table.onmousedown = handleMouseDown;
   await beg();
   if (IS_MOBILE) {
-    document.getElementById("options_link").style.display = "block";
+    document.getElementById("mobile_footer").style.display = "flex";
   }
   connectToExtension();
 };
@@ -62,9 +62,11 @@ function connectToExtension() {
     console.log("onMessage", msg.cmd, msg);
     switch (msg.cmd) {
       case "pushAll":
-        return pushAll(msg.tuples, msg.spillCount);
+        return pushAll(msg.tuples, msg.pattern, msg.spillCount);
       case "pushOne":
         return pushOne(msg.tuple);
+      case "pushPattern":
+        return pushPattern(msg.pattern);
       case "pushSpillCount":
         return pushSpillCount(msg.spillCount);
       case "shake":
@@ -79,11 +81,12 @@ function connectToExtension() {
 }
 
 // Clear the table, and fill it with new data.
-function pushAll(tuples, spillCount) {
+function pushAll(tuples, pattern, spillCount) {
   removeChildren(table);
   for (let i = 0; i < tuples.length; i++) {
     table.appendChild(makeRow(i == 0, tuples[i]));
   }
+  pushPattern(pattern);
   pushSpillCount(spillCount);
 }
 
@@ -111,6 +114,25 @@ function pushOne(tuple) {
     zoomHack();
   } else {
     scrollbarHack();
+  }
+}
+
+let lastPattern = "";
+async function pushPattern(pattern) {
+  if (!IS_MOBILE) {
+    return;
+  }
+  if (lastPattern != pattern) {
+    lastPattern = pattern;
+  } else {
+    return;
+  }
+  await spriteImgReady;
+  for (const color of ["darkfg", "lightfg"]) {
+    const canvas = document.getElementById(`pattern_icon_${color}`);
+    const ctx = canvas.getContext("2d");
+    const imageData = buildIcon(pattern, 32, color);
+    ctx.putImageData(imageData, 0, 0);
   }
 }
 

@@ -95,15 +95,23 @@ img::selection {
   font-weight: bold;
   color: #808080;
 }
+#mobile_footer {
+  display: none; /* or flex */
+  justify-content: space-between;
+  align-items: center;
+}
 #options_link {
-  display: none;
   padding-top: 20px;
   padding-bottom: 20px;
-  text-align: center;
+  flex: 1;
   font-size: large;
+  text-align: center;
 }
 #options_link a {
   color: #808080;
+}
+#pattern_icon_lightfg {
+  display: none;
 }
 
 /* dark mode */
@@ -126,6 +134,12 @@ img::selection {
   }
   .highlight {
     background-color: #505030;
+  }
+  #pattern_icon_darkfg {
+    display: none;
+  }
+  #pattern_icon_lightfg {
+    display: initial;
   }
 }
 
@@ -155,8 +169,10 @@ img::selection {
   <div id="spill_count_container">
   &#x22ee; <span id="spill_count">0</span> requests omitted
   </div>
-  <div id="options_link">
-    <a href="options.html">Options</a>
+  <div id="mobile_footer">
+    <div id="options_link"><a href="options.html">Options</a></div>
+    <canvas id="pattern_icon_lightfg" width="32px" height="32px"></canvas>
+    <canvas id="pattern_icon_darkfg" width="32px" height="32px"></canvas>
   </div>
 </div>
 </body>

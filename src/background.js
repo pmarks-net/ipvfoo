@@ -797,39 +797,6 @@ class TabTracker {
 
 const tabTracker = new TabTracker();
 
-// Workaround for http://crbug.com/1316588
-(async function lostEventsWatchdog() {
-  if (typeof browser != "undefined") {
-    return;  // Don't run this on Firefox.
-  }
-  let quietCount = 0;
-  while (true) {
-    // This service worker doesn't usually live longer than 30 seconds,
-    // but the event-loss bug seems to leave the worker running.
-    await sleep(60*SECONDS);
-
-    const age = Date.now() - lastWebRequest;
-    debugLog(`Last webRequest ${age/1000}s ago`);
-
-    if (age < 90*SECONDS) {
-      quietCount = 0;  // webRequest still works
-    } else {
-      ++quietCount;
-      debugLog("++quietCount =", quietCount);
-      if (quietCount >= 3) {
-        console.error(new Date().toISOString(), "Missing webRequest events; reloading!");
-        return chrome.runtime.reload();
-      }
-      // Tickle the webRequest API with a dummy fetch.
-      try {
-        await fetch("https://0.0.0.0:0/ipvfoo/keepalive");
-      } catch {
-        // expected
-      }
-    }
-  }
-})();
-
 // -- webNavigation --
 
 // Typically, onBeforeNavigate fires between the main_frame
@@ -887,12 +854,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 // -- webRequest --
 
-let lastWebRequest = 0;  // timestamp of last webRequest.oBR event
-
 chrome.webRequest.onBeforeRequest.addListener(async (details) => {
   //debugLog("wR.oBR", details?.tabId, details?.url, details);
-  lastWebRequest = Date.now();
-
   await storageReady;
   const tabId = details.tabId;
   const tabInfos = [];

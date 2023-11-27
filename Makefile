@@ -1,5 +1,5 @@
 BUILDDIR := build/
-NAME := ipvfoo
+NAME := ipvfoo-renamed
 MANIFEST := src/manifest.json
 MANIFEST_F := src/manifest/firefox-manifest.json
 MANIFEST_C := src/manifest/chrome-manifest.json

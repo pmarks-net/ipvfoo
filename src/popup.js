@@ -19,6 +19,9 @@ limitations under the License.
 const ALL_URLS = "<all_urls>";
 const IS_MOBILE = /\bMobile\b/.test(navigator.userAgent);
 
+// Snip domains longer than this, to avoid horizontal scrolling.
+const LONG_DOMAIN = 56;
+
 const tabId = window.location.hash.substr(1);
 if (!isFinite(Number(tabId))) {
   throw "Bad tabId";
@@ -248,7 +251,11 @@ function makeRow(isFirst, tuple) {
   // Build the "Domain" column.
   const domainTd = document.createElement("td");
   domainTd.appendChild(sslImg);
-  domainTd.appendChild(document.createTextNode(domain));
+  if (domain.length > LONG_DOMAIN) {
+    domainTd.appendChild(makeSnippedText(domain, Math.floor(LONG_DOMAIN / 2)));
+  } else {
+    domainTd.appendChild(document.createTextNode(domain));
+  }
   domainTd.className = "domainTd";
   domainTd.onclick = handleClick;
   domainTd.oncontextmenu = handleContextMenu;
@@ -295,6 +302,56 @@ function makeRow(isFirst, tuple) {
   tr.appendChild(addrTd);
   tr.appendChild(cacheTd);
   return tr;
+}
+
+// Given a long domain name, generate "prefix...suffix".  When the user
+// clicks "...", all domains are expanded.  The CSS is tricky because
+// we want the original domain to remain intact for clipboard purposes.
+function makeSnippedText(domain, keep) {
+  const prefix = domain.substr(0, keep);
+  const snipped = domain.substr(keep, domain.length - 2 * keep);
+  const suffix = domain.substr(domain.length - keep);
+  const f = document.createDocumentFragment();
+
+  // Add prefix text.
+  f.appendChild(document.createTextNode(prefix));
+
+  // Add snipped text, invisible but copyable.
+  let snippedText = document.createElement("span");
+  snippedText.className = "snippedTextInvisible";
+  snippedText.textContent = snipped;
+  f.appendChild(snippedText);
+
+  // Add clickable "..." image.
+  const snipImg = makeImg("snip.png", "");
+  snipImg.className = "snipImg";
+  const snipLink = document.createElement("a");
+  snipLink.className = "snipLinkInvisible snipLinkVisible";
+  snipLink.href = "#";
+  snipLink.addEventListener("click", unsnipAll);
+  snipLink.appendChild(snipImg);
+  f.appendChild(snipLink);
+
+  // Add suffix text.
+  f.appendChild(document.createTextNode(suffix));
+  return f;
+}
+
+function unsnipAll(event) {
+  event.preventDefault();
+  removeStyles(".snippedTextInvisible", ".snipLinkVisible");
+}
+
+function removeStyles(...selectors) {
+  const stylesheet = document.styleSheets[0];
+  for (const selector of selectors) {
+    for (let i = stylesheet.cssRules.length - 1; i >= 0; i--) {
+      const rule = stylesheet.cssRules[i];
+      if (rule.selectorText === selector) {
+        stylesheet.deleteRule(i);
+      }
+    }
+  }
 }
 
 // Mac OS has an annoying feature where right-click selects the current

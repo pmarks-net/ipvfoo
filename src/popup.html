@@ -84,6 +84,26 @@ img::selection {
   float: left;
   padding: 6px;
 }
+
+.snippedTextInvisible {
+  /* When JS removes this style, the snipped text becomes visible. */
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  color: transparent;
+}
+.snipLinkInvisible {
+  display: none;
+}
+.snipLinkVisible {
+  /* When JS removes this style, the link becomes invisible. */
+  display: inline;
+}
+.snipImg {
+  /* Prevent Firefox 'Ctrl-A Ctrl-C' from inserting a line break. */
+  user-select: text;
+}
+
 #beg {
   display: none;
   margin-bottom: 10px;
@@ -123,6 +143,9 @@ img::selection {
   .sslImg {
     filter: invert(1);
   }
+  .snipImg {
+    filter: invert(1);
+  }
   .addrTd {
     color: #8080ff;
   }
@@ -158,6 +181,7 @@ img::selection {
   animation-name: shake;
   animation-duration: 500ms;
 }
+
 </style>
 <script type="text/javascript" src="common.js"></script>
 <script type="text/javascript" src="popup.js"></script>

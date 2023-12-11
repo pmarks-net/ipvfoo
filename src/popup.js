@@ -20,7 +20,7 @@ const ALL_URLS = "<all_urls>";
 const IS_MOBILE = /\bMobile\b/.test(navigator.userAgent);
 
 // Snip domains longer than this, to avoid horizontal scrolling.
-const LONG_DOMAIN = 56;
+const LONG_DOMAIN = 50;
 
 const tabId = window.location.hash.substr(1);
 if (!isFinite(Number(tabId))) {

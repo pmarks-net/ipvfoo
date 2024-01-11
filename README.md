@@ -2,6 +2,9 @@
 
 Everything is captured privately using the webRequest API, without creating any additional network traffic.
 
+## Screenshot
+![Screenshot](/misc/screenshot_webstore_1_640x400.png?raw=true)
+
 ## Add to Chrome
 https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapggal
 
@@ -23,7 +26,3 @@ https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobe
 ## Safari?
 
 IPvFoo cannot be [ported to Safari](https://github.com/pmarks-net/ipvfoo/issues/39) because the `webRequest` API does not report IP addresses.  In theory, a Safari extension could do its own DNS lookups over HTTPS, but such behavior is beyond the scope of IPvFoo.
-
-## Screenshot
-![Screenshot](/misc/screenshot_webstore_1_640x400.png?raw=true)
-

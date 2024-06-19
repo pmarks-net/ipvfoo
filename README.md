@@ -8,9 +8,11 @@ Everything is captured privately using the webRequest API, without creating any 
 ## Add to Chrome
 https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapggal
 
+<!--
 <picture><img src="https://badgen.net/chrome-web-store/v/ecanpcehffngcegjmadlcijfolapggal"></picture>
 <picture><img src="https://badgen.net/chrome-web-store/users/ecanpcehffngcegjmadlcijfolapggal"></picture>
 <picture><img src="https://badgen.net/chrome-web-store/rating/ecanpcehffngcegjmadlcijfolapggal"></picture>
+-->
 
 ## Add to Firefox
 https://addons.mozilla.org/addon/ipvfoo/  

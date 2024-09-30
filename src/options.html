@@ -60,6 +60,12 @@ limitations under the License.
     font-weight: bold;
   }
 
+  .nat64PrefixGroup {
+    display: flex;
+    align-items: center;
+    gap: 0px;
+  }
+
   /* dark mode */
   @media (prefers-color-scheme: dark) {
     body {
@@ -128,8 +134,11 @@ limitations under the License.
     Note that popups use the system light/dark theme.
     <br>
 
-    <h1>NAT64 Prefix</h1>
-    <input type="text" name="nat64Prefix">
+    <h1>NAT64 Options</h1>
+      <div class="nat64PrefixGroup">
+        <label for="nat64Prefix">NAT64 Prefix:</label>
+        <input type="text" id="nat64Prefix" name="nat64Prefix">
+      </div>
   </form>
 
 

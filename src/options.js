@@ -23,6 +23,12 @@ window.onload = async () => {
   await spriteImgReady;
 
   for (const option of Object.keys(DEFAULT_OPTIONS)) {
+    if (option === "nat64Prefix") {
+      const canvas = document.getElementById(`${option}:${color}`);
+      const ctx = canvas.getContext("2d");
+      const imageData = buildIcon("646", 16, color);
+      ctx.putImageData(imageData, 0, 0);
+    }
     if (!option.endsWith("ColorScheme")) continue;
     for (const color of ["darkfg", "lightfg"]) {
       const canvas = document.getElementById(`${option}:${color}`);
@@ -33,8 +39,9 @@ window.onload = async () => {
   }
 
   watchOptions(function(optionsChanged) {
+
     for (const option of optionsChanged) {
-      if (!option.endsWith("ColorScheme")) continue;
+      // if (!option.endsWith("ColorScheme")) continue;
       const radio = document.optionsForm[option];
       radio.value = options[option];
     }

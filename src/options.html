@@ -66,6 +66,15 @@ limitations under the License.
       background-color: #222;
       color: #eee;
     }
+
+    input[type="text"] {
+      background-color: #333;
+      color: #eee;
+      border-color: #333;
+      border-style: "solid";
+      border-width: 0px;
+      border-radius: 5px;
+    }
   }
   </style>
   <script src="common.js"></script>
@@ -115,10 +124,14 @@ limitations under the License.
         </td>
       </tr>
     </table>
+    <br>
+    Note that popups use the system light/dark theme.
+    <br>
+
+    <h1>NAT64 Prefix</h1>
+    <input type="text" name="nat64Prefix">
   </form>
 
-  <br>
-  Note that popups use the system light/dark theme.
 
   <div style="display:inline-block; padding-top:1.5em; width:100%">
     <button id="revert_btn" style="float:left" class="disabler">Revert to Defaults</button>

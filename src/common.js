@@ -150,6 +150,7 @@ function drawSprite(ctx, size, targets, sources) {
 const DEFAULT_OPTIONS = {
   regularColorScheme: "darkfg",
   incognitoColorScheme: "lightfg",
+  // nat64Prefix: "64:ff9b::",
 };
 
 let _watchOptionsFunc = null;

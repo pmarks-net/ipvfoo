@@ -527,50 +527,37 @@ class DomainInfo {
 
   parseIPv6WithCIDR(addressWithCIDR) {
     let [address, cidr] = addressWithCIDR.split('/');
-    let addr = BigInt(0); // Start with all bits set to 0
-    let bitPos = 0; // Start at bit 124 for the most significant nibble
-    let colon_hex_left = 4;
-    let colonseen = 0;
+    let addr = BigInt(0);
+    let bitPos = 124;
+    let colonSeen = 0;
+    let segments = address.split(':');
 
-    // Parse the address part, ignoring colons
-    for (let i = address.length - 1; i >= 0; i--) {
-      if (colonseen >= 2) {
-        break;
+    // Determine how many segments are omitted
+    const omittedCount = 8 - segments.filter(seg => seg.length > 0).length + (address.includes('::') ? 0 : 0);
+
+    console.log("omit: ", omittedCount)
+    for (let i = 0; i < segments.length; i++) {
+      if (segments[i] === '') {
+        // Handle double colon case
+        for (let j = 0; j < omittedCount; j++) {
+          // addr = this.setNibbleAtPosition(addr, '0', bitPos); // Fill in with zeros
+          bitPos -= 16; // Each omitted segment contributes 16 bits (4 nibbles)
+        }
+        continue; // Skip the empty segment
       }
-      if (address[i] !== ':') {
-        colonseen = 0
-        addr = this.setNibbleAtPosition(addr, address[i], bitPos);
-        bitPos += 4; // Move 4 bits to the right for each nibble
-      } else {
-        colonseen += 1;
-        bitPos += colon_hex_left;
-        colon_hex_left = 4;
+
+      // Process the segment
+      for (let j = 0; j < segments[i].length; j++) {
+        addr = this.setNibbleAtPosition(addr, segments[i][j], bitPos);
+        bitPos -= 4;
       }
+
+      // Adjust bit position for the next segment
+      // bitPos -= 4;
     }
 
-
-
-    bitPos = 124; // Start at bit 124 for the most significant nibble
-    colon_hex_left = 4;
-    colonseen = 0;
-    for (let i = 0; i < address.length; i++) {
-      if (colonseen >= 2) {
-        break;
-      }
-      if (address[i] !== ':') {
-        colonseen = 0
-        addr = this.setNibbleAtPosition(addr, address[i], bitPos);
-        bitPos -= 4; // Move 4 bits to the right for each nibble
-      } else {
-        colonseen += 1;
-        bitPos -= colon_hex_left;
-        colon_hex_left = 4;
-      }
-    }
-
+    // Handle CIDR value
     let cidrValue = cidr ? parseInt(cidr, 10) : 96;
-
-    // console.log(int128.toString(2), cidrValue)
 
     return { addr: addr, cidr: cidrValue };
   }
@@ -605,7 +592,7 @@ class DomainInfo {
       // let ipv6 = this.parseIPv6WithCIDR("2001:db8::1")
       // if (/^64:ff9b::/.test(this.addr)) return "4";  // RFC6052
       // if (this.inAddrRange(this.addr, "64:ff9b::/96")) return "4";  // RFC6052
-      this.inAddrRange("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "f:f:f:f::f:f")
+      this.inAddrRange("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "f:f:f:f:f:f:f:f")
       if (this.inAddrRange(this.addr, "6464:6464::/96")) return "4";  // RFC6052
     // if Option.
       if (this.addr.indexOf(".") >= 0) return "4";

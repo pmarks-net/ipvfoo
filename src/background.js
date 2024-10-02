@@ -505,24 +505,54 @@ class DomainInfo {
   }
 
   parseIPv6WithCIDR(addressWithCIDR) {
-      let [address, cidr] = addressWithCIDR.split('/');
-      let int128 = BigInt(0); // Start with all bits set to 0
-      let bitPos = 124; // Start at bit 124 for the most significant nibble
+    let [address, cidr] = addressWithCIDR.split('/');
+    let int128 = BigInt(0); // Start with all bits set to 0
+    let bitPos = 0; // Start at bit 124 for the most significant nibble
+    let colon_hex_left = 4;
+    let colonseen = 0;
 
-      // Parse the address part, ignoring colons
-      for (let i = 0; i < address.length; i++) {
-          if (address[i] !== ':') {
-              int128 = setNibbleAtPosition(int128, address[i], bitPos);
-              bitPos -= 4; // Move 4 bits to the right for each nibble
-          }
+    // Parse the address part, ignoring colons
+    for (let i = address.length - 1; i >= 0; i--) {
+      if (colonseen >= 2) {
+        break;
       }
+      if (address[i] !== ':') {
+        colonseen = 0
+        int128 = this.setNibbleAtPosition(int128, address[i], bitPos);
+        bitPos += 4; // Move 4 bits to the right for each nibble
+      } else {
+        colonseen += 1;
+        bitPos += colon_hex_left;
+        colon_hex_left = 4;
+      }
+    }
 
-      // If CIDR is present, parse and return it, otherwise assume /128 (full address)
-      let cidrValue = cidr ? parseInt(cidr, 10) : 128;
 
-      console.log(int128)
 
-      return { int128, cidr: cidrValue };
+    bitPos = 124; // Start at bit 124 for the most significant nibble
+    colon_hex_left = 4;
+    colonseen = 0;
+    for (let i = 0; i < address.length; i++) {
+      if (colonseen >= 2) {
+        break;
+      }
+      if (address[i] !== ':') {
+        colonseen = 0
+        int128 = this.setNibbleAtPosition(int128, address[i], bitPos);
+        bitPos -= 4; // Move 4 bits to the right for each nibble
+      } else {
+        colonseen += 1;
+        bitPos -= colon_hex_left;
+        colon_hex_left = 4;
+      }
+    }
+
+    // If CIDR is present, parse and return it, otherwise assume /128 (full address)
+    let cidrValue = cidr ? parseInt(cidr, 10) : 96;
+
+    console.log(int128.toString(2))
+
+    return { int128, cidr: cidrValue };
   }
 
   // parse_ipv6(address) {

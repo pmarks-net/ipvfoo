@@ -510,13 +510,13 @@ class DomainInfo {
     let addr = this.parseIPv6WithCIDR(addr_str)
     let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
 
-    // let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
-    // addr.addr = addr.addr & ~addrMask;
+    let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
+    addr.addr = addr.addr & ~addrMask;
 
 
 
     let nat64AddrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
-    // nat64Addr.addr = nat64Addr.addr & ~nat64AddrMask;
+    nat64Addr.addr = nat64Addr.addr & ~nat64AddrMask;
 
     // console.log(addr.toString(2))
 

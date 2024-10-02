@@ -478,10 +478,82 @@ class DomainInfo {
     return new DomainInfo(tabInfo, domain, addr, flags);
   }
 
+  setBitAtPosition(int, bitPosition, value) {
+    if (value === 1) {
+      // Set bit n to 1 (use OR)
+      int = int | (BigInt(1) << BigInt(bitPosition));
+    } else {
+      // Set bit n to 0 (use AND with a mask that has bit n cleared)
+      let mask = ~(BigInt(1) << BigInt(bitPosition));
+      int = int & mask;
+    }
+    return int;
+  }
+
+  setNibbleAtPosition(int128, nibble, bitPosition) {
+      // Convert the nibble (hex string) to a number
+      let nibbleValue = BigInt(parseInt(nibble, 16));
+
+      // Clear the existing bits at the position
+      let mask = ~(BigInt(0xF) << BigInt(bitPosition)); // Mask for 4 bits (nibble)
+      int128 = int128 & mask;
+
+      // Set the new nibble at the bitPosition
+      int128 = int128 | (nibbleValue << BigInt(bitPosition));
+
+      return int128;
+  }
+
+  parseIPv6WithCIDR(addressWithCIDR) {
+      let [address, cidr] = addressWithCIDR.split('/');
+      let int128 = BigInt(0); // Start with all bits set to 0
+      let bitPos = 124; // Start at bit 124 for the most significant nibble
+
+      // Parse the address part, ignoring colons
+      for (let i = 0; i < address.length; i++) {
+          if (address[i] !== ':') {
+              int128 = setNibbleAtPosition(int128, address[i], bitPos);
+              bitPos -= 4; // Move 4 bits to the right for each nibble
+          }
+      }
+
+      // If CIDR is present, parse and return it, otherwise assume /128 (full address)
+      let cidrValue = cidr ? parseInt(cidr, 10) : 128;
+
+      console.log(int128)
+
+      return { int128, cidr: cidrValue };
+  }
+
+  // parse_ipv6(address) {
+  //   let int = BigInt(0);
+  //   let colon_hex_left = 4;
+  //
+  //   for (let i = address.length - 1; i >= 0; i--) {
+  //     console.log(address[i]);
+  //     if (address[i] === ':') {
+  //       i += colon_hex_left;
+  //       colon_hex_left = 4;
+  //       continue;
+  //     }
+  //   for (let i = 0; i < address.length; i++) {
+  //       if (address[i] !== ':') {
+  //           int128 = setNibbleAtPosition(int128, address[i], bitPos);
+  //           bitPos -= 4; // Move 4 bits to the right for each nibble
+  //       }
+  //   }
+  //   }
+  //
+  //   console.log(int);
+  // }
+
   // In theory, we should be using a full-blown subnet parser/matcher here,
   // but let's keep it simple and stick with text for now.
   addrVersion() {
     if (this.addr) {
+      // this.parse_ipv6(this.addr)
+      this.parseIPv6WithCIDR("2001:db8::1")
+      // if (/^64:ff9b::/.test(this.addr)) return "4";  // RFC6052
       if (/^64:ff9b::/.test(this.addr)) return "4";  // RFC6052
     // if Option.
       if (this.addr.indexOf(".") >= 0) return "4";

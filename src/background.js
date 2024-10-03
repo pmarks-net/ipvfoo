@@ -510,13 +510,13 @@ class DomainInfo {
     let addr = this.parseIPv6WithCIDR(addr_str)
     let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
 
-    let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
-    addr.addr = addr.addr & ~addrMask;
+    // let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
+    // addr.addr = addr.addr & ~addrMask;
 
 
 
     let nat64AddrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
-    nat64Addr.addr = nat64Addr.addr & ~nat64AddrMask;
+    // nat64Addr.addr = nat64Addr.addr & ~nat64AddrMask;
 
     // console.log(addr.toString(2))
 
@@ -524,23 +524,32 @@ class DomainInfo {
     return addr.addr === nat64Addr.addr;
   }
 
+  countOccurrences(string, substring) {
+    return string.split(substring).length - 1;
+  }
+
   parseIPv6WithCIDR(addressWithCIDR) {
-    let [address, cidr] = addressWithCIDR.split('/');
+    let [addressSTR, cidr] = addressWithCIDR.split('/');
     let addr = BigInt(0); // Start with all bits set to 0
     let bitPos = 0; // Start at bit 124 for the most significant nibble
     let colon_hex_left = 16;
     let colonseen = 0;
     let sec_loop = false;
 
+    let cols = this.countOccurrences(addressSTR)
+    let double_skip = 16 * (8 - cols)
+
+
+
     // Parse the address part, ignoring colons
-    for (let i = address.length - 1; i >= 0; i--) {
+    for (let i = addressSTR.length - 1; i >= 0; i--) {
       if (colonseen >= 2) {
         sec_loop = true;
         break;
       }
-      if (address[i] !== ':') {
+      if (addressSTR[i] !== ':') {
         colonseen = 0
-        addr = this.setNibbleAtPosition(addr, address[i], bitPos);
+        addr = this.setNibbleAtPosition(addr, addressSTR[i], bitPos);
         bitPos += 4; // Move 4 bits to the right for each nibble
         colon_hex_left -= 4;
       } else {
@@ -551,26 +560,45 @@ class DomainInfo {
     }
 
 
-    if (sec_loop) {
-      bitPos = 124; // Start at bit 124 for the most significant nibble
-      colon_hex_left = 4;
-      colonseen = 0;
-      for (let i = 0; i < address.length; i++) {
-        if (colonseen >= 2) {
-          break;
-        }
-        if (address[i] !== ':') {
-          colonseen = 0
-          addr = this.setNibbleAtPosition(addr, address[i], bitPos);
-          bitPos -= 4; // Move 4 bits to the right for each nibble
-          colon_hex_left -= 4;
-        } else {
-          colonseen += 1;
-          bitPos -= colon_hex_left;
-          colon_hex_left = 16;
-        }
-      }
-    }
+    // if (sec_loop) {
+    //   bitPos = 124; // Start at bit 124 for the most significant nibble
+    //   colon_hex_left = 16;
+    //   colonseen = 0;
+    //   for (let i = 0; i < addressSTR.length; i++) {
+    //     if (colonseen >= 2) {
+    //       break;
+    //     }
+    //
+    //     if (addressSTR[i] === ':') {
+    //       for (let j = i - 1; i >= 0; i--) {
+    //         if (colonseen >= 2) {
+    //           sec_loop = true;
+    //           break;
+    //         }
+    //         if (addressSTR[j] !== ':') {
+    //           colonseen = 0
+    //           addr = this.setNibbleAtPosition(addr, addressSTR[i], bitPos);
+    //           bitPos += 4; // Move 4 bits to the right for each nibble
+    //           colon_hex_left -= 4;
+    //         } else {
+    //           colonseen += 1;
+    //           bitPos += colon_hex_left;
+    //           colon_hex_left = 16;
+    //         }
+    //       }
+    //     }
+    //     if (addressSTR[i] !== ':') {
+    //       colonseen = 0
+    //       addr = this.setNibbleAtPosition(addr, addressSTR[i], bitPos);
+    //       bitPos -= 4; // Move 4 bits to the right for each nibble
+    //       colon_hex_left -= 4;
+    //     } else {
+    //       colonseen += 1;
+    //       bitPos -= colon_hex_left;
+    //       colon_hex_left = 16;
+    //     }
+    //   }
+    // }
 
     let cidrValue = cidr ? parseInt(cidr, 10) : 96;
 

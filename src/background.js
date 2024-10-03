@@ -536,8 +536,9 @@ class DomainInfo {
     let colonseen = 0;
     let sec_loop = false;
 
-    let cols = this.countOccurrences(addressSTR)
+    let cols = this.countOccurrences(addressSTR, ":")
     let double_skip = 16 * (8 - cols)
+    // console.log("dskip: ", double_skip, "cols: ", cols)
 
 
 
@@ -545,7 +546,11 @@ class DomainInfo {
     for (let i = addressSTR.length - 1; i >= 0; i--) {
       if (colonseen >= 2) {
         sec_loop = true;
-        break;
+        // break;
+        bitPos += double_skip
+      } else if (colonseen === 1) {
+        bitPos += colon_hex_left;
+        colon_hex_left = 16;
       }
       if (addressSTR[i] !== ':') {
         colonseen = 0
@@ -554,51 +559,10 @@ class DomainInfo {
         colon_hex_left -= 4;
       } else {
         colonseen += 1;
-        bitPos += colon_hex_left;
-        colon_hex_left = 16;
       }
     }
 
 
-    // if (sec_loop) {
-    //   bitPos = 124; // Start at bit 124 for the most significant nibble
-    //   colon_hex_left = 16;
-    //   colonseen = 0;
-    //   for (let i = 0; i < addressSTR.length; i++) {
-    //     if (colonseen >= 2) {
-    //       break;
-    //     }
-    //
-    //     if (addressSTR[i] === ':') {
-    //       for (let j = i - 1; i >= 0; i--) {
-    //         if (colonseen >= 2) {
-    //           sec_loop = true;
-    //           break;
-    //         }
-    //         if (addressSTR[j] !== ':') {
-    //           colonseen = 0
-    //           addr = this.setNibbleAtPosition(addr, addressSTR[i], bitPos);
-    //           bitPos += 4; // Move 4 bits to the right for each nibble
-    //           colon_hex_left -= 4;
-    //         } else {
-    //           colonseen += 1;
-    //           bitPos += colon_hex_left;
-    //           colon_hex_left = 16;
-    //         }
-    //       }
-    //     }
-    //     if (addressSTR[i] !== ':') {
-    //       colonseen = 0
-    //       addr = this.setNibbleAtPosition(addr, addressSTR[i], bitPos);
-    //       bitPos -= 4; // Move 4 bits to the right for each nibble
-    //       colon_hex_left -= 4;
-    //     } else {
-    //       colonseen += 1;
-    //       bitPos -= colon_hex_left;
-    //       colon_hex_left = 16;
-    //     }
-    //   }
-    // }
 
     let cidrValue = cidr ? parseInt(cidr, 10) : 96;
 

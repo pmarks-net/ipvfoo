@@ -369,13 +369,14 @@ class TabInfo extends SaveableEntry {
         }
       } else {
         let [addrVer, nat64] = d.addrVersion();
+
         console.log(addrVer)
         switch (addrVer) {
           // case "nat64": d.addr = "2606:50c0:8000::"; console.log(d.addr); has4 = true; break;
           case "4": ;
-            if (nat64) {
-              d.addr = "6464:6464::10.0.40.1";
-            }
+            // if (nat64) {
+            //   d.addr = "6464:6464::10.0.40.1";
+            // }
             has4 = true
             break
           case "6": has6 = true; break;
@@ -521,6 +522,9 @@ class DomainInfo {
     try {
       let addr = this.parseIPv6WithCIDR(addr_str)
       let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
+      let ren = this.bigintToIPv6(addr.addr)
+
+      console.log("addrstr: ", addr_str, "\nreren: ", ren)
 
       let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
       addr.addr = addr.addr & ~addrMask;
@@ -532,7 +536,7 @@ class DomainInfo {
 
       // console.log(addr.toString(2))
 
-      console.log("addrstr: ", addr_str, "\nnat64str: ", nat64AddrStr,"\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
+      // console.log("addrstr: ", addr_str, "\nnat64str: ", nat64AddrStr,"\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
       return addr.addr === nat64Addr.addr;
     } catch (error) {
         return false;
@@ -590,6 +594,72 @@ class DomainInfo {
   }
 
 
+  bigintToIPv6(bigInt) {
+    // Ensure the input is a BigInt
+    if (typeof bigInt !== 'bigint') {
+      throw new TypeError('Input must be a BigInt');
+    }
+
+    // Convert the BigInt to a hexadecimal string
+    let hex = bigInt.toString(16).padStart(32, '0'); // Pad with zeros to ensure 32 hex digits
+
+    // Split the hex string into 8 groups of 4 hex digits (16 bits per group)
+    let ipv6 = [];
+    for (let i = 0; i < 8; i++) {
+      ipv6.push(hex.substr(i * 4, 4));
+    }
+
+    // Manually remove leading zeros from each block
+    ipv6 = ipv6.map(group => group.replace(/^0+/, '') || '0');
+
+    // Find the longest sequence of zero blocks to shorten
+    let zeroStart = -1;
+    let zeroLength = 0;
+    let bestZeroStart = -1;
+    let bestZeroLength = 0;
+
+    for (let i = 0; i < ipv6.length; i++) {
+      if (ipv6[i] === '0') {
+        if (zeroStart === -1) {
+          zeroStart = i;
+        }
+        zeroLength++;
+      } else {
+        if (zeroLength > bestZeroLength) {
+          bestZeroStart = zeroStart;
+          bestZeroLength = zeroLength;
+        }
+        zeroStart = -1;
+        zeroLength = 0;
+      }
+    }
+
+    // Handle the case where the longest sequence of zero blocks is at the end
+    if (zeroLength > bestZeroLength) {
+      bestZeroStart = zeroStart;
+      bestZeroLength = zeroLength;
+    }
+
+    // If we found a sequence of two or more consecutive zero blocks, shorten it
+    if (bestZeroLength > 1) {
+      ipv6.splice(bestZeroStart, bestZeroLength, ''); // Replace the longest zero sequence with an empty string
+    }
+
+    // Join the groups with ':' to form the IPv6 address
+    let ipv6Address = ipv6.join(':');
+
+    // Handle special case where address starts or ends with ::
+    if (ipv6Address.startsWith(':')) {
+      ipv6Address = ':' + ipv6Address;
+    }
+    if (ipv6Address.endsWith(':')) {
+      ipv6Address = ipv6Address + ':';
+    }
+
+    return ipv6Address;
+  }
+
+
   // In theory, we should be using a full-blown subnet parser/matcher here,
   // but let's keep it simple and stick with text for now.
   addrVersion() {
@@ -599,7 +669,10 @@ class DomainInfo {
       // if (/^64:ff9b::/.test(this.addr)) return "4";  // RFC6052
       // if (this.inAddrRange(this.addr, "64:ff9b::/96")) return "4";  // RFC6052
       // this.inAddrRange("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "f:f:f:f:f:f:f:f")
-      // this.inAddrRange("ffff:ffff:ffff::ffff:ffff:ffff", "f:f:f:f::f:f")
+      this.inAddrRange("ffff:ffff:ffff::ffff:ffff:ffff", "f:f:f:f::f:f")
+      this.inAddrRange("f:f:f:f::f:f", "f:f:f:f::f:f")
+      this.inAddrRange("f:f:f:f::", "f:f:f:f::f:f")
+
       if (this.inAddrRange(this.addr, "6464:6464::/96")) return ["4", true];  // RFC6052
     // if Option.
       if (this.addr.indexOf(".") >= 0) return ["4", false];

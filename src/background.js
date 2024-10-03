@@ -374,9 +374,10 @@ class TabInfo extends SaveableEntry {
         switch (addrVer) {
           // case "nat64": d.addr = "2606:50c0:8000::"; console.log(d.addr); has4 = true; break;
           case "4": ;
-            // if (nat64) {
-            //   d.addr = "6464:6464::10.0.40.1";
-            // }
+            if (nat64) {
+              console.log(d.bigintToMixedIPv6(d.addrBitsCIDR.addr, 128));
+              // d.addr = d.bigintToMixedIPv6(d.addrBitsCIDR.addr, d.nat64AddrBitsCIDR.cidr);
+            }
             has4 = true
             break
           case "6": has6 = true; break;
@@ -469,6 +470,9 @@ class DomainInfo {
   tabInfo;
   domain;
   addr;
+  addrBitsCIDR;
+  nat64Addr;
+  nat64AddrBitsCIDR;
   flags;
 
   count = 0;  // count of active requests
@@ -478,6 +482,10 @@ class DomainInfo {
     this.tabInfo = tabInfo;
     this.domain = domain;
     this.addr = addr;
+    this.addrBitsCIDR = this.parseIPv6WithCIDR(addr);
+
+    this.nat64Addr = "6464:6464::/96";
+    this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR(this.nat64Addr);
     this.flags = flags;
   }
 
@@ -518,13 +526,13 @@ class DomainInfo {
   }
 
 
-  inAddrRange(addr_str, nat64AddrStr) {
+  inAddrRange(addr, nat64Addr) {
     try {
-      let addr = this.parseIPv6WithCIDR(addr_str)
-      let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
-      let ren = this.bigintToMixedIPv6(addr.addr, nat64Addr.cidr)
+      // let addr = this.parseIPv6WithCIDR(addr_str)
+      // let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
+      // let ren = this.bigintToMixedIPv6(addr.addr, nat64Addr.cidr)
 
-      console.log("addrstr: ", addr_str, "\nreren: ", ren)
+      console.log("addrstr: ", this.addr, "\nreren: ", ren)
 
       let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
       addr.addr = addr.addr & ~addrMask;
@@ -536,9 +544,10 @@ class DomainInfo {
 
       // console.log(addr.toString(2))
 
-      // console.log("addrstr: ", addr_str, "\nnat64str: ", nat64AddrStr,"\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
+      // console.log("\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
       return addr.addr === nat64Addr.addr;
     } catch (error) {
+      console.log(error)
         return false;
     }
   }
@@ -675,16 +684,19 @@ class DomainInfo {
     // Join the groups with ':' to form the IPv6 part of the address
     let ipv6Address = ipv6.join(':');
 
+    let ipv4_col = ':';
+
     // Handle special case where address starts or ends with ::
     if (ipv6Address.startsWith(':')) {
       ipv6Address = ':' + ipv6Address;
     }
     if (ipv6Address.endsWith(':')) {
       ipv6Address = ipv6Address + ':';
+      ipv4_col = '';
     }
 
     // Return the combined IPv6 and IPv4 address
-    return ipv6Address + (v4Part ? ':' + v4Part : '');
+    return ipv6Address + (v4Part ? ipv4_col + v4Part : '');
   }
 
   // In theory, we should be using a full-blown subnet parser/matcher here,
@@ -696,12 +708,13 @@ class DomainInfo {
       // if (/^64:ff9b::/.test(this.addr)) return "4";  // RFC6052
       // if (this.inAddrRange(this.addr, "64:ff9b::/96")) return "4";  // RFC6052
       // this.inAddrRange("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "f:f:f:f:f:f:f:f")
-      this.inAddrRange("ffff:ffff:ffff::ffff:ffff:ffff", "f:f:f:f::f:f")
-      this.inAddrRange("f:f:f:f::f:f", "f:f:f:f::f:f")
-      this.inAddrRange("f:f:f:f::", "f:f:f:f::f:f")
-      this.inAddrRange("6464:6464::a00:1", "6464:6464::/96")
+      // this.inAddrRange("ffff:ffff:ffff::ffff:ffff:ffff", "f:f:f:f::f:f")
+      // this.inAddrRange("f:f:f:f::f:f", "f:f:f:f::f:f")
+      // this.inAddrRange("f:f:f:f::", "f:f:f:f::f:f")
+      // this.inAddrRange("6464:6464::a00:1", "6464:6464::/96")
+      // this.inAddrRange("6464:6464:1:1:1:1:a00:1", "6464:6464::/96")
 
-      if (this.inAddrRange(this.addr, "6464:6464::/96")) return ["4", true];  // RFC6052
+      if (this.inAddrRange(this.addrBitsCIDR, this.nat64AddrBitsCIDR)) return ["4", true];  // RFC6052
     // if Option.
       if (this.addr.indexOf(".") >= 0) return ["4", false];
       if (this.addr.indexOf(":") >= 0) return ["6", false];

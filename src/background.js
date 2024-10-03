@@ -358,17 +358,26 @@ class TabInfo extends SaveableEntry {
     let has4 = false;
     let has6 = false;
     let tooltip = "";
-    for (const [domain, d] of Object.entries(this.domains)) {
+    for (let [domain, d] of Object.entries(this.domains)) {
       if (domain == this.mainDomain) {
-        pattern = d.addrVersion();
+        let [addrVer, _] = d.addrVersion();
+        pattern = addrVer;
         if (IS_MOBILE) {
           tooltip = d.addr;  // Limited tooltip space on Android.
         } else {
           tooltip = `${d.addr}\n${NAME_VERSION}`;
         }
       } else {
-        switch (d.addrVersion()) {
-          case "4": has4 = true; break;
+        let [addrVer, nat64] = d.addrVersion();
+        console.log(addrVer)
+        switch (addrVer) {
+          // case "nat64": d.addr = "2606:50c0:8000::"; console.log(d.addr); has4 = true; break;
+          case "4": ;
+            if (nat64) {
+              d.addr = "6464:6464::10.0.40.1";
+            }
+            has4 = true
+            break
           case "6": has6 = true; break;
         }
       }
@@ -430,12 +439,13 @@ class TabInfo extends SaveableEntry {
     const tuples = [mainTuple];
     for (const domain of domains) {
       const d = this.domains[domain];
+      let [addrVer, _] = d.addrVersion();
       if (domain == mainTuple[0]) {
         mainTuple[1] = d.addr;
-        mainTuple[2] = d.addrVersion();
+        mainTuple[2] = addrVer;
         mainTuple[3] = d.flags;
       } else {
-        tuples.push([domain, d.addr, d.addrVersion(), d.flags]);
+        tuples.push([domain, d.addr, addrVer, d.flags]);
       }
     }
     return tuples;
@@ -448,7 +458,9 @@ class TabInfo extends SaveableEntry {
       // Perhaps this.domains was cleared during the request's lifetime.
       return null;
     }
-    return [domain, d.addr, d.addrVersion(), d.flags];
+
+    let [addrVer, _] = d.addrVersion();
+    return [domain, d.addr, addrVer, d.flags];
   }
 }
 
@@ -588,10 +600,10 @@ class DomainInfo {
       // if (this.inAddrRange(this.addr, "64:ff9b::/96")) return "4";  // RFC6052
       // this.inAddrRange("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "f:f:f:f:f:f:f:f")
       // this.inAddrRange("ffff:ffff:ffff::ffff:ffff:ffff", "f:f:f:f::f:f")
-      if (this.inAddrRange(this.addr, "6464:6464::/96")) return "4";  // RFC6052
+      if (this.inAddrRange(this.addr, "6464:6464::/96")) return ["4", true];  // RFC6052
     // if Option.
-      if (this.addr.indexOf(".") >= 0) return "4";
-      if (this.addr.indexOf(":") >= 0) return "6";
+      if (this.addr.indexOf(".") >= 0) return ["4", false];
+      if (this.addr.indexOf(":") >= 0) return ["6", false];
     }
     return "?";
   }

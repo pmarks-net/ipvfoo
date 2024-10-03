@@ -522,7 +522,7 @@ class DomainInfo {
     try {
       let addr = this.parseIPv6WithCIDR(addr_str)
       let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
-      let ren = this.bigintToIPv6(addr.addr)
+      let ren = this.bigintToMixedIPv6(addr.addr, nat64Addr.cidr)
 
       console.log("addrstr: ", addr_str, "\nreren: ", ren)
 
@@ -594,25 +594,52 @@ class DomainInfo {
   }
 
 
-  bigintToIPv6(bigInt) {
+  bigintToMixedIPv6(bigInt, v6_stop) {
     // Ensure the input is a BigInt
     if (typeof bigInt !== 'bigint') {
       throw new TypeError('Input must be a BigInt');
     }
 
     // Convert the BigInt to a hexadecimal string
-    let hex = bigInt.toString(16).padStart(32, '0'); // Pad with zeros to ensure 32 hex digits
+    let hex = bigInt.toString(16).padStart(32, '0'); // Pad with zeros to ensure 32 hex digits (128 bits)
 
-    // Split the hex string into 8 groups of 4 hex digits (16 bits per group)
+    // Determine the number of 16-bit groups needed for IPv6 before switching to IPv4
+    const ipv6Groups = Math.floor(v6_stop / 16); // Number of 16-bit blocks to be rendered as IPv6
+    const v4StartBit = v6_stop % 16; // Remainder bits that need to be handled for transition
+
+    // Prepare IPv6 part
     let ipv6 = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < ipv6Groups; i++) {
       ipv6.push(hex.substr(i * 4, 4));
     }
 
-    // Manually remove leading zeros from each block
+    // Handle any remaining bits from the transition point (v4StartBit)
+    let remainingHex = hex.substr(ipv6Groups * 4);
+
+    // Convert any remaining bits to an IPv4 address
+    let v4Part = '';
+    if (remainingHex.length > 0) {
+      let remainingBigInt = BigInt('0x' + remainingHex);
+
+      // Shift bits so that any leftover bits before the IPv4 section are discarded
+      if (v4StartBit > 0) {
+        remainingBigInt = remainingBigInt >> BigInt(16 - v4StartBit);
+      }
+
+      // Convert the final 32 bits to IPv4 address (dot-decimal)
+      let v4Number = Number(remainingBigInt & BigInt(0xFFFFFFFF)); // Mask to 32 bits
+      v4Part = [
+        (v4Number >> 24) & 0xFF,
+        (v4Number >> 16) & 0xFF,
+        (v4Number >> 8) & 0xFF,
+        v4Number & 0xFF
+      ].join('.');
+    }
+
+    // Manually remove leading zeros from each block in the IPv6 part
     ipv6 = ipv6.map(group => group.replace(/^0+/, '') || '0');
 
-    // Find the longest sequence of zero blocks to shorten
+    // Find the longest sequence of zero blocks for shortening (same as previous method)
     let zeroStart = -1;
     let zeroLength = 0;
     let bestZeroStart = -1;
@@ -645,7 +672,7 @@ class DomainInfo {
       ipv6.splice(bestZeroStart, bestZeroLength, ''); // Replace the longest zero sequence with an empty string
     }
 
-    // Join the groups with ':' to form the IPv6 address
+    // Join the groups with ':' to form the IPv6 part of the address
     let ipv6Address = ipv6.join(':');
 
     // Handle special case where address starts or ends with ::
@@ -656,9 +683,9 @@ class DomainInfo {
       ipv6Address = ipv6Address + ':';
     }
 
-    return ipv6Address;
+    // Return the combined IPv6 and IPv4 address
+    return ipv6Address + (v4Part ? ':' + v4Part : '');
   }
-
 
   // In theory, we should be using a full-blown subnet parser/matcher here,
   // but let's keep it simple and stick with text for now.
@@ -672,6 +699,7 @@ class DomainInfo {
       this.inAddrRange("ffff:ffff:ffff::ffff:ffff:ffff", "f:f:f:f::f:f")
       this.inAddrRange("f:f:f:f::f:f", "f:f:f:f::f:f")
       this.inAddrRange("f:f:f:f::", "f:f:f:f::f:f")
+      this.inAddrRange("6464:6464::a00:1", "6464:6464::/96")
 
       if (this.inAddrRange(this.addr, "6464:6464::/96")) return ["4", true];  // RFC6052
     // if Option.

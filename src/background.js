@@ -506,22 +506,25 @@ class DomainInfo {
 
 
   inAddrRange(addr_str, nat64AddrStr) {
+    try {
+      let addr = this.parseIPv6WithCIDR(addr_str)
+      let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
 
-    let addr = this.parseIPv6WithCIDR(addr_str)
-    let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
-
-    // let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
-    // addr.addr = addr.addr & ~addrMask;
+      let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
+      addr.addr = addr.addr & ~addrMask;
 
 
 
-    let nat64AddrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
-    // nat64Addr.addr = nat64Addr.addr & ~nat64AddrMask;
+      let nat64AddrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
+      nat64Addr.addr = nat64Addr.addr & ~nat64AddrMask;
 
-    // console.log(addr.toString(2))
+      // console.log(addr.toString(2))
 
-    console.log("addrstr: ", addr_str, "\nnat64str: ", nat64AddrStr,"\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
-    return addr.addr === nat64Addr.addr;
+      console.log("addrstr: ", addr_str, "\nnat64str: ", nat64AddrStr,"\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
+      return addr.addr === nat64Addr.addr;
+    } catch (error) {
+        return false;
+    }
   }
 
   countOccurrences(string, substring) {
@@ -601,8 +604,8 @@ class DomainInfo {
       // let ipv6 = this.parseIPv6WithCIDR("2001:db8::1")
       // if (/^64:ff9b::/.test(this.addr)) return "4";  // RFC6052
       // if (this.inAddrRange(this.addr, "64:ff9b::/96")) return "4";  // RFC6052
-      this.inAddrRange("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "f:f:f:f:f:f:f:f")
-      this.inAddrRange("ffff:ffff:ffff::ffff:ffff:ffff", "f:f:f:f::f:f")
+      // this.inAddrRange("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "f:f:f:f:f:f:f:f")
+      // this.inAddrRange("ffff:ffff:ffff::ffff:ffff:ffff", "f:f:f:f::f:f")
       if (this.inAddrRange(this.addr, "6464:6464::/96")) return "4";  // RFC6052
     // if Option.
       if (this.addr.indexOf(".") >= 0) return "4";

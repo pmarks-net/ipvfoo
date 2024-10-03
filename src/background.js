@@ -577,27 +577,6 @@ class DomainInfo {
     return { addr: addr, cidr: cidrValue };
   }
 
-  // parse_ipv6(address) {
-  //   let int = BigInt(0);
-  //   let colon_hex_left = 4;
-  //
-  //   for (let i = address.length - 1; i >= 0; i--) {
-  //     console.log(address[i]);
-  //     if (address[i] === ':') {
-  //       i += colon_hex_left;
-  //       colon_hex_left = 4;
-  //       continue;
-  //     }
-  //   for (let i = 0; i < address.length; i++) {
-  //       if (address[i] !== ':') {
-  //           int128 = setNibbleAtPosition(int128, address[i], bitPos);
-  //           bitPos -= 4; // Move 4 bits to the right for each nibble
-  //       }
-  //   }
-  //   }
-  //
-  //   console.log(int);
-  // }
 
   // In theory, we should be using a full-blown subnet parser/matcher here,
   // but let's keep it simple and stick with text for now.

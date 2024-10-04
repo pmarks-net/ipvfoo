@@ -556,9 +556,10 @@ class DomainInfo {
       // let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
       console.log("raadd: ", addr.addr.toString(16))
       let ren = this.renderIPv6(addr.addr, false)
+      let rennat = this.renderIPv6(nat64Addr.addr, false)
       let renv4 = this.renderIPv6(addr.addr, true)
 
-      console.log("addrstr: ", this.addr, "\nreren: ", ren, "\nrenv4: ", renv4)
+      // console.log("addrstr: ", this.addr, "\nreren: ", ren, "\nrenv4: ", renv4)
 
       let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
       addr.addr = addr.addr & ~addrMask;
@@ -570,7 +571,7 @@ class DomainInfo {
 
       // console.log(addr.toString(2))
 
-      // console.log("\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
+      console.log("rended: ", ren, "\nrennat: ", rennat,"\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
       return addr.addr === nat64Addr.addr;
     } catch (error) {
       console.log(error)
@@ -635,11 +636,11 @@ class DomainInfo {
 
       let mask = (BigInt(1) << BigInt(8)) - BigInt(1);
 
-      console.log("v4 render test oct: ", addr.toString(2))
+      // console.log("v4 render test oct: ", addr.toString(2))
       let oct = addr >> BigInt(i * 8);
-      console.log("v4 render test oct: ", oct)
+      // console.log("v4 render test oct: ", oct)
       oct = oct & mask
-      console.log("v4 render test oct: ", oct)
+      // console.log("v4 render test oct: ", oct)
       ipv4.push(oct)
     }
     // console.log("v4 render test: ", ipv4)
@@ -665,14 +666,14 @@ class DomainInfo {
     }
 
     let hex = ipv6Bits.toString(16).padStart(32, '0');
-    console.log(hex, bigInt.toString(16))
+    // console.log(hex, bigInt.toString(16))
 
     let ipv6 = [];
     for (let i = 0; i < 8; i++) {
       ipv6.push(hex.substr(i * 4, 4));
     }
 
-    console.log(ipv6)
+    // console.log(ipv6)
     ipv6 = ipv6.map(group => group.replace(/^0+/, '') || '0');
 
     let zeroStart = -1;
@@ -736,7 +737,7 @@ class DomainInfo {
       // this.inAddrRange("f:f:f:f::f:f", "f:f:f:f::f:f")
       // this.inAddrRange("f:f:f:f::", "f:f:f:f::f:f")
       // this.inAddrRange("6464:6464::a00:1", "6464:6464::/96")
-      if (this.inAddrRange(this.parseIPv6WithCIDR("6464:6464::a01:203"), this.nat64AddrBitsCIDR)) return ["4", true];  // RFC6052
+      // if (this.inAddrRange(this.parseIPv6WithCIDR("6464:6464::a00:1"), this.nat64AddrBitsCIDR)) return ["4", true];  // RFC6052
       // this.inAddrRange("6464:6464:1:1:1:1:a00:1", "6464:6464::/96")
 
       // console.log(this.addrBitsCIDR.addr.toString(2).padStart(128, "0"))

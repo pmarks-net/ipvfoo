@@ -63,7 +63,7 @@ window.onload = async () => {
     }
   };
 
-  document.getElementById("dismiss_btn").onclick = function() {
+  document.getElementById("dismiss_btn").onmousedown = function() {
     if (window.history.length > 1) {
       window.history.back();
     } else {

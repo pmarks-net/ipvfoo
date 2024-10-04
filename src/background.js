@@ -362,9 +362,18 @@ class TabInfo extends SaveableEntry {
       if (domain == this.mainDomain) {
         let [addrVer, nat64] = d.addrVersion();
         pattern = addrVer;
+
+        // if (nat64) {
+        //   // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, false));
+        //   // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, 96));
+        //   let bitAddr = d.parseIPv6WithCIDR(d.addr);
+        //   d.addr = d.renderIPv6(bitAddr.addr, true);
+        // }
+
         if (IS_MOBILE) {
           tooltip = d.addr;  // Limited tooltip space on Android.
         } else {
+
           tooltip = `${d.addr}\n${NAME_VERSION}`;
         }
       } else {
@@ -374,11 +383,12 @@ class TabInfo extends SaveableEntry {
         switch (addrVer) {
           // case "nat64": d.addr = "2606:50c0:8000::"; console.log(d.addr); has4 = true; break;
           case "4": ;
-            if (nat64) {
-              // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, false));
-              // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, 96));
-              d.addr = d.renderIPv6(d.parseIPv6WithCIDR(d.addr), true);
-            }
+            // if (nat64) {
+            //   // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, false));
+            //   // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, 96));
+            //   let bitAddr = d.parseIPv6WithCIDR(d.addr);
+            //   d.addr = d.renderIPv6(bitAddr.addr, true);
+            // }
             has4 = true
             break
           case "6": has6 = true; break;
@@ -447,8 +457,9 @@ class TabInfo extends SaveableEntry {
         mainTuple[1] = d.addr;
         mainTuple[2] = addrVer;
         mainTuple[3] = d.flags;
+        mainTuple[4] = d.renderAddr();
       } else {
-        tuples.push([domain, d.addr, addrVer, d.flags]);
+        tuples.push([domain, d.addr, addrVer, d.flags, d.renderAddr()]);
       }
     }
     return tuples;
@@ -463,7 +474,7 @@ class TabInfo extends SaveableEntry {
     }
 
     let [addrVer, _] = d.addrVersion();
-    return [domain, d.addr, addrVer, d.flags];
+    return [domain, d.addr, addrVer, d.flags, d.renderAddr()];
   }
 }
 
@@ -473,6 +484,7 @@ class DomainInfo {
   addr;
   nat64Addr;
   nat64AddrBitsCIDR;
+  isNat64;
   flags;
 
   count = 0;  // count of active requests
@@ -484,6 +496,8 @@ class DomainInfo {
     this.addr = addr;
     this.nat64Addr = "6464:6464::/96";
     this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR(this.nat64Addr);
+    let [_, nat64] = this.addrVersion(addr)
+    this.isNat64 = nat64
     this.flags = flags;
   }
 
@@ -495,6 +509,18 @@ class DomainInfo {
   static fromJSON(tabInfo, domain, json) {
     const [addr, flags] = json;
     return new DomainInfo(tabInfo, domain, addr, flags);
+  }
+
+  renderAddr() {
+    let [_, nat64] = this.addrVersion(this.addr)
+    this.isNat64 = nat64
+
+    if (this.isNat64) {
+      let bits = this.parseIPv6WithCIDR(this.addr)
+      return this.renderIPv6(bits.addr, true)
+    }
+    return this.addr
+
   }
 
   setBitAtPosition(int, bitPosition, value) {

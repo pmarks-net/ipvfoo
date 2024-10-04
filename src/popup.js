@@ -234,8 +234,9 @@ function makeSslImg(flags) {
 }
 
 function makeRow(isFirst, tuple) {
+  console.log(tuple)
   const domain = tuple[0];
-  const addr = tuple[1];
+  const addr = tuple[4];
   const version = tuple[2];
   const flags = tuple[3];
 

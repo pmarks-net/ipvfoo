@@ -74,15 +74,24 @@ limitations under the License.
     }
 
     input[type="text"] {
-      background-color: #333;
+      background-color: #303030;
       color: #eee;
       border-color: #444;
       border-style: "solid";
       border-width: 0px;
       border-radius: 5px;
+
+      outline-color: #666;
+    }
+    input[type="text"]:focus {
+      background-color: #333;
+      outline: 2px solid #333;
+      outline-offset: -2px;
     }
   }
   </style>
+
+
   <script src="common.js"></script>
   <script src="options.js"></script>
 </head>
@@ -146,5 +155,7 @@ limitations under the License.
     <button id="revert_btn" style="float:left" class="disabler">Revert to Defaults</button>
     <button id="dismiss_btn" style="float:right">Dismiss</button>
   </div>
+
+
 </body>
 </html>

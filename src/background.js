@@ -494,7 +494,7 @@ class DomainInfo {
     this.tabInfo = tabInfo;
     this.domain = domain;
     this.addr = addr;
-    this.nat64Addr = "6464:6464::/96";
+    this.nat64Addr = options['nat64Prefix'];
     this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR(this.nat64Addr);
     let [_, nat64] = this.addrVersion(addr)
     this.isNat64 = nat64

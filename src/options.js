@@ -35,10 +35,10 @@ window.onload = async () => {
   watchOptions(function(optionsChanged) {
 
     for (const option of optionsChanged) {
-
       if (option === "nat64Prefix") {
-
+        document.getElementById('nat64Prefix').value = options["nat64Prefix"];
       }
+
       if (!option.endsWith("ColorScheme")) continue;
       const radio = document.optionsForm[option];
       radio.value = options[option];
@@ -48,6 +48,10 @@ window.onload = async () => {
 
   document.optionsForm.onchange = function(evt) {
     const newOptions = {};
+
+    const nat64Prefix = document.getElementById('nat64Prefix').value;
+    newOptions["nat64Prefix"] = nat64Prefix;
+
     for (const option of Object.keys(DEFAULT_OPTIONS)) {
       if (!option.endsWith("ColorScheme")) continue;
       newOptions[option] = document.optionsForm[option].value;

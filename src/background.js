@@ -360,7 +360,7 @@ class TabInfo extends SaveableEntry {
     let tooltip = "";
     for (let [domain, d] of Object.entries(this.domains)) {
       if (domain == this.mainDomain) {
-        let [addrVer, _] = d.addrVersion();
+        let [addrVer, nat64] = d.addrVersion();
         pattern = addrVer;
         if (IS_MOBILE) {
           tooltip = d.addr;  // Limited tooltip space on Android.
@@ -370,14 +370,14 @@ class TabInfo extends SaveableEntry {
       } else {
         let [addrVer, nat64] = d.addrVersion();
 
-        console.log(addrVer)
+        console.log(addrVer, nat64)
         switch (addrVer) {
           // case "nat64": d.addr = "2606:50c0:8000::"; console.log(d.addr); has4 = true; break;
           case "4": ;
             if (nat64) {
               // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, false));
               // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, 96));
-              // d.addr = d.bigintToMixedIPv6(d.addrBitsCIDR.addr, d.nat64AddrBitsCIDR.cidr);
+              d.addr = d.renderIPv6(d.parseIPv6WithCIDR(d.addr), true);
             }
             has4 = true
             break
@@ -529,9 +529,10 @@ class DomainInfo {
       // let addr = this.parseIPv6WithCIDR(addr_str)
       // let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
       console.log("raadd: ", addr.addr.toString(16))
-      let ren = this.bigintToIPv6(addr.addr, false)
+      let ren = this.renderIPv6(addr.addr, false)
+      let renv4 = this.renderIPv6(addr.addr, true)
 
-      console.log("addrstr: ", this.addr, "\nreren: ", ren)
+      console.log("addrstr: ", this.addr, "\nreren: ", ren, "\nrenv4: ", renv4)
 
       let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
       addr.addr = addr.addr & ~addrMask;
@@ -601,8 +602,27 @@ class DomainInfo {
     return { addr: addr, cidr: cidrValue };
   }
 
+  renderIPv4(addr) {
+    let ipv4 = []
 
-  bigintToIPv6(bigInt, nat64 = false) {
+    for (let i = 3; i >= 0; i--) {
+
+      let mask = (BigInt(1) << BigInt(8)) - BigInt(1);
+
+      console.log("v4 render test oct: ", addr.toString(2))
+      let oct = addr >> BigInt(i * 8);
+      console.log("v4 render test oct: ", oct)
+      oct = oct & mask
+      console.log("v4 render test oct: ", oct)
+      ipv4.push(oct)
+    }
+    // console.log("v4 render test: ", ipv4)
+
+    return ipv4.join(".")
+
+  }
+
+  renderIPv6(bigInt, nat64 = false) {
     // Ensure the input is a BigInt
     if (typeof bigInt !== 'bigint') {
       throw new TypeError('Input must be a BigInt');
@@ -614,25 +634,21 @@ class DomainInfo {
     let addrMask = (BigInt(1) << BigInt(32)) - BigInt(1);
 
     if (nat64) {
-      // ipv6Bits = ipv6Bits & ~addrMask
+      ipv6Bits = ipv6Bits & ~addrMask
       ipv4Bits = ipv4Bits & addrMask
     }
 
-    // Convert the BigInt to a hexadecimal string
-    let hex = ipv6Bits.toString(16).padStart(32, '0'); // Pad with zeros to ensure 32 hex digits
+    let hex = ipv6Bits.toString(16).padStart(32, '0');
     console.log(hex, bigInt.toString(16))
 
-    // Split the hex string into 8 groups of 4 hex digits (16 bits per group)
     let ipv6 = [];
     for (let i = 0; i < 8; i++) {
       ipv6.push(hex.substr(i * 4, 4));
     }
 
     console.log(ipv6)
-    // Manually remove leading zeros from each block
     ipv6 = ipv6.map(group => group.replace(/^0+/, '') || '0');
 
-    // Find the longest sequence of zero blocks to shorten
     let zeroStart = -1;
     let zeroLength = 0;
     let bestZeroStart = -1;
@@ -654,26 +670,26 @@ class DomainInfo {
       }
     }
 
-    // Handle the case where the longest sequence of zero blocks is at the end
     if (zeroLength > bestZeroLength) {
       bestZeroStart = zeroStart;
       bestZeroLength = zeroLength;
     }
 
-    // If we found a sequence of two or more consecutive zero blocks, shorten it
     if (bestZeroLength > 1) {
-      ipv6.splice(bestZeroStart, bestZeroLength, ''); // Replace the longest zero sequence with an empty string
+      ipv6.splice(bestZeroStart, bestZeroLength, '');
     }
 
-    // Join the groups with ':' to form the IPv6 address
     let ipv6Address = ipv6.join(':');
 
-    // Handle special case where address starts or ends with ::
     if (ipv6Address.startsWith(':')) {
       ipv6Address = ':' + ipv6Address;
     }
     if (ipv6Address.endsWith(':')) {
       ipv6Address = ipv6Address + ':';
+    }
+    let ipv4 = this.renderIPv4(ipv4Bits);
+    if (nat64) {
+      ipv6Address += ipv4
     }
 
     return ipv6Address;
@@ -694,6 +710,7 @@ class DomainInfo {
       // this.inAddrRange("f:f:f:f::f:f", "f:f:f:f::f:f")
       // this.inAddrRange("f:f:f:f::", "f:f:f:f::f:f")
       // this.inAddrRange("6464:6464::a00:1", "6464:6464::/96")
+      if (this.inAddrRange(this.parseIPv6WithCIDR("6464:6464::a01:203"), this.nat64AddrBitsCIDR)) return ["4", true];  // RFC6052
       // this.inAddrRange("6464:6464:1:1:1:1:a00:1", "6464:6464::/96")
 
       // console.log(this.addrBitsCIDR.addr.toString(2).padStart(128, "0"))

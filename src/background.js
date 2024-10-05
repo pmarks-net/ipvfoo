@@ -515,9 +515,7 @@ class DomainInfo {
     let [_, nat64] = this.addrVersion(this.addr)
     this.isNat64 = nat64
 
-    // if (this.isNat64 && options("nex64Hex")) {
-    console.log("nat64 hex: ", options["nat64Hex"])
-    if (this.isNat64) {
+    if (this.isNat64 && !options["nat64Hex"]) {
       let bits = this.parseIPv6WithCIDR(this.addr)
       return this.renderIPv6(bits.addr, true)
     }

@@ -84,12 +84,14 @@ window.onload = async () => {
 
 
 
+
   // document.getElementById("nat64Hex").onclick = function(event) {
   //   event.preventDefault();
   // };
 
   document.getElementById("nat64Hex").onmousedown = function() {
     this.checked = !this.checked;
+    // this.click()
   };
 
 

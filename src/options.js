@@ -39,6 +39,10 @@ window.onload = async () => {
         document.getElementById('nat64Prefix').value = options["nat64Prefix"];
       }
 
+      if (option === "nat64Hex") {
+        document.getElementById('nat64Hex').checked = options["nat64Hex"];
+      }
+
       if (!option.endsWith("ColorScheme")) continue;
       const radio = document.optionsForm[option];
       radio.value = options[option];
@@ -51,6 +55,9 @@ window.onload = async () => {
 
     const nat64Prefix = document.getElementById('nat64Prefix').value;
     newOptions["nat64Prefix"] = nat64Prefix;
+
+    const nat64Hex = document.getElementById('nat64Hex').checked;
+    newOptions["nat64Hex"] = nat64Hex;
 
     for (const option of Object.keys(DEFAULT_OPTIONS)) {
       if (!option.endsWith("ColorScheme")) continue;
@@ -76,12 +83,17 @@ window.onload = async () => {
   };
 
 
-  document.getElementById("nat64hex").onclick = function(event) {
-    event.preventDefault();
-    // this.checked = !this.checked;
+
+  // document.getElementById("nat64Hex").onclick = function(event) {
+  //   event.preventDefault();
+  // };
+
+  document.getElementById("nat64Hex").onmousedown = function() {
+    this.checked = !this.checked;
   };
 
-  document.getElementById("nat64hex").onmousedown = function() {
+
+  document.getElementById("nat64Hex").onmouseup = function() {
     this.checked = !this.checked;
   };
 }

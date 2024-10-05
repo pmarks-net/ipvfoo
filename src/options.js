@@ -74,6 +74,16 @@ window.onload = async () => {
       window.close();
     }
   };
+
+
+  document.getElementById("nat64hex").onclick = function(event) {
+    event.preventDefault();
+    // this.checked = !this.checked;
+  };
+
+  document.getElementById("nat64hex").onmousedown = function() {
+    this.checked = !this.checked;
+  };
 }
 
 function disableAll(disabled) {

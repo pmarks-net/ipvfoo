@@ -523,6 +523,20 @@ class DomainInfo {
 
   }
 
+  getNat64Addr() {
+    if (options['nat64Prefix'] === "") {
+      // this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR();
+      // this.nat64Addr = options['nat64Prefix'];
+    } else {
+      this.nat64Addr = options['nat64Prefix'];
+      this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR(this.nat64Addr);
+    }
+
+    this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR(this.nat64Addr);
+    let [_, nat64] = this.addrVersion(this.addr)
+    this.isNat64 = nat64
+  }
+
   setBitAtPosition(int, bitPosition, value) {
     if (value === 1) {
       // Set bit n to 1 (use OR)

@@ -151,6 +151,7 @@ const DEFAULT_OPTIONS = {
   regularColorScheme: "darkfg",
   incognitoColorScheme: "lightfg",
   nat64Prefix: "64:ff9b::/96",
+  nat64V4PartHex: false,
 };
 
 let _watchOptionsFunc = null;

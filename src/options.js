@@ -84,19 +84,25 @@ window.onload = async () => {
 
 
 
+  let nat64hex_click_on = false;
 
-  // document.getElementById("nat64Hex").onclick = function(event) {
-  //   event.preventDefault();
-  // };
+  document.getElementById("nat64Hex").onclick = function(event) {
+    if (!nat64hex_click_on) {
+      event.preventDefault();
+    }
+  };
 
   document.getElementById("nat64Hex").onmousedown = function() {
-    this.checked = !this.checked;
-    // this.click()
+    // this.checked = !this.checked;
+    nat64hex_click_on = true;
+    this.click()
+    nat64hex_click_on = false;
+    // this.value = this.checked
   };
 
 
   document.getElementById("nat64Hex").onmouseup = function() {
-    this.checked = !this.checked;
+    // this.checked = !this.checked;
   };
 }
 

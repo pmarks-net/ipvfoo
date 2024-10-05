@@ -93,11 +93,13 @@ window.onload = async () => {
   };
 
   document.getElementById("nat64Hex").onmousedown = function() {
-    // this.checked = !this.checked;
     nat64hex_click_on = true;
     this.click()
     nat64hex_click_on = false;
+
+    // this.checked = !this.checked;
     // this.value = this.checked
+    // this.onchange()
   };
 
 

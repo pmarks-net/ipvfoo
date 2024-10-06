@@ -568,10 +568,10 @@ class DomainInfo {
     try {
       // let addr = this.parseIPv6WithCIDR(addr_str)
       // let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
-      console.log("raadd: ", addr.addr.toString(16))
-      let ren = this.renderIPv6(addr.addr, false)
-      let rennat = this.renderIPv6(nat64Addr.addr, false)
-      let renv4 = this.renderIPv6(addr.addr, true)
+      // console.log("raadd: ", addr.addr.toString(16))
+      // let ren = this.renderIPv6(addr.addr, false)
+      // let rennat = this.renderIPv6(nat64Addr.addr, false)
+      // let renv4 = this.renderIPv6(addr.addr, true)
 
       // console.log("addrstr: ", this.addr, "\nreren: ", ren, "\nrenv4: ", renv4)
 
@@ -585,7 +585,7 @@ class DomainInfo {
 
       // console.log(addr.toString(2))
 
-      console.log("rended: ", ren, "\nrennat: ", rennat,"\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
+      // console.log("rended: ", ren, "\nrennat: ", rennat,"\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
       return addr.addr === nat64Addr.addr;
     } catch (error) {
       console.log(error)

@@ -84,18 +84,18 @@ window.onload = async () => {
 
 
 
-  let nat64hex_click_on = false;
+  let nat64hexClickOn = false;
 
   document.getElementById("nat64Hex").onclick = function(event) {
-    if (!nat64hex_click_on) {
+    if (!nat64hexClickOn) {
       event.preventDefault();
     }
   };
 
   document.getElementById("nat64Hex").onmousedown = function() {
-    nat64hex_click_on = true;
+    nat64hexClickOn = true;
     this.click()
-    nat64hex_click_on = false;
+    nat64hexClickOn = false;
 
     // this.checked = !this.checked;
     // this.value = this.checked

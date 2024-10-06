@@ -481,12 +481,13 @@ class TabInfo extends SaveableEntry {
 class DomainInfo {
   tabInfo;
   domain;
+
   addr;
   nat64Addr;
   nat64AddrBitsCIDR;
   isNat64;
-  flags;
 
+  flags;
   count = 0;  // count of active requests
   inhibitZero = false;
 
@@ -494,10 +495,7 @@ class DomainInfo {
     this.tabInfo = tabInfo;
     this.domain = domain;
     this.addr = addr;
-    this.nat64Addr = options['nat64Prefix'];
-    this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR(this.nat64Addr);
-    let [_, nat64] = this.addrVersion(addr)
-    this.isNat64 = nat64
+    this.getNat64Addr()
     this.flags = flags;
   }
 
@@ -524,56 +522,29 @@ class DomainInfo {
   }
 
   getNat64Addr() {
-    if (options['nat64Prefix'] === "") {
-      // this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR();
-      // this.nat64Addr = options['nat64Prefix'];
-    } else {
-      this.nat64Addr = options['nat64Prefix'];
-      this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR(this.nat64Addr);
-    }
-
-    this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR(this.nat64Addr);
+    this.nat64Addr = options['nat64Prefix'];
+    this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR(this.nat64Addr, 96);
     let [_, nat64] = this.addrVersion(this.addr)
     this.isNat64 = nat64
   }
 
-  setBitAtPosition(int, bitPosition, value) {
-    if (value === 1) {
-      // Set bit n to 1 (use OR)
-      int = int | (BigInt(1) << BigInt(bitPosition));
-    } else {
-      // Set bit n to 0 (use AND with a mask that has bit n cleared)
-      let mask = ~(BigInt(1) << BigInt(bitPosition));
-      int = int & mask;
-    }
-    return int;
-  }
-
-  setNibbleAtPosition(int128, nibble, bitPosition) {
+  setNibbleAtPosition(bigInt, nibble, bitPosition) {
     // Convert the nibble (hex string) to a number
     let nibbleValue = BigInt(parseInt(nibble, 16));
 
     // Clear the existing bits at the position
     let mask = ~(BigInt(0xF) << BigInt(bitPosition)); // Mask for 4 bits (nibble)
-    int128 = int128 & mask;
+    bigInt = bigInt & mask;
 
     // Set the new nibble at the bitPosition
-    int128 = int128 | (nibbleValue << BigInt(bitPosition));
+    bigInt = bigInt | (nibbleValue << BigInt(bitPosition));
 
-    return int128;
+    return bigInt;
   }
 
 
   inAddrRange(addr, nat64Addr) {
     try {
-      // let addr = this.parseIPv6WithCIDR(addr_str)
-      // let nat64Addr = this.parseIPv6WithCIDR(nat64AddrStr)
-      // console.log("raadd: ", addr.addr.toString(16))
-      // let ren = this.renderIPv6(addr.addr, false)
-      // let rennat = this.renderIPv6(nat64Addr.addr, false)
-      // let renv4 = this.renderIPv6(addr.addr, true)
-
-      // console.log("addrstr: ", this.addr, "\nreren: ", ren, "\nrenv4: ", renv4)
 
       let addrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
       addr.addr = addr.addr & ~addrMask;
@@ -583,13 +554,10 @@ class DomainInfo {
       let nat64AddrMask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
       nat64Addr.addr = nat64Addr.addr & ~nat64AddrMask;
 
-      // console.log(addr.toString(2))
-
-      // console.log("rended: ", ren, "\nrennat: ", rennat,"\naddr: ", addr.addr.toString(2), "\n", "nat64addr: ", nat64Addr.addr.toString(2), "\n bitmask: ", nat64AddrMask.toString(2))
       return addr.addr === nat64Addr.addr;
     } catch (error) {
-      console.log(error)
-        return false;
+      // console.log(error)
+      return false;
     }
   }
 
@@ -597,67 +565,59 @@ class DomainInfo {
     return string.split(substring).length - 1;
   }
 
-  parseIPv6WithCIDR(addressWithCIDR) {
-    let [addressSTR, cidr] = addressWithCIDR.split('/');
-    let addr = BigInt(0); // Start with all bits set to 0
-    let bitPos = 0; // Start at bit 124 for the most significant nibble
-    let colon_hex_left = 16;
-    let colonseen = 0;
-    let sec_loop = false;
+  parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1) {
+    let [addressSTR, cidrSTR] = addressWithCIDR.split('/');
+    let addr = BigInt(0);
+    let bitPos = 0;
+    let colonHexRemaining = 16;
+    let colonsSeen = 0;
 
-    let cols = this.countOccurrences(addressSTR, ":")
-    if (cols <= 0) {
+    let colons = this.countOccurrences(addressSTR, ":")
+    if (colons <= 0) {
       throw new Error('not_ipv6')
     }
-    let double_skip = 16 * (8 - cols)
-    // console.log("dskip: ", double_skip, "cols: ", cols)
+    let double_skip = 16 * (8 - colons)
 
 
 
     // Parse the address part, ignoring colons
     for (let i = addressSTR.length - 1; i >= 0; i--) {
-      if (colonseen >= 2) {
-        sec_loop = true;
+      if (colonsSeen >= 2) {
         // break;
         bitPos += double_skip
-      } else if (colonseen === 1) {
-        bitPos += colon_hex_left;
-        colon_hex_left = 16;
+      } else if (colonsSeen === 1) {
+        bitPos += colonHexRemaining;
+        colonHexRemaining = 16;
       }
       if (addressSTR[i] !== ':') {
-        colonseen = 0
+        colonsSeen = 0
         addr = this.setNibbleAtPosition(addr, addressSTR[i], bitPos);
-        bitPos += 4; // Move 4 bits to the right for each nibble
-        colon_hex_left -= 4;
+        bitPos += 4;
+        colonHexRemaining -= 4;
       } else {
-        colonseen += 1;
+        colonsSeen += 1;
       }
     }
 
 
 
-    let cidrValue = cidr ? parseInt(cidr, 10) : 96;
+    let cidr = cidrSTR ? parseInt(cidrSTR, 10) : defaultCIDR;
 
-    // console.log(int128.toString(2), cidrValue)
 
-    return { addr: addr, cidr: cidrValue };
+    return { addr: addr, cidr: cidr };
   }
 
   renderIPv4(addr) {
     let ipv4 = []
 
     for (let i = 3; i >= 0; i--) {
-
       let mask = (BigInt(1) << BigInt(8)) - BigInt(1);
 
-      // console.log("v4 render test oct: ", addr.toString(2))
       let oct = addr >> BigInt(i * 8);
-      // console.log("v4 render test oct: ", oct)
       oct = oct & mask
-      // console.log("v4 render test oct: ", oct)
+
       ipv4.push(oct)
     }
-    // console.log("v4 render test: ", ipv4)
 
     return ipv4.join(".")
 
@@ -680,14 +640,12 @@ class DomainInfo {
     }
 
     let hex = ipv6Bits.toString(16).padStart(32, '0');
-    // console.log(hex, bigInt.toString(16))
 
     let ipv6 = [];
     for (let i = 0; i < 8; i++) {
       ipv6.push(hex.substr(i * 4, 4));
     }
 
-    // console.log(ipv6)
     ipv6 = ipv6.map(group => group.replace(/^0+/, '') || '0');
 
     let zeroStart = -1;
@@ -742,22 +700,7 @@ class DomainInfo {
   // but let's keep it simple and stick with text for now.
   addrVersion() {
     if (this.addr) {
-      // this.parse_ipv6(this.addr)
-      // let ipv6 = this.parseIPv6WithCIDR("2001:db8::1")
-      // if (/^64:ff9b::/.test(this.addr)) return "4";  // RFC6052
-      // if (this.inAddrRange(this.addr, "64:ff9b::/96")) return "4";  // RFC6052
-      // this.inAddrRange("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "f:f:f:f:f:f:f:f")
-      // this.inAddrRange("ffff:ffff:ffff::ffff:ffff:ffff", "f:f:f:f::f:f")
-      // this.inAddrRange("f:f:f:f::f:f", "f:f:f:f::f:f")
-      // this.inAddrRange("f:f:f:f::", "f:f:f:f::f:f")
-      // this.inAddrRange("6464:6464::a00:1", "6464:6464::/96")
-      // if (this.inAddrRange(this.parseIPv6WithCIDR("6464:6464::a00:1"), this.nat64AddrBitsCIDR)) return ["4", true];  // RFC6052
-      // this.inAddrRange("6464:6464:1:1:1:1:a00:1", "6464:6464::/96")
-
-      // console.log(this.addrBitsCIDR.addr.toString(2).padStart(128, "0"))
-      // console.log("thadder: ", this.addrBitsCIDR.addr.toString(16), "\nthisaddrSTR: ", this.addr)
       if (this.inAddrRange(this.parseIPv6WithCIDR(this.addr), this.nat64AddrBitsCIDR)) return ["4", true];  // RFC6052
-      // if Option.
       if (this.addr.indexOf(".") >= 0) return ["4", false];
       if (this.addr.indexOf(":") >= 0) return ["6", false];
     }

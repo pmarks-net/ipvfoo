@@ -529,14 +529,11 @@ class DomainInfo {
   }
 
   setNibbleAtPosition(bigInt, nibble, bitPosition) {
-    // Convert the nibble (hex string) to a number
     let nibbleValue = BigInt(parseInt(nibble, 16));
 
-    // Clear the existing bits at the position
-    let mask = ~(BigInt(0xF) << BigInt(bitPosition)); // Mask for 4 bits (nibble)
+    let mask = ~(BigInt(0xF) << BigInt(bitPosition));
     bigInt = bigInt & mask;
 
-    // Set the new nibble at the bitPosition
     bigInt = bigInt | (nibbleValue << BigInt(bitPosition));
 
     return bigInt;

@@ -31,8 +31,8 @@ chrome: prepare
 	rm -rf ${BUILDDIR}${NAME}-${VERSION_C}
 	cp -f ${MANIFEST_C} ${MANIFEST}
 	# zip -9j ${BUILDDIR}${NAME}-${VERSION_C}.zip -j src/*
-	mkdir -p ${BUILDDIR}${NAME}-${VERSION_C}
-	cp -r src/* ${BUILDDIR}${NAME}-${VERSION_C}/
+	mkdir -p ${BUILDDIR}${NAME}-${VERSION_C}-unpacked-chrome
+	cp -r src/* ${BUILDDIR}${NAME}-${VERSION_C}-unpacked-chrome/
 
 clean:
 	rm -rf ${BUILDDIR}

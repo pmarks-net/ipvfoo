@@ -76,12 +76,37 @@ limitations under the License.
     input[type="text"] {
       background-color: #303030;
       color: #eee;
-      border-style: "solid";
-      border-width: 0px;
+      border-color: #303030;
+      border-style: solid;
+      /* border-width: 0px; */
       border-radius: 5px;
 
       outline-color: #666;
     }
+
+    button {
+      background-color: #303030;
+      color: #eee;
+      border-color: #303030;
+      border-style: solid;
+      /* border-width: 0px; */
+      border-radius: 5px;
+      transition: transform 0.05s ease, box-shadow 0.05s ease, background-color 0.1s ease, border-color 0.1s, color 0.1s ease;
+    }
+
+    button:hover:active {
+      transform: scale(0.98);
+      background-color: #ec7474;
+      color: #333;
+      border-color: #ec7474;
+    }
+
+    input[type="text"]:focus {
+      background-color: #333;
+      outline: 2px solid #333;
+      outline-offset: -2px;
+    }
+
     input[type="text"]:focus {
       background-color: #333;
       outline: 2px solid #333;

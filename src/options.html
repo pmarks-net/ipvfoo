@@ -25,6 +25,14 @@ limitations under the License.
     background-color: #fff;
     color: #444;
     margin: 20px;
+    --accent-color: #2373ff;
+    --accent-text-color: #eee;
+    --warn-color: #eb0027;
+    @media (prefers-color-scheme: dark) {
+      --accent-color: #41a5f4;
+      --accent-text-color: #333;
+      --warn-color: #ec7474;
+    }
   }
   h1 {
     font-size: 14pt;
@@ -75,9 +83,9 @@ limitations under the License.
 
   button:hover:active {
     transform: scale(0.98);
-    background-color: #eb0027;
-    color: #fff;
-    border-color: #eb0027;
+    background-color: var(--warn-color);
+    color: var(--accent-text-color);
+    border-color: var(--warn-color);
   }
 
   input[type="radio"] {
@@ -103,12 +111,42 @@ limitations under the License.
     border-radius: 50%;
     transform: scale(0);
     transition: 120ms transform ease-in-out;
-    box-shadow: inset 1em 1em #2373ff;
+    box-shadow: inset 1em 1em var(--accent-color);
   }
 
   input[type="radio"]:checked::before {
     transform: scale(1);
   }
+
+  input[type="checkbox"] {
+    appearance: none;
+    background-color: #fff;
+    margin: 0.5em;
+    font: inherit;
+    color: currentColor;
+    width: 1.15em;
+    height: 1.15em;
+    border: 0.15em solid currentColor;
+    border-radius: 0.15em;
+    transform: translateY(-0.075em);
+
+    display: grid;
+    place-content: center;
+  }
+
+  input[type="checkbox"]::before {
+    content: "";
+    width: 0.65em;
+    height: 0.65em;
+    transform: scale(0);
+    transition: 120ms transform ease-in-out;
+    box-shadow: inset 1em 1em var(--accent-color);
+  }
+
+  input[type="checkbox"]:checked::before {
+    transform: scale(1);
+  }
+
 
   /* dark mode */
   @media (prefers-color-scheme: dark) {
@@ -136,12 +174,6 @@ limitations under the License.
       /* border-width: 0px; */
     }
 
-    button:hover:active {
-      transform: scale(0.98);
-      background-color: #ec7474;
-      color: #333;
-      border-color: #ec7474;
-    }
 
     input[type="text"]:focus {
       background-color: #333;
@@ -161,9 +193,6 @@ limitations under the License.
     }
 
 
-    input[type="radio"]::before {
-      box-shadow: inset 1em 1em #41a5f4;
-    }
 
 
   }

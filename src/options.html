@@ -28,10 +28,12 @@ limitations under the License.
     --accent-color: #2373ff;
     --accent-text-color: #eee;
     --warn-color: #eb0027;
+    --upper-bg: #fff;
     @media (prefers-color-scheme: dark) {
-      --accent-color: #41a5f4;
+      --accent-color: #5fb3f9;
       --accent-text-color: #333;
       --warn-color: #ec7474;
+      --check-radio-bg: #444;
     }
   }
   h1 {
@@ -81,7 +83,7 @@ limitations under the License.
   }
 
 
-  button:hover:active {
+  button#revert_btn:hover:active {
     transform: scale(0.98);
     background-color: var(--warn-color);
     color: var(--accent-text-color);
@@ -120,13 +122,13 @@ limitations under the License.
 
   input[type="checkbox"] {
     appearance: none;
-    background-color: #fff;
+    background-color: var(--check-radio-bg);
     margin: 0.5em;
     font: inherit;
     color: currentColor;
     width: 1.15em;
     height: 1.15em;
-    border: 0.15em solid currentColor;
+    border: 0.15em solid var(--check-radio-bg);
     border-radius: 0.15em;
     transform: translateY(-0.075em);
 
@@ -187,10 +189,10 @@ limitations under the License.
       outline-offset: -2px;
     }
 
-    input[type="checkbox"]:checked {
-      accent-color: #41a5f4;
-      color: #fff;
-    }
+    /* input[type="checkbox"]:checked { */
+    /*   accent-color: #41a5f4; */
+    /*   color: #fff; */
+    /* } */
 
 
 

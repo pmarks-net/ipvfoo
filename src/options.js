@@ -83,7 +83,7 @@ window.onload = async () => {
 
 
 
-  // input handling. the use of onmousedown is intentional for everything exept the revert button.
+  // input handling. the use of onmousedown for everything exept the revert button is intentional.
 // everything that the user wouldn't want to cancel should use onmousedown instead of onclick
 
 

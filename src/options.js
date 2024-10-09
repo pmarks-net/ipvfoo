@@ -33,6 +33,61 @@ window.onload = async () => {
   }
 
 
+
+  watchOptions(function(optionsChanged) {
+
+    for (const option of optionsChanged) {
+      if (option === "nat64Prefix") {
+        document.getElementById('nat64Prefix').value = options["nat64Prefix"];
+      }
+
+      if (option === "nat64Hex") {
+        document.getElementById('nat64Hex').checked = options["nat64Hex"];
+      }
+
+      if (!option.endsWith("ColorScheme")) continue;
+      const radio = document.optionsForm[option];
+      radio.value = options[option];
+    }
+    disableAll(false);
+  });
+
+
+
+
+
+
+  document.optionsForm.onchange = function(evt) {
+    const newOptions = {};
+
+    const nat64Prefix = document.getElementById('nat64Prefix').value;
+    newOptions["nat64Prefix"] = nat64Prefix;
+
+    const nat64Hex = document.getElementById('nat64Hex').checked;
+    newOptions["nat64Hex"] = nat64Hex;
+
+    for (const option of Object.keys(DEFAULT_OPTIONS)) {
+      if (!option.endsWith("ColorScheme")) continue;
+      newOptions[option] = document.optionsForm[option].value;
+    }
+    if (setOptions(newOptions)) {
+      disableAll(true);
+    }
+  };
+
+
+
+
+
+
+
+
+
+  // input handling. the use of onmousedown is intentional for everything exept the revert button.
+// everything that the user wouldn't want to cancel should use onmousedown instead of onclick
+
+
+
   let radioClickOn = {};
 
   const radioButtons = document.querySelectorAll('input[type="radio"]');
@@ -53,40 +108,18 @@ window.onload = async () => {
     };
   });
 
-  watchOptions(function(optionsChanged) {
-
-    for (const option of optionsChanged) {
-      if (option === "nat64Prefix") {
-        document.getElementById('nat64Prefix').value = options["nat64Prefix"];
-      }
-
-      if (option === "nat64Hex") {
-        document.getElementById('nat64Hex').checked = options["nat64Hex"];
-      }
-
-      if (!option.endsWith("ColorScheme")) continue;
-      const radio = document.optionsForm[option];
-      radio.value = options[option];
+  let nat64hexClickOn = false;
+  document.getElementById("nat64Hex").onclick = function(event) {
+    if (!nat64hexClickOn) {
+      event.preventDefault();
     }
-    disableAll(false);
-  });
+  };
 
-  document.optionsForm.onchange = function(evt) {
-    const newOptions = {};
+  document.getElementById("nat64Hex").onmousedown = function() {
+    nat64hexClickOn = true;
+    this.click()
+    nat64hexClickOn = false;
 
-    const nat64Prefix = document.getElementById('nat64Prefix').value;
-    newOptions["nat64Prefix"] = nat64Prefix;
-
-    const nat64Hex = document.getElementById('nat64Hex').checked;
-    newOptions["nat64Hex"] = nat64Hex;
-
-    for (const option of Object.keys(DEFAULT_OPTIONS)) {
-      if (!option.endsWith("ColorScheme")) continue;
-      newOptions[option] = document.optionsForm[option].value;
-    }
-    if (setOptions(newOptions)) {
-      disableAll(true);
-    }
   };
 
   document.getElementById("revert_btn").onclick = function() {
@@ -105,28 +138,6 @@ window.onload = async () => {
 
 
 
-  let nat64hexClickOn = false;
-
-  document.getElementById("nat64Hex").onclick = function(event) {
-    if (!nat64hexClickOn) {
-      event.preventDefault();
-    }
-  };
-
-  document.getElementById("nat64Hex").onmousedown = function() {
-    nat64hexClickOn = true;
-    this.click()
-    nat64hexClickOn = false;
-
-    // this.checked = !this.checked;
-    // this.value = this.checked
-    // this.onchange()
-  };
-
-
-  document.getElementById("nat64Hex").onmouseup = function() {
-    // this.checked = !this.checked;
-  };
 }
 
 function disableAll(disabled) {

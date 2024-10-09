@@ -30,12 +30,13 @@ limitations under the License.
     --warn-color: #eb0027;
     --check-radio-bg: #ccc;
     --table-border: #888;
+    --table-bg: #202020;
     @media (prefers-color-scheme: dark) {
       --accent-color: #5fb3f9;
       --accent-text-color: #333;
       --warn-color: #ec7474;
       --check-radio-bg: #444;
-      --table-border: #333;
+      --table-border: #2e2e2e;
       --table-bg: #202020;
     }
   }
@@ -43,36 +44,53 @@ limitations under the License.
     font-size: 14pt;
     font-weight: normal;
   }
-  table {
-    border-width: 2px;
-    border-radius: 5px;
+  /* table { */
+  /*   border-width: 2px; */
+  /*   border-radius: 5px; */
+  /*   border-collapse: collapse; */
+  /*   /* border-collapse: separate; */ */
+  /*   border-color: var(--table-bg); */
+  /*   background-color: var(--table-bg); */
+  /*   border-style: solid; */
+  /*   padding: 0; */
+  /*   margin-top:3em; */
+  /*   box-shadow:0 0 0 2px var(--table-border); */
+  /*   text-align: center; */
+  /*   width: 80%; */
+  /*   padding: 15px; */
+  /*   border-left: 0; */
+  /*   border-right: 0; */
+  /*   border-radius: 5px; */
+  /*   border-spacing: 0px; */
+  /*   overflow:hidden; */
+  /* } */
+  /* td, tr { */
+  /*   border-width: 2px; */
+  /*   border-collapse: collapse; */
+  /*   border-color: var(--table-border); */
+  /*   background-color: var(--table-bg); */
+  /*   border-style: solid; */
+  /*   padding: 0; */
+  /* } */
+
+
+
+  table, td, tr {
+    border-width: 1px;
     border-collapse: collapse;
-    /* border-collapse: separate; */
-    border-color: var(--table-bg);
-    background-color: var(--table-bg);
-    border-style: solid;
-    padding: 0;
-    margin-top:3em;
-    box-shadow:0 0 0 2px var(--table-border);
-    text-align: center;
-    width: 80%;
-    padding: 15px;
-    border-collapse: collapse;
-    border-left: 0;
-    border-right: 0;
-    border-radius: 5px;
-    border-spacing: 0px;
-    overflow:hidden;
-  }
-  td, tr {
-    border-width: 2px;
-    border-collapse: collapse;
-    border-color: var(--table-border);
-    background-color: var(--table-bg);
+    /* border-color: var(--table-border); */
+    border-color: transparent;
+    /* background-color: var(--table-bg); */
+    background-color: transparent;
     border-style: solid;
     padding: 0;
   }
 
+  .separator {
+    height: 1px;
+    background-color: var(--table-border);
+    border-radius: 5px;
+  }
 
   label {
     display: flex;
@@ -269,7 +287,10 @@ limitations under the License.
           </label>
         </td>
       </tr>
-      <tr>
+      <tr class="separator">
+          <td colspan="3"></td>
+      </tr>
+      <tr class="tr-color-bottom">
         <td class="colorscheme_title">Incognito tabs:</td>
         <td>
           <label>

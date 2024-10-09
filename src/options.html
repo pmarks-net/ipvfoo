@@ -22,13 +22,13 @@ limitations under the License.
   body {
     font-family: "Noto Sans", Arial, sans-serif;
     font-size: 10pt;
-    background-color: #fff;
+    background-color: #eee;
     color: #444;
     margin: 20px;
     --accent-color: #2373ff;
-    --accent-text-color: #eee;
+    --accent-text-color: #e5e5e5;
     --warn-color: #eb0027;
-    --upper-bg: #fff;
+    --check-radio-bg: #ccc;
     @media (prefers-color-scheme: dark) {
       --accent-color: #5fb3f9;
       --accent-text-color: #333;
@@ -78,9 +78,32 @@ limitations under the License.
 
 
   button {
+    background-color: #cacaca;
+    border-style: solid;
+    color: #111;
+    border-color: #cacaca;
     border-radius: 5px;
     transition: transform 0.05s cubic-bezier(0,.9,.5,.9), box-shadow 0.05s cubic-bezier(0,.9,.5,.9), background-color 0.1s cubic-bezier(0,.9,.5,.9), border-color 0.1s, color 0.1s cubic-bezier(0,.9,.5,.9);
   }
+
+
+  input[type="text"] {
+    background-color: #d8d8d8;
+    color: #000;
+    border-color: #c8c8c8;
+    border-style: solid;
+    border-radius: 5px;
+
+    transition: 200ms background-color cubic-bezier(0,.9,.5,.9);
+    outline-color: #666;
+  }
+
+  input[type="text"]:focus {
+    background-color: #d2d2d2;
+    outline: 2px solid #b9b9b9;
+    outline-offset: -2px;
+  }
+
 
 
   button#revert_btn:hover:active {
@@ -164,7 +187,6 @@ limitations under the License.
       color: #eee;
       border-color: #303030;
       border-style: solid;
-      /* border-width: 0px; */
       border-radius: 5px;
 
       outline-color: #666;
@@ -175,8 +197,6 @@ limitations under the License.
       color: #eee;
       border-color: #303030;
       border-style: solid;
-      transition: 200ms background-color cubic-bezier(0,.9,.5,.9);
-      /* border-width: 0px; */
     }
 
 
@@ -187,10 +207,6 @@ limitations under the License.
     }
 
 
-    /* input[type="checkbox"]:checked { */
-    /*   accent-color: #41a5f4; */
-    /*   color: #fff; */
-    /* } */
 
 
 

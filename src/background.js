@@ -318,7 +318,7 @@ class TabInfo extends SaveableEntry {
     this.save();
   }
 
-  addDomain(domain, addr, flags) {
+  addDomain(domain, addr, flags, nat64addr = "") {
     let d = this.domains[domain];
     if (!d) {
       // Limit the number of domains per page, to avoid wasting RAM.
@@ -327,7 +327,7 @@ class TabInfo extends SaveableEntry {
         return;
       }
       d = this.domains[domain] =
-          new DomainInfo(this, domain, addr || "(lost)", flags);
+          new DomainInfo(this, domain, addr || "(lost)", flags, nat64addr);
       d.countUp();
     } else {
       const oldAddr = d.addr;
@@ -491,11 +491,15 @@ class DomainInfo {
   count = 0;  // count of active requests
   inhibitZero = false;
 
-  constructor(tabInfo, domain, addr, flags) {
+  constructor(tabInfo, domain, addr, flags, nat64addr = "") {
     this.tabInfo = tabInfo;
     this.domain = domain;
     this.addr = addr;
-    this.getNat64Addr()
+    if (nat64addr === "") {
+      this.getNat64Addr("")
+    } else {
+      this.getNat64Addr(nat64addr)
+    }
     this.flags = flags;
   }
 
@@ -521,8 +525,12 @@ class DomainInfo {
 
   }
 
-  getNat64Addr() {
-    this.nat64Addr = options['nat64Prefix'];
+  getNat64Addr(addr = "") {
+    if (addr === "") {
+      this.nat64Addr = options['nat64Prefix'];
+    } else {
+      this.nat64Addr = addr
+    }
     this.nat64AddrBitsCIDR = this.parseIPv6WithCIDR(this.nat64Addr, 96);
     let [_, nat64] = this.addrVersion(this.addr)
     this.isNat64 = nat64
@@ -745,7 +753,21 @@ class RequestInfo extends SaveableEntry {
       if (!this.domain) {
         continue;  // still waiting for onResponseStarted
       }
-      tabInfo.addDomain(this.domain, null, 0);
+
+      let nat64auto = "";
+      if (options['nat64Prefix'] === "") {
+        d = new DomainInfo(this, domain, addr || "(lost)", flags, nat64addr)
+        nat64auto = d.addr
+        let [ver, _] = d.addrVersion()
+        if (ver === "6") {
+          let addrMask = (BigInt(1) << BigInt(128 - 96)) - BigInt(1);
+          let d_addr = d.parseIPv6WithCIDR(d.addr, 96) & ~addrMask;
+          d.addr = d.renderIPv6(d_addr)
+          nat64auto += `${d.addr}/96`
+        }
+      }
+
+      tabInfo.addDomain(this.domain, null, 0, nat64auto);
     }
     if (Object.keys(this.tabIdToBorn).length == 0) {
       requestMap.remove(this.id());

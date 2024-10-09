@@ -22,14 +22,9 @@ window.onload = async () => {
   disableAll(true);
   await spriteImgReady;
 
-  let colorSchemeOnClick = {};
-
   for (const option of Object.keys(DEFAULT_OPTIONS)) {
     if (!option.endsWith("ColorScheme")) continue;
     for (const color of ["darkfg", "lightfg"]) {
-
-
-
       const canvas = document.getElementById(`${option}:${color}`);
       const ctx = canvas.getContext("2d");
       const imageData = buildIcon("646", 16, color);
@@ -37,52 +32,24 @@ window.onload = async () => {
     }
   }
 
-  // document.getElementById(`radio-${option}:${color}`).onclick = function(event) {
-  //   if (colorSchemeOnClick[`radio-${option}:${color}`]) {
-  //     event.preventDefault();
-  //   }
-  // };
-  //
-  //
-  // document.getElementById(`radio-${option}:${color}`).onmousedown = function() {
-  //   colorSchemeOnClick[`radio-${option}:${color}`] = true;
-  //   this.click()
-  //   colorSchemeOnClick[`radio-${option}:${color}`] = false;
-  // };
-
-  // document.getElementById("radio:regularColorScheme:darkfg").onclick = function(event) {
-  //   if (colorSchemeOnClick["radio:regularColorScheme:darkfg"]) {
-  //     event.preventDefault();
-  //   }
-  // };
-  //
-  //
-  // document.getElementById("radio:regularColorScheme:darkfg").onmousedown = function() {
-  //   colorSchemeOnClick["radio:regularColorScheme:darkfg"] = true;
-  //   this.click()
-  //   colorSchemeOnClick["radio:regularColorScheme:darkfg"] = false;
-  // };
 
   let radioClickOn = {};
 
   const radioButtons = document.querySelectorAll('input[type="radio"]');
 
   radioButtons.forEach(function (radio) {
-    // Initialize the clickOn state for each radio button by its id
     radioClickOn[radio.id] = false;
 
-    // Handle onclick event
     radio.onclick = function(event) {
       if (!radioClickOn[radio.id]) {
         event.preventDefault();
       }
     };
 
-    // Handle onmousedown event
     radio.onmousedown = function() {
-      radioClickOn[radio.id] = true; // Set clickOn to true
-      this.click();  // Trigger the radio button click
-      radioClickOn[radio.id] = false; // Reset the clickOn state
+      radioClickOn[radio.id] = true;
+      this.click();
+      radioClickOn[radio.id] = false;
     };
   });
 

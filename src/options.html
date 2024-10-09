@@ -29,24 +29,40 @@ limitations under the License.
     --accent-text-color: #e5e5e5;
     --warn-color: #eb0027;
     --check-radio-bg: #ccc;
+    --table-border: #888;
     @media (prefers-color-scheme: dark) {
       --accent-color: #5fb3f9;
       --accent-text-color: #333;
       --warn-color: #ec7474;
       --check-radio-bg: #444;
+      --table-border: #333;
+      --table-bg: #202020;
     }
   }
   h1 {
     font-size: 14pt;
     font-weight: normal;
   }
-  table, td, tr {
-    border-width: 1px;
-    border-collapse: collapse;
-    border-color: #888;
+  table {
+    border-width: 2px;
+    border-radius: 5px;
+    /* border-collapse: collapse; */
+    border-collapse: separate;
+    border-color: var(--table-border);
+    background-color: var(--table-bg);
     border-style: solid;
     padding: 0;
   }
+  td, tr {
+    border-width: 1px;
+    border-collapse: collapse;
+    border-color: var(--table-border);
+    background-color: var(--table-bg);
+    border-style: solid;
+    padding: 0;
+  }
+
+
   label {
     display: flex;
     padding: 1em;

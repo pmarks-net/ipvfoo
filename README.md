@@ -30,6 +30,6 @@ https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobe
 IPvFoo cannot be [ported to Safari](https://github.com/pmarks-net/ipvfoo/issues/39) because the `webRequest` API does not report IP addresses.  In theory, a Safari extension could do its own DNS lookups over HTTPS, but such behavior is beyond the scope of IPvFoo.
 
 ## troubleshooting
-### nat64 addresses are shown as ipv6
-set your nat64 prefix in the extention options
+### ipv4-only sites are shown as ipv6 when using nat64
+set your nat64 prefix in the extension options
 

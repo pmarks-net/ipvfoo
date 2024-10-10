@@ -61,7 +61,10 @@ window.onload = async () => {
     const newOptions = {};
 
     const nat64Prefix = document.getElementById('nat64Prefix').value;
-    newOptions["nat64Prefix"] = nat64Prefix;
+    if (newOptions["nat64Prefix"] !== nat64Prefix) {
+      newOptions["nat64Prefix"] = nat64Prefix;
+      document.querySelector('.page-reload-txt').style.display = 'block';
+    }
 
     const nat64Hex = document.getElementById('nat64Hex').checked;
     newOptions["nat64Hex"] = nat64Hex;

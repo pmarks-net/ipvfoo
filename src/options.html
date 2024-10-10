@@ -220,6 +220,12 @@ limitations under the License.
     transform: scale(1);
   }
 
+  .page-reload-txt {
+    display: none;
+    margin-top: 8px;
+    font-size: 9pt;
+    transform: translateY(8px)
+  }
 
   /* dark mode */
   @media (prefers-color-scheme: dark) {
@@ -330,6 +336,7 @@ limitations under the License.
   </form>
 
 
+  <div class="page-reload-txt">Open pages will need a reload to see changes</div>
   <div style="display:inline-block; padding-top:1.5em; width:100%">
     <button id="revert_btn" style="float:left" class="disabler">Revert to Defaults</button>
     <button id="dismiss_btn" style="float:right">Dismiss</button>

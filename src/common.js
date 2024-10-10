@@ -207,3 +207,166 @@ function setOptions(newOptions) {
   chrome.storage.sync.set(toSet);
   return true;  // caller should wait for watchOptions()
 }
+
+
+
+
+function setNibbleAtPosition(bigInt, nibble, bitPosition) {
+  let nibbleValue = BigInt(parseInt(nibble, 16));
+
+  let mask = ~(BigInt(0xF) << BigInt(bitPosition));
+  bigInt = bigInt & mask;
+
+  bigInt = bigInt | (nibbleValue << BigInt(bitPosition));
+
+  return bigInt;
+}
+
+
+function inAddrRange(addr, nat64Addr) {
+  try {
+    let mask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
+    addr.addr = addr.addr & ~mask;
+
+
+    nat64Addr.addr = nat64Addr.addr & ~mask;
+
+    return addr.addr === nat64Addr.addr;
+  } catch (error) {
+    // console.log(error)
+    return false;
+  }
+}
+
+function countOccurrences(string, substring) {
+  return string.split(substring).length - 1;
+}
+
+function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1) {
+  let [addressSTR, cidrSTR] = addressWithCIDR.split('/');
+  let addr = BigInt(0);
+  let bitPos = 0;
+  let colonHexRemaining = 16;
+  let colonsSeen = 0;
+
+  // you need at least 2 colons for a v6 addr, '::'
+  let colons = countOccurrences(addressSTR, ":")
+  if (colons < 2) {
+    throw new Error('not_ipv6')
+  }
+  let double_skip = 16 * (8 - colons)
+
+
+
+  for (let i = addressSTR.length - 1; i >= 0; i--) {
+    if (colonsSeen >= 2) {
+      bitPos += double_skip
+    } else if (colonsSeen === 1) {
+      bitPos += colonHexRemaining;
+      colonHexRemaining = 16;
+    }
+    if (addressSTR[i] !== ':') {
+      colonsSeen = 0
+      addr = setNibbleAtPosition(addr, addressSTR[i], bitPos);
+      bitPos += 4;
+      colonHexRemaining -= 4;
+    } else {
+      colonsSeen += 1;
+    }
+  }
+
+
+
+  let cidr = cidrSTR ? parseInt(cidrSTR, 10) : defaultCIDR;
+
+
+  return { addr: addr, cidr: cidr };
+}
+
+function renderIPv4(addr) {
+  let ipv4 = []
+
+  for (let i = 3; i >= 0; i--) {
+    let mask = (BigInt(1) << BigInt(8)) - BigInt(1);
+
+    let oct = addr >> BigInt(i * 8);
+    oct = oct & mask
+
+    ipv4.push(oct)
+  }
+
+  return ipv4.join(".")
+
+}
+
+function renderIPv6(bigInt, nat64 = false) {
+  // Ensure the input is a BigInt
+  if (typeof bigInt !== 'bigint') {
+    throw new TypeError('Input must be a BigInt');
+  }
+
+  let ipv6Bits = BigInt(bigInt)
+  let ipv4Bits = BigInt(bigInt)
+
+  let addrMask = (BigInt(1) << BigInt(32)) - BigInt(1);
+
+  if (nat64) {
+    ipv6Bits = ipv6Bits & ~addrMask
+    ipv4Bits = ipv4Bits & addrMask
+  }
+
+  let hex = ipv6Bits.toString(16).padStart(32, '0');
+
+  let ipv6 = [];
+  for (let i = 0; i < 8; i++) {
+    ipv6.push(hex.substr(i * 4, 4));
+  }
+
+  ipv6 = ipv6.map(group => group.replace(/^0+/, '') || '0');
+
+  let zeroStart = -1;
+  let zeroLength = 0;
+  let bestZeroStart = -1;
+  let bestZeroLength = 0;
+
+  for (let i = 0; i < ipv6.length; i++) {
+    if (ipv6[i] === '0') {
+      if (zeroStart === -1) {
+        zeroStart = i;
+      }
+      zeroLength++;
+    } else {
+      if (zeroLength > bestZeroLength) {
+        bestZeroStart = zeroStart;
+        bestZeroLength = zeroLength;
+      }
+      zeroStart = -1;
+      zeroLength = 0;
+    }
+  }
+
+  if (zeroLength > bestZeroLength) {
+    bestZeroStart = zeroStart;
+    bestZeroLength = zeroLength;
+  }
+
+  if (bestZeroLength > 1) {
+    ipv6.splice(bestZeroStart, bestZeroLength, '');
+  }
+
+  let ipv6Address = ipv6.join(':');
+
+  if (ipv6Address.startsWith(':')) {
+    ipv6Address = ':' + ipv6Address;
+  }
+  if (ipv6Address.endsWith(':')) {
+    ipv6Address = ipv6Address + ':';
+  }
+  let ipv4 = renderIPv4(ipv4Bits);
+  if (nat64) {
+    ipv6Address += ipv4
+  }
+
+  return ipv6Address;
+}
+

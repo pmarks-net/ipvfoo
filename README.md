@@ -31,5 +31,5 @@ IPvFoo cannot be [ported to Safari](https://github.com/pmarks-net/ipvfoo/issues/
 
 ## troubleshooting
 ### ipv4-only sites are shown as ipv6 when using nat64
-set your nat64 prefix in the extension options
+set 'NAT64 Prefix' in the extension options
 

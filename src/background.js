@@ -579,7 +579,7 @@ class DomainInfo {
 
     // you need at least 2 colons for a v6 addr, '::'
     let colons = this.countOccurrences(addressSTR, ":")
-    if (colons <= 2) {
+    if (colons < 2) {
       throw new Error('not_ipv6')
     }
     let double_skip = 16 * (8 - colons)

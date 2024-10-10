@@ -15,16 +15,22 @@ https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapgga
 -->
 
 ## Add to Firefox
-https://addons.mozilla.org/addon/ipvfoo/  
+https://addons.mozilla.org/addon/ipvfoo/
 
 <picture><img src="https://badgen.net/amo/v/ipvfoo"></picture>
 <picture><img src="https://badgen.net/amo/users/ipvfoo"></picture>
 <picture><img src="https://badgen.net/amo/rating/ipvfoo"></picture>
 
 ## Add to Edge
-https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobedeiaiofod  
+https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobedeiaiofod
+
 *(You can also run the Chrome version on Edge, as they are identical.)*
 
 ## Safari?
 
 IPvFoo cannot be [ported to Safari](https://github.com/pmarks-net/ipvfoo/issues/39) because the `webRequest` API does not report IP addresses.  In theory, a Safari extension could do its own DNS lookups over HTTPS, but such behavior is beyond the scope of IPvFoo.
+
+## troubleshooting
+### nat64 addresses are shown as ipv6
+set your nat64 prefix in the extention options
+

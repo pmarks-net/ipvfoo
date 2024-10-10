@@ -23,7 +23,6 @@ https://addons.mozilla.org/addon/ipvfoo/
 
 ## Add to Edge
 https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobedeiaiofod
-
 *(You can also run the Chrome version on Edge, as they are identical.)*
 
 ## Safari?

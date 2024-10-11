@@ -83,10 +83,7 @@ window.onload = async () => {
       } catch (error) {
 
       }
-    }
-
-    if (typeof options["nat64Prefix"] === "undefined") {
-      newOptions["nat64Prefix"] = DEFAULT_OPTIONS["nat64Prefix"];
+      newOptions['nat64Prefix'] = options['nat64Prefix']
     }
 
     const nat64Hex = document.getElementById('nat64Hex').checked;

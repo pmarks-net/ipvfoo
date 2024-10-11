@@ -37,7 +37,7 @@ limitations under the License.
       --accent-color: #5fb3f9;
       --accent-text-color: #333;
       --warn-color: #ec7474;
-      --lesser-warn-color: #e38047;
+      --lesser-warn-color: #f4b982;
       --check-radio-bg: #444;
       --table-border: #2e2e2e;
       --table-bg: #202020;
@@ -197,7 +197,8 @@ limitations under the License.
     margin-top: 8px;
     font-size: 9pt;
     color: var(--lesser-warn-color);
-    transform: translateY(0.7em);
+    /* transform: translateY(0.9em); */
+    transform: translateY(11px);
     padding-top: 0;
     padding-bottom: 0;
     margin-bottom: 0;
@@ -210,12 +211,19 @@ limitations under the License.
     margin-top: 8px;
     font-size: 9pt;
     color: var(--warn-color);
-    transform: translateY(-1.5em);
+    /* transform: translateY(-1.5em); */
     padding-top: 0;
     padding-bottom: 0;
-    margin-bottom: -1em;
+    /* margin-bottom: -1em; */
+    margin-bottom: 0;
     margin-top: 0;
+  }
 
+  .nat64-prefix {
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 3px;
+    margin-top: 0;
   }
 
   /* dark mode */
@@ -308,7 +316,7 @@ limitations under the License.
     <br>
 
     <h1>NAT64 Options</h1>
-      <label>
+      <label class="nat64-prefix">
           NAT64 Prefix:&nbsp<input type="text" id="nat64Prefix" name="nat64Prefix">
       </label>
       <label class="broken-nat64">Invalid IPv6 network address</label>

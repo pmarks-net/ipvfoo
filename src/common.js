@@ -300,7 +300,7 @@ function isValidIPv6Addr(addrMaybeCIDR) {
   }
 
   if ((!doubleColon) && (colons < 7)) {
-    return [false, "Can't have less then 7 separators without a '::' compression"]
+    return [false, "Can't have less then 8 hextets without a '::' compression"]
   }
 
   return [true, null]
@@ -308,13 +308,6 @@ function isValidIPv6Addr(addrMaybeCIDR) {
 
 function countOccurrences(string, substring) {
   return string.split(substring).length - 1;
-  // let seen = 0;
-  // for (let i = string.length - 1; i >= 0; i--) {
-  //   if (string[i] === substring) {
-  //     seen += 1;
-  //   }
-  // }
-  // return seen
 }
 
 function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1) {

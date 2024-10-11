@@ -202,7 +202,12 @@ limitations under the License.
     margin-top: 8px;
     font-size: 9pt;
     color: var(--warn-color);
-    /* transform: translateY(8px) */
+    transform: translateY(-1.5em);
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: -1em;
+    margin-top: 0;
+
   }
 
   /* dark mode */
@@ -298,7 +303,7 @@ limitations under the License.
       <label>
           NAT64 Prefix:&nbsp<input type="text" id="nat64Prefix" name="nat64Prefix">
       </label>
-      <div class="broken-nat64">Invalid IPv6 network address</div>
+      <label class="broken-nat64">Invalid IPv6 network address</label>
 
       <label>
           Hex output for NAT64: <input type="checkbox" id="nat64Hex" onclick="">

@@ -69,7 +69,7 @@ window.onload = async () => {
       try {
         document.querySelector('.broken-nat64').style.display = 'none';
         if (options["nat64Prefix"] !== nat64Prefix) {
-          document.querySelector('.page-reload-txt').style.display = 'block';
+          document.querySelector('.page-reload-txt').style.display = 'flex';
         }
       } catch (error) {
 
@@ -79,7 +79,7 @@ window.onload = async () => {
     } else {
       try {
         document.querySelector('.broken-nat64').textContent = defaultBrokenNat64+': '+problem;
-        document.querySelector('.broken-nat64').style.display = 'block';
+        document.querySelector('.broken-nat64').style.display = 'flex';
       } catch (error) {
 
       }

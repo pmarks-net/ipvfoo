@@ -354,7 +354,7 @@ class TabInfo extends SaveableEntry {
     let has4 = false;
     let has6 = false;
     let tooltip = "";
-    for (let [domain, d] of Object.entries(this.domains)) {
+    for (const [domain, d] of Object.entries(this.domains)) {
       if (domain == this.mainDomain) {
         let [addrVer, _] = d.addrVersion();
         pattern = addrVer;

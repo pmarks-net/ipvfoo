@@ -325,13 +325,13 @@ function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1) {
 
 
   let colons = countOccurrences(addressSTR, ":")
-  let double_skip = 16 * (8 - colons)
+  let doubleSkip = 16 * (8 - colons)
 
 
 
   for (let i = addressSTR.length - 1; i >= 0; i--) {
     if (colonsSeen >= 2) {
-      bitPos += double_skip
+      bitPos += doubleSkip
     } else if (colonsSeen === 1) {
       bitPos += colonHexRemaining;
       colonHexRemaining = 16;
@@ -371,7 +371,6 @@ function renderIPv4(addr) {
 }
 
 function renderIPv6(bigInt, nat64 = false) {
-  // Ensure the input is a BigInt
   if (typeof bigInt !== 'bigint') {
     throw new TypeError('Input must be a BigInt');
   }

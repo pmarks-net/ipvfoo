@@ -85,7 +85,6 @@ window.onload = async () => {
       }
     }
 
-    console.log(options["nat64Prefix"])
     if (typeof options["nat64Prefix"] === "undefined") {
       newOptions["nat64Prefix"] = DEFAULT_OPTIONS["nat64Prefix"];
     }

@@ -62,10 +62,18 @@ window.onload = async () => {
 
     const nat64Prefix = document.getElementById('nat64Prefix').value;
 
-    if (options["nat64Prefix"] !== nat64Prefix) {
-      document.querySelector('.page-reload-txt').style.display = 'block';
+
+    if (isValidIPv6Addr(nat64Prefix)) {
+      document.querySelector('.broken-nat64').style.display = 'none';
+
+      if (options["nat64Prefix"] !== nat64Prefix) {
+        document.querySelector('.page-reload-txt').style.display = 'block';
+      }
+
+      newOptions["nat64Prefix"] = nat64Prefix;
+    } else {
+      document.querySelector('.broken-nat64').style.display = 'block';
     }
-    newOptions["nat64Prefix"] = nat64Prefix;
 
 
     const nat64Hex = document.getElementById('nat64Hex').checked;

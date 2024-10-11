@@ -196,6 +196,14 @@ limitations under the License.
     transform: translateY(8px)
   }
 
+
+  .broken-nat64 {
+    display: none;
+    margin-top: 8px;
+    font-size: 9pt;
+    /* transform: translateY(8px) */
+  }
+
   /* dark mode */
   @media (prefers-color-scheme: dark) {
     body {
@@ -289,6 +297,7 @@ limitations under the License.
       <label>
           NAT64 Prefix:&nbsp<input type="text" id="nat64Prefix" name="nat64Prefix">
       </label>
+      <div class="broken-nat64">Invalid IPv6 network address</div>
 
       <label>
           Hex output for NAT64: <input type="checkbox" id="nat64Hex" onclick="">
@@ -297,6 +306,7 @@ limitations under the License.
 
 
   <div class="page-reload-txt">Open pages will need a reload to see changes</div>
+  <div class="debug">debug</div>
   <div style="display:inline-block; padding-top:1.5em; width:100%">
     <button id="revert_btn" style="float:left" class="disabler">Revert to Defaults</button>
     <button id="dismiss_btn" style="float:right">Dismiss</button>

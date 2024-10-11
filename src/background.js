@@ -51,11 +51,7 @@ const TAB_DEAD = 2;
 // RequestFilter for webRequest events.
 const FILTER_ALL_URLS = { urls: ["<all_urls>"] };
 
-// Distinguish IP address and domain name characters.
-// Note that IP6_CHARS must not match "beef.de"
-const IP4_CHARS = /^[0-9.]+$/;
-const IP6_CHARS = /^[0-9A-Fa-f]*:[0-9A-Fa-f:.]*$/;
-const DNS_CHARS = /^[0-9A-Za-z._-]+$/;
+
 
 const SECONDS = 1000;  // to milliseconds
 

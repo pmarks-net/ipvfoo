@@ -24,6 +24,14 @@ const FLAG_CONNECTED = 0x8;
 const FLAG_WEBSOCKET = 0x10;
 const FLAG_NOTWORKER = 0x20;  // from a tab, not a service worker
 
+
+// Distinguish IP address and domain name characters.
+// Note that IP6_CHARS must not match "beef.de"
+const IP4_CHARS = /^[0-9.]+$/;
+const IP6_CHARS = /^[0-9A-Fa-f]*:[0-9A-Fa-f:.]*$/;
+const DNS_CHARS = /^[0-9A-Za-z._-]+$/;
+
+
 // Returns an Object with no default properties.
 function newMap() {
   return Object.create(null);
@@ -238,8 +246,48 @@ function inAddrRange(addr, nat64Addr) {
   }
 }
 
+function isValidIPv6Addr(addrMaybeCIDR) {
+  let [addr, _] = addrMaybeCIDR.split('/');
+  if (!IP6_CHARS.test(addr)) {
+    return false
+  }
+
+  // you need at least 2 colons for a v6 addr, '::'
+  const colons = countOccurrences(addr, ":")
+  if (colons < 2) {
+    return false
+  }
+
+
+  let hextetLength = 0;
+  let colonsSeen = 0;
+  for (let i = addr.length - 1; i >= 0; i--) {
+    if (addr[i] !== ':') {
+      hextetLength += 1;
+      colonsSeen = 0;
+    } else {
+      hextetLength = 0;
+      colonsSeen += 1;
+    }
+    if (hextetLength > 4) {
+      return false
+    }
+    if (colonsSeen > 2) {
+      return false
+    }
+  }
+
+  return true
+}
+
 function countOccurrences(string, substring) {
-  return string.split(substring).length - 1;
+  // return string.split(substring).length - 1;
+  let seen = 0;
+  for (let i = string.length - 1; i >= 0; i--) {
+    if (string[i] === substring) {
+      seen += 1;
+    }
+  }
 }
 
 function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1) {
@@ -249,11 +297,12 @@ function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1) {
   let colonHexRemaining = 16;
   let colonsSeen = 0;
 
-  // you need at least 2 colons for a v6 addr, '::'
-  let colons = countOccurrences(addressSTR, ":")
-  if (colons < 2) {
+  if (!isValidIPv6Addr(addressSTR)) {
     throw new Error('not_ipv6')
   }
+
+
+  const colons = countOccurrences(addr, ":")
   let double_skip = 16 * (8 - colons)
 
 
@@ -369,4 +418,5 @@ function renderIPv6(bigInt, nat64 = false) {
 
   return ipv6Address;
 }
+
 

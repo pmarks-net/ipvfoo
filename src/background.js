@@ -474,11 +474,7 @@ class DomainInfo {
     this.tabInfo = tabInfo;
     this.domain = domain;
     this.addr = addr;
-    if (nat64addr === "") {
-      this.getNat64Addr("")
-    } else {
-      this.getNat64Addr(nat64addr)
-    }
+    this.getNat64Addr(nat64addr)
     this.flags = flags;
   }
 

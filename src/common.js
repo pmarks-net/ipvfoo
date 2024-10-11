@@ -241,7 +241,7 @@ function inAddrRange(addr, nat64Addr) {
 
     return addr.addr === nat64Addr.addr;
   } catch (error) {
-    // console.log(error)
+    debugLog(error)
     return false;
   }
 }

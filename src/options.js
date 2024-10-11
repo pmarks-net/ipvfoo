@@ -57,24 +57,38 @@ window.onload = async () => {
 
 
 
+  const defaultBrokenNat64 = "Invalid IPv6 network address";
   document.optionsForm.onchange = function(evt) {
     const newOptions = {};
 
     const nat64Prefix = document.getElementById('nat64Prefix').value;
 
+    let [isValid, problem] = isValidIPv6Addr(nat64Prefix);
+    if (isValid) {
 
-    if (isValidIPv6Addr(nat64Prefix)) {
-      document.querySelector('.broken-nat64').style.display = 'none';
+      try {
+        document.querySelector('.broken-nat64').style.display = 'none';
+        if (options["nat64Prefix"] !== nat64Prefix) {
+          document.querySelector('.page-reload-txt').style.display = 'block';
+        }
+      } catch (error) {
 
-      if (options["nat64Prefix"] !== nat64Prefix) {
-        document.querySelector('.page-reload-txt').style.display = 'block';
       }
 
-      newOptions["nat64Prefix"] = nat64Prefix;
+      newOptions['nat64Prefix'] = nat64Prefix;
     } else {
-      document.querySelector('.broken-nat64').style.display = 'block';
+      try {
+        document.querySelector('.broken-nat64').textContent = defaultBrokenNat64+': '+problem;
+        document.querySelector('.broken-nat64').style.display = 'block';
+      } catch (error) {
+
+      }
     }
 
+    console.log(options["nat64Prefix"])
+    if (typeof options["nat64Prefix"] === "undefined") {
+      newOptions["nat64Prefix"] = DEFAULT_OPTIONS["nat64Prefix"];
+    }
 
     const nat64Hex = document.getElementById('nat64Hex').checked;
     newOptions["nat64Hex"] = nat64Hex;

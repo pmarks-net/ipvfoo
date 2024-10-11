@@ -356,15 +356,8 @@ class TabInfo extends SaveableEntry {
     let tooltip = "";
     for (let [domain, d] of Object.entries(this.domains)) {
       if (domain == this.mainDomain) {
-        let [addrVer, nat64] = d.addrVersion();
+        let [addrVer, _] = d.addrVersion();
         pattern = addrVer;
-
-        // if (nat64) {
-        //   // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, false));
-        //   // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, 96));
-        //   let bitAddr = d.parseIPv6WithCIDR(d.addr);
-        //   d.addr = d.renderIPv6(bitAddr.addr, true);
-        // }
 
         if (IS_MOBILE) {
           tooltip = d.addr;  // Limited tooltip space on Android.
@@ -373,20 +366,10 @@ class TabInfo extends SaveableEntry {
           tooltip = `${d.addr}\n${NAME_VERSION}`;
         }
       } else {
-        let [addrVer, nat64] = d.addrVersion();
+        let [addrVer, _] = d.addrVersion();
 
-        console.log(addrVer, nat64)
         switch (addrVer) {
-          // case "nat64": d.addr = "2606:50c0:8000::"; console.log(d.addr); has4 = true; break;
-          case "4": ;
-            // if (nat64) {
-            //   // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, false));
-            //   // console.log(d.bigintToIPv6(d.addrBitsCIDR.addr, 96));
-            //   let bitAddr = d.parseIPv6WithCIDR(d.addr);
-            //   d.addr = d.renderIPv6(bitAddr.addr, true);
-            // }
-            has4 = true
-            break
+          case "4": has4 = true; break;
           case "6": has6 = true; break;
         }
       }
@@ -527,6 +510,7 @@ class DomainInfo {
     } else {
       this.nat64Addr = addr
     }
+
     this.nat64AddrBitsCIDR = parseIPv6WithCIDR(this.nat64Addr, 96);
     let [_, nat64] = this.addrVersion(this.addr)
     this.isNat64 = nat64

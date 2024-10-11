@@ -247,20 +247,32 @@ function inAddrRange(addr, nat64Addr) {
 }
 
 function isValidIPv6Addr(addrMaybeCIDR) {
+
   let [addr, _] = addrMaybeCIDR.split('/');
-  if (!IP6_CHARS.test(addr)) {
-    return false
+
+  if (addr === '') {
+    return [false, "Address is empty"]
   }
 
   // you need at least 2 colons for a v6 addr, '::'
   const colons = countOccurrences(addr, ":")
   if (colons < 2) {
-    return false
+    return [false, "Too few separators"]
+  }
+
+  if (!IP6_CHARS.test(addr)) {
+    return [false, "Invalid characters"]
   }
 
 
+
+  if (addr[addr.length -1] === ':' && addr[addr.length -2] !== ':') {
+    return [false, "Can't end with a single separator"]
+  }
+
   let hextetLength = 0;
   let colonsSeen = 0;
+  let doubleColon = false;
   for (let i = addr.length - 1; i >= 0; i--) {
     if (addr[i] !== ':') {
       hextetLength += 1;
@@ -270,24 +282,39 @@ function isValidIPv6Addr(addrMaybeCIDR) {
       colonsSeen += 1;
     }
     if (hextetLength > 4) {
-      return false
+      return [false, "Can't have more then 4 character between a separator"]
     }
+
+
+    if (colonsSeen === 2) {
+      if (doubleColon) {
+        return [false, "Can't have 2 '::' compressions in one address"]
+      } else {
+        doubleColon = true
+      }
+    }
+
     if (colonsSeen > 2) {
-      return false
+      return [false, "Can't have more then 3 separators in a row"]
     }
   }
 
-  return true
+  if ((!doubleColon) && (colons < 7)) {
+    return [false, "Can't have less then 7 separators without a '::' compression"]
+  }
+
+  return [true, null]
 }
 
 function countOccurrences(string, substring) {
-  // return string.split(substring).length - 1;
-  let seen = 0;
-  for (let i = string.length - 1; i >= 0; i--) {
-    if (string[i] === substring) {
-      seen += 1;
-    }
-  }
+  return string.split(substring).length - 1;
+  // let seen = 0;
+  // for (let i = string.length - 1; i >= 0; i--) {
+  //   if (string[i] === substring) {
+  //     seen += 1;
+  //   }
+  // }
+  // return seen
 }
 
 function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1) {
@@ -297,12 +324,14 @@ function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1) {
   let colonHexRemaining = 16;
   let colonsSeen = 0;
 
-  if (!isValidIPv6Addr(addressSTR)) {
+  let [isValid, problem] = isValidIPv6Addr(addressSTR);
+  if (!isValid) {
+    debugLog(problem)
     throw new Error('not_ipv6')
   }
 
 
-  const colons = countOccurrences(addr, ":")
+  let colons = countOccurrences(addressSTR, ":")
   let double_skip = 16 * (8 - colons)
 
 

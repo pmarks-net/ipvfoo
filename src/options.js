@@ -32,8 +32,10 @@ window.onload = async () => {
   disableAll(true);
   await spriteImgReady;
 
+  // this in like any other way at all does not work why? idk
   document.body.onresize = async () => {
     document.body.style.overflow = 'hidden';
+    // document.body.style.overflow = 'auto';
     scrollbarReenable();
   }
 

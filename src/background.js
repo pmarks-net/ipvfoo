@@ -521,7 +521,8 @@ class DomainInfo {
     if (this.addr) {
       if (this.addr.indexOf(".") >= 0) return ["4", false];
 
-      let [isValidV6, _] = isValidIPv6Addr(this.addr);
+      let [isValidV6, problem] = isValidIPv6Addr(this.addr);
+      debugLog(problem)
       if (isValidV6) {
         if (inAddrRange(parseIPv6WithCIDR(this.addr, -1, true), this.nat64AddrBitsCIDR)) return ["4", true];  // RFC6052
         return ["6", false];

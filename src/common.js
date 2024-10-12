@@ -373,10 +373,6 @@ function renderIPv4(addr) {
 }
 
 function renderIPv6(bigInt, nat64 = false) {
-  if (typeof bigInt !== 'bigint') {
-    throw new TypeError('Input must be a BigInt');
-  }
-
   let ipv6Bits = BigInt(bigInt)
   let ipv4Bits = BigInt(bigInt)
 

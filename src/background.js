@@ -572,20 +572,8 @@ class RequestInfo extends SaveableEntry {
         continue;  // still waiting for onResponseStarted
       }
 
-      // let nat64auto = "";
-      // if (options['nat64Prefix'] === "") {
-      //   d = new DomainInfo(this, domain, addr || "(lost)", flags, nat64addr)
-      //   nat64auto = d.addr
-      //   let [ver, _] = d.addrVersion()
-      //   if (ver === "6") {
-      //     let addrMask = (BigInt(1) << BigInt(128 - 96)) - BigInt(1);
-      //     let d_addr = d.parseIPv6WithCIDR(d.addr, 96) & ~addrMask;
-      //     d.addr = d.renderIPv6(d_addr)
-      //     nat64auto += `${d.addr}/96`
-      //   }
-      // }
 
-      tabInfo.addDomain(this.domain, null, 0, nat64auto);
+      tabInfo.addDomain(this.domain, null, 0);
     }
     if (Object.keys(this.tabIdToBorn).length == 0) {
       requestMap.remove(this.id());

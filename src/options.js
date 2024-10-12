@@ -32,29 +32,14 @@ function getBodyTotalHeight() {
 }
 
 
-async function scrollbarReenable() {
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  document.body.style.overflow = 'auto';
-}
 
 
-async function bodyRound() {
-  // const currentHeight = document.body.clientHeight;
-  // let roundedHeight = Math.ceil(currentHeight);
-  // roundedHeight = roundedHeight - 1;
-  // document.body.style.height = `${roundedHeight}px`;
-  //
-  //
-  // const currentWidth = document.body.clientWidth;
-  // let roundedWidth = Math.floor(currentWidth);
-  // document.body.style.width = `${roundedWidth}px`;
-
-  // console.log(getBodyTotalHeight(), window.innerHeight, window.outerHeight)
+async function setScrollbar() {
+  console.log(getBodyTotalHeight(), window.innerHeight, Math.abs(getBodyTotalHeight() - window.innerHeight))
   if (Math.abs(getBodyTotalHeight() - window.innerHeight) < 2) {
-    document.body.style.overflowY = 'hidden';
+    document.body.style.overflow = 'hidden';
   } else {
-    document.body.style.overflowY = 'auto';
+    document.body.style.overflow = 'auto';
   }
 }
 
@@ -67,12 +52,8 @@ window.onload = async () => {
   await spriteImgReady;
 
 
-  // this in like any other way at all does not work why? idk
   document.body.onresize = async () => {
-    bodyRound()
-    // document.body.style.overflow = 'hidden';
-    // // document.body.style.overflow = 'auto';
-    // scrollbarReenable();
+    setScrollbar()
   }
 
 
@@ -121,12 +102,10 @@ window.onload = async () => {
     if (isValid) {
 
       try {
-        document.body.style.overflow = 'hidden';
         document.querySelector('.broken-nat64').style.display = 'none';
         if (options["nat64Prefix"] !== nat64Prefix) {
           document.querySelector('.page-reload-txt').style.display = 'flex';
         }
-        scrollbarReenable();
       } catch (error) {
 
       }
@@ -134,10 +113,8 @@ window.onload = async () => {
       newOptions['nat64Prefix'] = nat64Prefix;
     } else {
       try {
-        document.body.style.overflow = 'hidden';
         document.querySelector('.broken-nat64').textContent = problem;
         document.querySelector('.broken-nat64').style.display = 'flex';
-        scrollbarReenable();
       } catch (error) {
 
       }

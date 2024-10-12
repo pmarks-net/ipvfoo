@@ -18,9 +18,25 @@ limitations under the License.
 
 // Requires <script src="common.js">
 
+async function scrollbarReenable() {
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  document.body.style.overflow = 'auto';
+}
+
+
+
+
+
 window.onload = async () => {
   disableAll(true);
   await spriteImgReady;
+
+  document.body.onresize = async () => {
+    document.body.style.overflow = 'hidden';
+    scrollbarReenable();
+  }
+
 
   for (const option of Object.keys(DEFAULT_OPTIONS)) {
     if (!option.endsWith("ColorScheme")) continue;
@@ -49,6 +65,7 @@ window.onload = async () => {
       const radio = document.optionsForm[option];
       radio.value = options[option];
     }
+
     disableAll(false);
   });
 
@@ -66,10 +83,12 @@ window.onload = async () => {
     if (isValid) {
 
       try {
+        document.body.style.overflow = 'hidden';
         document.querySelector('.broken-nat64').style.display = 'none';
         if (options["nat64Prefix"] !== nat64Prefix) {
           document.querySelector('.page-reload-txt').style.display = 'flex';
         }
+        scrollbarReenable();
       } catch (error) {
 
       }
@@ -77,8 +96,10 @@ window.onload = async () => {
       newOptions['nat64Prefix'] = nat64Prefix;
     } else {
       try {
+        document.body.style.overflow = 'hidden';
         document.querySelector('.broken-nat64').textContent = problem;
         document.querySelector('.broken-nat64').style.display = 'flex';
+        scrollbarReenable();
       } catch (error) {
 
       }

@@ -57,7 +57,6 @@ window.onload = async () => {
 
 
 
-  const defaultBrokenNat64 = "Invalid IPv6 network address";
   document.optionsForm.onchange = function(evt) {
     const newOptions = {};
 
@@ -78,7 +77,7 @@ window.onload = async () => {
       newOptions['nat64Prefix'] = nat64Prefix;
     } else {
       try {
-        document.querySelector('.broken-nat64').textContent = defaultBrokenNat64+': '+problem;
+        document.querySelector('.broken-nat64').textContent = problem;
         document.querySelector('.broken-nat64').style.display = 'flex';
       } catch (error) {
 

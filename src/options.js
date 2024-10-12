@@ -18,10 +18,44 @@ limitations under the License.
 
 // Requires <script src="common.js">
 
+function getBodyTotalHeight() {
+    const body = document.body;
+
+    const style = getComputedStyle(body);
+
+    const marginTop = parseFloat(style.marginTop);
+    const marginBottom = parseFloat(style.marginBottom);
+
+    const totalHeight = body.offsetHeight + marginTop + marginBottom;
+
+    return totalHeight;
+}
+
+
 async function scrollbarReenable() {
   await new Promise(resolve => setTimeout(resolve, 500));
 
   document.body.style.overflow = 'auto';
+}
+
+
+async function bodyRound() {
+  // const currentHeight = document.body.clientHeight;
+  // let roundedHeight = Math.ceil(currentHeight);
+  // roundedHeight = roundedHeight - 1;
+  // document.body.style.height = `${roundedHeight}px`;
+  //
+  //
+  // const currentWidth = document.body.clientWidth;
+  // let roundedWidth = Math.floor(currentWidth);
+  // document.body.style.width = `${roundedWidth}px`;
+
+  // console.log(getBodyTotalHeight(), window.innerHeight, window.outerHeight)
+  if (Math.abs(getBodyTotalHeight() - window.innerHeight) < 2) {
+    document.body.style.overflowY = 'hidden';
+  } else {
+    document.body.style.overflowY = 'auto';
+  }
 }
 
 
@@ -32,11 +66,13 @@ window.onload = async () => {
   disableAll(true);
   await spriteImgReady;
 
+
   // this in like any other way at all does not work why? idk
   document.body.onresize = async () => {
-    document.body.style.overflow = 'hidden';
-    // document.body.style.overflow = 'auto';
-    scrollbarReenable();
+    bodyRound()
+    // document.body.style.overflow = 'hidden';
+    // // document.body.style.overflow = 'auto';
+    // scrollbarReenable();
   }
 
 

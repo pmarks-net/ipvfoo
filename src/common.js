@@ -430,8 +430,9 @@ function renderIPv6(bigInt, nat64 = false) {
   if (ipv6Address.endsWith(':')) {
     ipv6Address = ipv6Address + ':';
   }
-  let ipv4 = renderIPv4(ipv4Bits);
+
   if (nat64) {
+    let ipv4 = renderIPv4(ipv4Bits);
     ipv6Address += ipv4
   }
 

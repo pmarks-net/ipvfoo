@@ -310,18 +310,21 @@ function countOccurrences(string, substring) {
   return string.split(substring).length - 1;
 }
 
-function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1) {
+function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1, isKnownValid = false) {
   let [addressSTR, cidrSTR] = addressWithCIDR.split('/');
   let addr = BigInt(0);
   let bitPos = 0;
   let colonHexRemaining = 16;
   let colonsSeen = 0;
 
-  let [isValid, problem] = isValidIPv6Addr(addressSTR);
-  if (!isValid) {
-    debugLog(problem)
-    throw new Error('not_ipv6')
+  if (!isKnownValid) {
+    let [isValid, problem] = isValidIPv6Addr(addressSTR);
+    if (!isValid) {
+      debugLog(problem)
+      throw new Error('not_ipv6')
+    }
   }
+
 
 
   let colons = countOccurrences(addressSTR, ":")

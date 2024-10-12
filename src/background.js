@@ -519,10 +519,13 @@ class DomainInfo {
   // but let's keep it simple and stick with text for now.
   addrVersion() {
     if (this.addr) {
-      if (inAddrRange(parseIPv6WithCIDR(this.addr), this.nat64AddrBitsCIDR)) return ["4", true];  // RFC6052
       if (this.addr.indexOf(".") >= 0) return ["4", false];
-      let [isValid, _] = isValidIPv6Addr(this.addr);
-      if (isValid) return ["6", false];
+
+      let [isValidV6, _] = isValidIPv6Addr(this.addr);
+      if (isValidV6) {
+        if (inAddrRange(parseIPv6WithCIDR(this.addr, -1, true), this.nat64AddrBitsCIDR)) return ["4", true];  // RFC6052
+        return ["6", false];
+      }
     }
     return ["?", false];
   }

@@ -33,10 +33,15 @@ function getBodyTotalHeight() {
 
 
 
+async function scrollbarReenable() {
+  await new Promise(resolve => setTimeout(resolve, 500));
+  setScrollbar()
+}
+
 
 async function setScrollbar() {
   console.log(getBodyTotalHeight(), window.innerHeight, Math.abs(getBodyTotalHeight() - window.innerHeight))
-  if (Math.abs(getBodyTotalHeight() - window.innerHeight) < 2) {
+  if (Math.abs(getBodyTotalHeight() - window.innerHeight) <= 5) {
     document.body.style.overflow = 'hidden';
   } else {
     document.body.style.overflow = 'auto';
@@ -51,9 +56,11 @@ window.onload = async () => {
   disableAll(true);
   await spriteImgReady;
 
+  document.body.style.overflow = 'hidden';
 
   document.body.onresize = async () => {
-    setScrollbar()
+    document.body.style.overflow = 'hidden';
+    scrollbarReenable();
   }
 
 

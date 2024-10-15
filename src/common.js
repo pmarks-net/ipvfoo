@@ -247,7 +247,7 @@ function inAddrRange(addr, nat64Addr) {
 
 function isValidIPv6Addr(addrMaybeCIDR) {
 
-  let [addr, _] = addrMaybeCIDR.split('/');
+  let [addr, cidr] = addrMaybeCIDR.split('/');
 
   if (addr === '') {
     return [false, "Address is empty"]
@@ -300,6 +300,19 @@ function isValidIPv6Addr(addrMaybeCIDR) {
 
   if ((!doubleColon) && (colons < 7)) {
     return [false, "Can't have less then 8 hextets without a '::' compression"]
+  }
+
+  if (countOccurrences(addrMaybeCIDR, "/") === 1) {
+    if (addrMaybeCIDR.endsWith("/")) {
+      return [false, "Can't have empty CIDR"]
+    }
+
+    if (parseInt(cidr, 10) < 0 || parseInt(cidr, 10) > 128) {
+      return [false, "Invalid CIDR, range is 0 - 128 inclusive"]
+    }
+
+  } else if (countOccurrences(addrMaybeCIDR, "/") > 1) {
+    return [false, "Can't have more then 1 CIDR"]
   }
 
   return [true, null]

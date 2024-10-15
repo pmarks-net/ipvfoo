@@ -18,6 +18,12 @@ limitations under the License.
 
 // Requires <script src="common.js">
 
+
+let currentNAT64Valid = true;
+
+
+
+
 function getBodyTotalHeight() {
     const body = document.body;
 
@@ -100,6 +106,7 @@ window.onload = async () => {
 
 
 
+
   document.optionsForm.onchange = function(evt) {
     const newOptions = {};
 
@@ -118,6 +125,7 @@ window.onload = async () => {
       }
 
       newOptions['nat64Prefix'] = nat64Prefix;
+      currentNAT64Valid = true;
     } else {
       try {
         document.querySelector('.broken-nat64').textContent = problem;
@@ -126,6 +134,7 @@ window.onload = async () => {
 
       }
       newOptions['nat64Prefix'] = options['nat64Prefix']
+      currentNAT64Valid = false;
     }
 
     const nat64Hex = document.getElementById('nat64Hex').checked;
@@ -135,6 +144,9 @@ window.onload = async () => {
       if (!option.endsWith("ColorScheme")) continue;
       newOptions[option] = document.optionsForm[option].value;
     }
+
+    dismissBtnOnmousedown = getDismissOnmousedown();
+
     if (setOptions(newOptions)) {
       disableAll(true);
     }
@@ -193,17 +205,41 @@ window.onload = async () => {
     }
   };
 
+  let dismissBtnOnmousedown = getDismissOnmousedown();
   document.getElementById("dismiss_btn").onmousedown = function() {
-    if (window.history.length > 1) {
-      window.history.back();
-    } else {
-      window.close();
+    if (dismissBtnOnmousedown) {
+      dismiss()
+    }
+  };
+
+  document.getElementById("dismiss_btn").onclick = function() {
+    if (!dismissBtnOnmousedown) {
+      dismiss()
     }
   };
 
 
 
 }
+
+function dismiss() {
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    window.close();
+  }
+}
+
+function getDismissOnmousedown() {
+  if (currentNAT64Valid) {
+    document.getElementById('dismiss_btn').className = 'dismiss_btn_normal';
+    return true
+  } else {
+    document.getElementById('dismiss_btn').className = 'dismiss_btn_discard';
+    return false
+  }
+}
+
 
 function disableAll(disabled) {
   for (const e of document.getElementsByClassName("disabler")) {

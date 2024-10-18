@@ -159,7 +159,7 @@ const DEFAULT_OPTIONS = {
   regularColorScheme: "darkfg",
   incognitoColorScheme: "lightfg",
   nat64Prefix: "64:ff9b::/96",
-  nat64Hex: false,
+  nat64Format: "followV4",
   ipv4Format: "dotDecimal",
 };
 
@@ -401,16 +401,20 @@ function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1, isKnownValid = fal
 }
 
 
-function renderIPv4(addr) {
+function renderIPv4(addr, format = options["ipv4Format"]) {
 
-  if (options["ipv4Format"] === "dotDecimal") {
+  if (format === "dotDecimal") {
     return renderIPv4DotDecimal(addr);
-  } else if (options["ipv4Format"] === "octetHex") {
+
+  } else if (format === "octetHex") {
     return renderIPv4Hex(addr, 2);
-  } else if (options["ipv4Format"] === "singleBlockHex") {
+
+  } else if (format === "singleBlockHex") {
     return renderIPv4Hex(addr, 8, true, "shouldnotsee", "0x");
-  } else if (options["ipv4Format"] === "ipv6Like") {
+
+  } else if (format === "ipv6Like") {
     return renderIPv4Hex(addr, 4, true, ":");
+
   }
 
 
@@ -469,9 +473,23 @@ function renderIPv6(bigInt, nat64 = false) {
 
   let addrMask = (BigInt(1) << BigInt(32)) - BigInt(1);
 
+  let ipv4Format = "";
+  let changeV4Format = true;
+
   if (nat64) {
-    ipv6Bits = ipv6Bits & ~addrMask
-    ipv4Bits = ipv4Bits & addrMask
+    console.log(options["nat64Format"])
+    if (options["nat64Format"] === "followV4") {
+      ipv4Format = options["ipv4Format"];
+      ipv6Bits = ipv6Bits & ~addrMask
+      ipv4Bits = ipv4Bits & addrMask
+    } else if (options["nat64Format"] === "ipv6Hex") {
+      ipv4Format = "";
+      changeV4Format = false;
+    } else if (options["nat64Format"] === "dotDecimal") {
+      ipv4Format = "dotDecimal";
+      ipv6Bits = ipv6Bits & ~addrMask
+      ipv4Bits = ipv4Bits & addrMask
+    }
   }
 
   let hex = ipv6Bits.toString(16).padStart(32, '0');
@@ -522,8 +540,8 @@ function renderIPv6(bigInt, nat64 = false) {
     ipv6Addr = ipv6Addr + ':';
   }
 
-  if (nat64) {
-    let ipv4 = renderIPv4(ipv4Bits);
+  if (nat64 && changeV4Format) {
+    let ipv4 = renderIPv4(ipv4Bits, ipv4Format);
     ipv6Addr += ipv4
   }
 

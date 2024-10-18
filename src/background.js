@@ -500,7 +500,7 @@ class DomainInfo {
 
     }
 
-    if (this.isNat64 && !options["nat64Hex"]) {
+    if (this.isNat64) {
       let bits = parseIPv6WithCIDR(this.addr)
       return renderIPv6(bits.addr, true)
     }

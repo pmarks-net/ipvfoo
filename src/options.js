@@ -89,12 +89,13 @@ window.onload = async () => {
         document.getElementById('nat64Prefix').value = options["nat64Prefix"];
       }
 
-      if (option === "nat64Hex") {
-        document.getElementById('nat64Hex').checked = options["nat64Hex"];
-      }
 
       if (option === "ipv4Format") {
         document.getElementById('v4-format').value = options["ipv4Format"];
+      }
+
+      if (option === "nat64Format") {
+        document.getElementById('nat64-format').value = options["nat64Format"];
       }
 
 
@@ -142,11 +143,10 @@ window.onload = async () => {
       currentNAT64Valid = false;
     }
 
-    const nat64Hex = document.getElementById('nat64Hex').checked;
-    newOptions["nat64Hex"] = nat64Hex;
 
 
     newOptions["ipv4Format"] = document.getElementById('v4-format').value;
+    newOptions["nat64Format"] = document.getElementById('nat64-format').value;
 
 
     for (const option of Object.keys(DEFAULT_OPTIONS)) {
@@ -194,19 +194,6 @@ window.onload = async () => {
     };
   });
 
-  let nat64hexClickOn = false;
-  document.getElementById("nat64Hex").onclick = function(event) {
-    if (!nat64hexClickOn) {
-      event.preventDefault();
-    }
-  };
-
-  document.getElementById("nat64Hex").onmousedown = function() {
-    nat64hexClickOn = true;
-    this.click()
-    nat64hexClickOn = false;
-
-  };
 
   document.getElementById("revert_btn").onclick = function() {
     if (setOptions(DEFAULT_OPTIONS)) {

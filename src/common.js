@@ -160,6 +160,7 @@ const DEFAULT_OPTIONS = {
   incognitoColorScheme: "lightfg",
   nat64Prefix: "64:ff9b::/96",
   nat64Hex: false,
+  ipv4Format: "dotDecimal",
 };
 
 let _watchOptionsFunc = null;
@@ -401,6 +402,22 @@ function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1, isKnownValid = fal
 
 
 function renderIPv4(addr) {
+
+  if (options["ipv4Format"] === "dotDecimal") {
+    return renderIPv4DotDecimal(addr);
+  } else if (options["ipv4Format"] === "octetHex") {
+    return renderIPv4Hex(addr, 2);
+  } else if (options["ipv4Format"] === "singleBlockHex") {
+    return renderIPv4Hex(addr, 8, true, "shouldnotsee", "0x");
+  } else if (options["ipv4Format"] === "ipv6Like") {
+    return renderIPv4Hex(addr, 4, true, ":");
+  }
+
+
+  return renderIPv4DotDecimal(addr)
+}
+
+function renderIPv4DotDecimal(addr) {
   let ipv4 = []
 
   for (let i = 3; i >= 0; i--) {
@@ -417,7 +434,7 @@ function renderIPv4(addr) {
 }
 
 
-function renderIPv4Hex(bigInt, groupSize, removeLeading0s = false, joiner = ".", prepend = "", append = "") {
+function renderIPv4Hex(bigInt, groupSize, removeLeading0s = false, joiner = ":", prepend = "", append = "") {
   let ipv4Bits = BigInt(bigInt)
 
 

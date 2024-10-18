@@ -40,7 +40,7 @@ function getBodyTotalHeight() {
 
 
 async function scrollbarDelayedCheck() {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 100));
   setScrollbar()
 }
 
@@ -93,6 +93,11 @@ window.onload = async () => {
         document.getElementById('nat64Hex').checked = options["nat64Hex"];
       }
 
+      if (option === "ipv4Format") {
+        document.getElementById('v4-format').value = options["ipv4Format"];
+      }
+
+
       if (!option.endsWith("ColorScheme")) continue;
       const radio = document.optionsForm[option];
       radio.value = options[option];
@@ -139,6 +144,10 @@ window.onload = async () => {
 
     const nat64Hex = document.getElementById('nat64Hex').checked;
     newOptions["nat64Hex"] = nat64Hex;
+
+
+    newOptions["ipv4Format"] = document.getElementById('v4-format').value;
+
 
     for (const option of Object.keys(DEFAULT_OPTIONS)) {
       if (!option.endsWith("ColorScheme")) continue;

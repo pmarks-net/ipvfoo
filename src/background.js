@@ -491,13 +491,15 @@ class DomainInfo {
   renderAddr() {
     let [ver, nat64] = this.addrVersion(this.addr)
     this.isNat64 = nat64
-    if (ver === "4") {
+    console.log(ver)
+    if (ver === "4" && !nat64) {
+      if (options["ipv4Format"] !== "dotDecimal") {
+        let parseV4 = parseIPv4WithCidr(this.addr)
+        return renderIPv4(parseV4.addr);
+      }
 
     }
-    // let v4parse = parseIPv4WithCidr("10.0.12.255")
-    // console.log("renv4: ", renderIPv4Hex(v4parse.addr, 2))
-    // console.log("renv4: ", renderIPv4Hex(v4parse.addr, 8, true, ".", "0x"))
-    // console.log("renv4 v6 like: ", renderIPv4Hex(v4parse.addr, 4, true, ":"))
+
     if (this.isNat64 && !options["nat64Hex"]) {
       let bits = parseIPv6WithCIDR(this.addr)
       return renderIPv6(bits.addr, true)

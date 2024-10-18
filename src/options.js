@@ -40,7 +40,7 @@ function getBodyTotalHeight() {
 
 
 async function scrollbarDelayedCheck() {
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise(resolve => setTimeout(resolve, 10));
   setScrollbar()
 }
 
@@ -67,6 +67,7 @@ window.onload = async () => {
   document.body.onresize = async () => {
     document.body.style.overflow = 'hidden';
     scrollbarDelayedCheck();
+    // setScrollbar()
   }
 
 

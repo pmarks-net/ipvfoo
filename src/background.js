@@ -491,7 +491,10 @@ class DomainInfo {
   renderAddr() {
     let [ver, nat64] = this.addrVersion(this.addr)
     this.isNat64 = nat64
-    console.log(ver)
+    let bits = parseIPv6WithCIDR("64:ff9b:1:2:3:4:a00:901")
+    console.log(renderIPv6(bits.addr, true))
+    bits = parseIPv6WithCIDR("64:ff9b::a00:901")
+    console.log(renderIPv6(bits.addr, true))
     if (ver === "4" && !nat64) {
       if (options["ipv4Format"] !== "dotDecimal") {
         let parseV4 = parseIPv4WithCidr(this.addr)

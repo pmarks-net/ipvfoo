@@ -476,8 +476,10 @@ function renderIPv6(bigInt, nat64 = false) {
   let ipv4Format = "";
   let changeV4Format = true;
 
+  let shouldFormatNat64 = nat64 && changeV4Format;
+
   if (nat64) {
-    console.log(options["nat64Format"])
+    debugLog("nat64 format: ", options["nat64Format"])
     if (options["nat64Format"] === "followV4") {
       ipv4Format = options["ipv4Format"];
       ipv6Bits = ipv6Bits & ~addrMask
@@ -536,14 +538,19 @@ function renderIPv6(bigInt, nat64 = false) {
   if (ipv6Addr.startsWith(':')) {
     ipv6Addr = ':' + ipv6Addr;
   }
+
   if (ipv6Addr.endsWith(':')) {
-    ipv6Addr = ipv6Addr + ':';
+    if (!(ipv6Parts.length -1 === 6 && shouldFormatNat64 )) {
+      ipv6Addr = ipv6Addr + ':';
+    }
   }
 
-  if (nat64 && changeV4Format) {
+  if (shouldFormatNat64) {
     let ipv4 = renderIPv4(ipv4Bits, ipv4Format);
     ipv6Addr += ipv4
   }
+
+
 
   return ipv6Addr;
 }

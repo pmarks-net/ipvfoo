@@ -476,7 +476,6 @@ function renderIPv6(bigInt, nat64 = false) {
   let ipv4Format = "";
   let changeV4Format = true;
 
-  let shouldFormatNat64 = nat64 && changeV4Format;
 
   if (nat64) {
     debugLog("nat64 format: ", options["nat64Format"])
@@ -493,6 +492,8 @@ function renderIPv6(bigInt, nat64 = false) {
       ipv4Bits = ipv4Bits & addrMask
     }
   }
+  let shouldFormatNat64 = nat64 && changeV4Format;
+
 
   let hex = ipv6Bits.toString(16).padStart(32, '0');
 

@@ -51,11 +51,7 @@ const TAB_DEAD = 2;
 // RequestFilter for webRequest events.
 const FILTER_ALL_URLS = { urls: ["<all_urls>"] };
 
-// Distinguish IP address and domain name characters.
-// Note that IP6_CHARS must not match "beef.de"
-const IP4_CHARS = /^[0-9.]+$/;
-const IP6_CHARS = /^[0-9A-Fa-f]*:[0-9A-Fa-f:.]*$/;
-const DNS_CHARS = /^[0-9A-Za-z._-]+$/;
+
 
 const SECONDS = 1000;  // to milliseconds
 
@@ -318,7 +314,7 @@ class TabInfo extends SaveableEntry {
     this.save();
   }
 
-  addDomain(domain, addr, flags) {
+  addDomain(domain, addr, flags, nat64addr = "") {
     let d = this.domains[domain];
     if (!d) {
       // Limit the number of domains per page, to avoid wasting RAM.
@@ -327,7 +323,7 @@ class TabInfo extends SaveableEntry {
         return;
       }
       d = this.domains[domain] =
-          new DomainInfo(this, domain, addr || "(lost)", flags);
+          new DomainInfo(this, domain, addr || "(lost)", flags, nat64addr);
       d.countUp();
     } else {
       const oldAddr = d.addr;
@@ -360,14 +356,19 @@ class TabInfo extends SaveableEntry {
     let tooltip = "";
     for (const [domain, d] of Object.entries(this.domains)) {
       if (domain == this.mainDomain) {
-        pattern = d.addrVersion();
+        let [addrVer, _] = d.addrVersion();
+        pattern = addrVer;
+
         if (IS_MOBILE) {
           tooltip = d.addr;  // Limited tooltip space on Android.
         } else {
+
           tooltip = `${d.addr}\n${NAME_VERSION}`;
         }
       } else {
-        switch (d.addrVersion()) {
+        let [addrVer, _] = d.addrVersion();
+
+        switch (addrVer) {
           case "4": has4 = true; break;
           case "6": has6 = true; break;
         }
@@ -430,12 +431,14 @@ class TabInfo extends SaveableEntry {
     const tuples = [mainTuple];
     for (const domain of domains) {
       const d = this.domains[domain];
+      let [addrVer, _] = d.addrVersion();
       if (domain == mainTuple[0]) {
         mainTuple[1] = d.addr;
-        mainTuple[2] = d.addrVersion();
+        mainTuple[2] = addrVer;
         mainTuple[3] = d.flags;
+        mainTuple[4] = d.renderAddr();
       } else {
-        tuples.push([domain, d.addr, d.addrVersion(), d.flags]);
+        tuples.push([domain, d.addr, addrVer, d.flags, d.renderAddr()]);
       }
     }
     return tuples;
@@ -448,23 +451,30 @@ class TabInfo extends SaveableEntry {
       // Perhaps this.domains was cleared during the request's lifetime.
       return null;
     }
-    return [domain, d.addr, d.addrVersion(), d.flags];
+
+    let [addrVer, _] = d.addrVersion();
+    return [domain, d.addr, addrVer, d.flags, d.renderAddr()];
   }
 }
 
 class DomainInfo {
   tabInfo;
   domain;
-  addr;
-  flags;
 
+  addr;
+  nat64Addr;
+  nat64AddrBitsCIDR;
+  isNat64;
+
+  flags;
   count = 0;  // count of active requests
   inhibitZero = false;
 
-  constructor(tabInfo, domain, addr, flags) {
+  constructor(tabInfo, domain, addr, flags, nat64addr = "") {
     this.tabInfo = tabInfo;
     this.domain = domain;
     this.addr = addr;
+    this.getNat64Addr(nat64addr)
     this.flags = flags;
   }
 
@@ -478,15 +488,56 @@ class DomainInfo {
     return new DomainInfo(tabInfo, domain, addr, flags);
   }
 
+  renderAddr() {
+    let [ver, nat64] = this.addrVersion(this.addr)
+    this.isNat64 = nat64
+    if (ver === "4" && !nat64) {
+      if (options["ipv4Format"] !== "dotDecimal") {
+        let parseV4 = parseIPv4WithCidr(this.addr)
+        return renderIPv4(parseV4.addr);
+      }
+
+    }
+
+    if (this.isNat64) {
+      let bits = parseIPv6WithCIDR(this.addr)
+      return renderIPv6(bits.addr, true)
+    }
+    return this.addr
+
+  }
+
+  getNat64Addr(addr = "") {
+    if (addr === "") {
+      this.nat64Addr = options['nat64Prefix'];
+    } else {
+      this.nat64Addr = addr
+    }
+
+    this.nat64AddrBitsCIDR = parseIPv6WithCIDR(this.nat64Addr, 96);
+    let [_, nat64] = this.addrVersion(this.addr)
+    this.isNat64 = nat64
+  }
+
+
+
+
   // In theory, we should be using a full-blown subnet parser/matcher here,
   // but let's keep it simple and stick with text for now.
   addrVersion() {
     if (this.addr) {
-      if (/^64:ff9b::/.test(this.addr)) return "4";  // RFC6052
-      if (this.addr.indexOf(".") >= 0) return "4";
-      if (this.addr.indexOf(":") >= 0) return "6";
+      if (this.addr.indexOf(".") >= 0) return ["4", false];
+
+
+      let [isValidV6, problem] = isValidIPv6Addr(this.addr);
+      debugLog(problem)
+
+      if (isValidV6) {
+        if (inAddrRange(parseIPv6WithCIDR(this.addr, -1, true), this.nat64AddrBitsCIDR)) return ["4", true];  // RFC6052
+        return ["6", false];
+      }
     }
-    return "?";
+    return ["?", false];
   }
 
   async countUp() {
@@ -530,6 +581,8 @@ class RequestInfo extends SaveableEntry {
       if (!this.domain) {
         continue;  // still waiting for onResponseStarted
       }
+
+
       tabInfo.addDomain(this.domain, null, 0);
     }
     if (Object.keys(this.tabIdToBorn).length == 0) {

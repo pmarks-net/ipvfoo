@@ -20,23 +20,78 @@ limitations under the License.
   <meta name="viewport" content="width=360, initial-scale=1" />
   <style type="text/css">
   body {
-    font-family: "Noto Sans", Arial, sans-serif;
+    font-family: sans-serif;
     font-size: 10pt;
-    background-color: #fff;
-    color: #444;
+    background-color: #eee;
+    color: #222;
     margin: 20px;
+    --accent-color: #2373ff;
+    --accent-text-color: #e5e5e5;
+    --warn-color: #a2001b;
+    --lesser-warn-color: #cc3006;
+    --check-radio-bg: #ccc;
+    --table-border: #c7c7c7;
+    --table-bg: #202020;
+
+    --scrollbar-bg-color: #aaa;
+    --scrollbar-color: #ccc;
+    @media (prefers-color-scheme: dark) {
+      --accent-color: #5fb3f9;
+      --accent-text-color: #333;
+      --warn-color: #ec7474;
+      --lesser-warn-color: #f4b982;
+      --check-radio-bg: #444;
+      --table-border: #2e2e2e;
+      --table-bg: #202020;
+      --scrollbar-bg-color: #202020;
+      --scrollbar-color: #444;
+    }
+  /* scrollbar-color: var(--scrollbar-color) var(--scrollbar-bg-color) ; */
   }
   h1 {
     font-size: 14pt;
     font-weight: normal;
   }
+
+
+
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  ::-webkit-scrollbar {
+      height: 10px;
+      width: 10px;
+      background: var(--scrollbar-bg-color);
+  }
+
+  ::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-color);
+      -webkit-border-radius: 1ex;
+      -webkit-box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  ::-webkit-scrollbar-corner {
+      background: #000;
+  }
+
+
   table, td, tr {
     border-width: 1px;
     border-collapse: collapse;
-    border-color: #888;
+    border-color: transparent;
+    background-color: transparent;
     border-style: solid;
     padding: 0;
   }
+
+  .table-separator {
+    height: 1px;
+    background-color: var(--table-border);
+    border-radius: 100%;
+  }
+
   label {
     display: flex;
     padding: 1em;
@@ -60,14 +115,211 @@ limitations under the License.
     font-weight: bold;
   }
 
+  .nat64PrefixGroup {
+    display: flex;
+    align-items: center;
+    gap: 0px;
+  }
+
+
+  button {
+    background-color: #cacaca;
+    border-style: solid;
+    color: #111;
+    border-color: #cacaca;
+    border-radius: 5px;
+    transition: transform 0.05s cubic-bezier(0,.9,.5,.9), box-shadow 0.05s cubic-bezier(0,.9,.5,.9), background-color 0.1s cubic-bezier(0,.9,.5,.9), border-color 0.1s cubic-bezier(0,.9,.5,.9), color 0.1s cubic-bezier(0,.9,.5,.9);
+  }
+
+
+  input[type="text"] {
+    background-color: #d8d8d8;
+    color: #000;
+    border-color: #c8c8c8;
+    border-style: solid;
+    border-radius: 5px;
+
+    transition: 200ms background-color cubic-bezier(0,.9,.5,.9);
+    outline-color: #666;
+  }
+
+  input[type="text"]:focus {
+    background-color: #d2d2d2;
+    outline: 2px solid #b9b9b9;
+    outline-offset: -2px;
+  }
+
+
+  select {
+    background-color: #d8d8d8;
+    color: #000;
+    border-color: #c8c8c8;
+    border-style: solid;
+    border-radius: 5px;
+
+    transition: 200ms background-color cubic-bezier(0,.9,.5,.9);
+    outline-color: #666;
+  }
+
+  select:focus-within {
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
+
+
+  button#revert_btn:hover:active {
+    transform: scale(0.98);
+    background-color: var(--warn-color);
+    color: var(--accent-text-color);
+    border-color: var(--warn-color);
+  }
+
+  button.dismiss_btn_discard:hover:active {
+    transform: scale(0.98);
+    background-color: var(--warn-color);
+    color: var(--accent-text-color);
+    border-color: var(--warn-color);
+  }
+
+  input[type="radio"] {
+    appearance: none;
+    background-color: var(--check-radio-bg);
+    margin: 0;
+    margin-right: 0.7em !important;
+    font: inherit;
+    color: currentColor;
+    width: 1.15em;
+    height: 1.15em;
+    border: 0.15em solid var(--check-radio-bg);
+    border-radius: 50%;
+    transform: translateY(-0.075em);
+    display: grid;
+    place-content: center;
+  }
+
+  input[type="radio"]::before {
+    content: "";
+    width: 0.65em;
+    height: 0.65em;
+    border-radius: 50%;
+    transform: scale(0);
+    transition: 200ms transform cubic-bezier(0,.9,.5,.9);
+    box-shadow: inset 1em 1em var(--accent-color);
+  }
+
+  input[type="radio"]:checked::before {
+    transform: scale(1);
+  }
+
+  input[type="checkbox"] {
+    appearance: none;
+    background-color: var(--check-radio-bg);
+    margin: 0.5em;
+    font: inherit;
+    color: currentColor;
+    width: 1.15em;
+    height: 1.15em;
+    border: 0.15em solid var(--check-radio-bg);
+    border-radius: 0.2em;
+    transform: translateY(-0.075em);
+
+    display: grid;
+    place-content: center;
+  }
+
+  input[type="checkbox"]::before {
+    content: "";
+    width: 0.65em;
+    height: 0.65em;
+    transform: scale(0);
+    transition: 250ms transform cubic-bezier(0,.9,.5,.9);
+    box-shadow: inset 1em 1em var(--accent-color);
+    border-radius: 2px;
+  }
+
+  input[type="checkbox"]:checked::before {
+    transform: scale(1);
+  }
+
+  .page-reload-txt {
+    display: none;
+    margin-top: 8px;
+    font-size: 9pt;
+    color: var(--lesser-warn-color);
+    /* transform: translateY(0.9em); */
+    transform: translateY(11px);
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    margin-top: 0;
+  }
+
+
+  .broken-nat64 {
+    display: none;
+    font-size: 9pt;
+    color: var(--warn-color);
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0.2em;
+    margin-top: 0;
+  }
+
+  .nat64-prefix {
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 1px;
+    margin-top: 0;
+  }
+
   /* dark mode */
   @media (prefers-color-scheme: dark) {
     body {
-      background-color: #222;
+      background-color: #171717;
       color: #eee;
     }
+
+    input[type="text"] {
+      background-color: #303030;
+      color: #eee;
+      border-color: #303030;
+      border-style: solid;
+      border-radius: 5px;
+
+      outline-color: #666;
+    }
+
+    button {
+      background-color: #303030;
+      color: #eee;
+      border-color: #303030;
+      border-style: solid;
+    }
+
+
+    input[type="text"]:focus {
+      background-color: #333;
+      outline: 2px solid #333;
+      outline-offset: -2px;
+    }
+
+    select {
+      background-color: #333;
+      color: #eee;
+      border-color: #333;
+      border-style: solid;
+
+      outline-color: #333;
+    }
+
+
   }
+
   </style>
+
+
   <script src="common.js"></script>
   <script src="options.js"></script>
 </head>
@@ -80,7 +332,7 @@ limitations under the License.
         <td class="colorscheme_title">Regular tabs:</td>
         <td>
           <label>
-            <input type="radio" name="regularColorScheme" value="darkfg" class="disabler">
+            <input type="radio" id="radio-regularColorScheme:darkfg" name="regularColorScheme" value="darkfg" class="disabler">
             <div class="darkfg_frame">
               <canvas id="regularColorScheme:darkfg" width="16px" height="16px"></canvas>
             </div>
@@ -88,18 +340,21 @@ limitations under the License.
         </td>
         <td>
           <label>
-            <input type="radio" name="regularColorScheme" value="lightfg" class="disabler">
+            <input type="radio" id="radio-regularColorScheme:lightfg" name="regularColorScheme" value="lightfg" class="disabler">
             <div class="lightfg_frame">
               <canvas id="regularColorScheme:lightfg" width="16px" height="16px"></canvas>
             </div>
           </label>
         </td>
       </tr>
-      <tr>
+      <tr class="table-separator">
+          <td colspan="3"></td>
+      </tr>
+      <tr class="tr-color-bottom">
         <td class="colorscheme_title">Incognito tabs:</td>
         <td>
           <label>
-            <input type="radio" name="incognitoColorScheme" value="darkfg" class="disabler">
+            <input type="radio" id="radio-incognitoColorScheme:darkfg" name="incognitoColorScheme" value="darkfg" class="disabler">
             <div class="darkfg_frame">
               <canvas id="incognitoColorScheme:darkfg" width="16px" height="16px"></canvas>
             </div>
@@ -107,7 +362,7 @@ limitations under the License.
         </td>
         <td>
           <label>
-            <input type="radio" name="incognitoColorScheme" value="lightfg" class="disabler">
+            <input type="radio" id="radio-incognitoColorScheme:lightfg" name="incognitoColorScheme" value="lightfg" class="disabler">
             <div class="lightfg_frame">
               <canvas id="incognitoColorScheme:lightfg" width="16px" height="16px"></canvas>
             </div>
@@ -115,14 +370,43 @@ limitations under the License.
         </td>
       </tr>
     </table>
+    <br>
+      <div>Note: popups use the system light/dark theme.</div>
+    <br>
+
+    <h1>NAT64 Options</h1>
+      <label class="nat64-prefix">
+          NAT64 Prefix:&nbsp<input type="text" id="nat64Prefix" name="nat64Prefix">
+      </label>
+      <label class="broken-nat64">Invalid IPv6 network address</label>
+
+      <label>
+          NAT64&nbspFormat:&nbsp
+        <select id="nat64-format" name="nat64-format">
+          <option value="followV4">Follow IPv4 Format: 64:ff9b::[IPv4Format]</option>
+          <option value="ipv6Hex">Always Hex IPv6 Format: 64:ff9b::a00:cff</option>
+          <option value="dotDecimal">Dot-decimal: 64:ff9b::10.0.12.255</option>
+        </select>
+      </label>
+
+    <h1>Formatting Options</h1>
+    <label for="v4-format">IPv4 Format:&nbsp
+      <select id="v4-format" name="v4-format">
+        <option value="dotDecimal">Dot-decimal: 10.0.12.255</option>
+        <option value="octetHex">Octet Hex: 0a:00:0c:ff</option>
+        <option value="singleBlockHex">Single block hex: 0xa000cff</option>
+        <option value="ipv6Like">IPv6-like: a00:cff</option>
+      </select>
+    </label>
   </form>
 
-  <br>
-  Note that popups use the system light/dark theme.
 
+  <div class="page-reload-txt">Open pages will need a reload to see changes</div>
   <div style="display:inline-block; padding-top:1.5em; width:100%">
     <button id="revert_btn" style="float:left" class="disabler">Revert to Defaults</button>
-    <button id="dismiss_btn" style="float:right">Dismiss</button>
+    <button id="dismiss_btn" class="dismiss_btn_normal" style="float:right">Dismiss</button>
   </div>
+
+
 </body>
 </html>

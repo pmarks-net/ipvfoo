@@ -24,6 +24,14 @@ const FLAG_CONNECTED = 0x8;
 const FLAG_WEBSOCKET = 0x10;
 const FLAG_NOTWORKER = 0x20;  // from a tab, not a service worker
 
+
+// Distinguish IP address and domain name characters.
+// Note that IP6_CHARS must not match "beef.de"
+const IP4_CHARS = /^[0-9.]+$/;
+const IP6_CHARS = /^[0-9A-Fa-f]*:[0-9A-Fa-f:.]*$/;
+const DNS_CHARS = /^[0-9A-Za-z._-]+$/;
+
+
 // Returns an Object with no default properties.
 function newMap() {
   return Object.create(null);
@@ -150,6 +158,9 @@ function drawSprite(ctx, size, targets, sources) {
 const DEFAULT_OPTIONS = {
   regularColorScheme: "darkfg",
   incognitoColorScheme: "lightfg",
+  nat64Prefix: "64:ff9b::/96",
+  nat64Format: "followV4",
+  ipv4Format: "dotDecimal",
 };
 
 let _watchOptionsFunc = null;
@@ -204,3 +215,345 @@ function setOptions(newOptions) {
   chrome.storage.sync.set(toSet);
   return true;  // caller should wait for watchOptions()
 }
+
+
+
+
+function setNibbleAtPosition(bigInt, nibble, bitPosition) {
+  let nibbleValue = BigInt(parseInt(nibble, 16));
+
+  let mask = ~(BigInt(0xF) << BigInt(bitPosition));
+  bigInt = bigInt & mask;
+
+  bigInt = bigInt | (nibbleValue << BigInt(bitPosition));
+
+  return bigInt;
+}
+
+function setByteAtPosition(bigInt, byte, bitPosition) {
+  let byteValue = BigInt(parseInt(byte, 16));
+
+  let mask = ~(BigInt(0xFF) << BigInt(bitPosition));
+  bigInt = bigInt & mask;
+
+  bigInt = bigInt | (byteValue << BigInt(bitPosition));
+
+  return bigInt;
+}
+
+
+function inAddrRange(addr, nat64Addr) {
+  try {
+    let mask = (BigInt(1) << BigInt(128 - nat64Addr.cidr)) - BigInt(1);
+    addr.addr = addr.addr & ~mask;
+
+
+    nat64Addr.addr = nat64Addr.addr & ~mask;
+
+    return addr.addr === nat64Addr.addr;
+  } catch (error) {
+    debugLog(error)
+    return false;
+  }
+}
+
+function isValidIPv6Addr(addrMaybeCIDR) {
+
+  let [addr, cidr] = addrMaybeCIDR.split('/');
+
+  if (addr === '') {
+    return [false, "Address is empty"]
+  }
+
+  // you need at least 2 colons for a v6 addr, '::'
+  const colons = countOccurrences(addr, ":")
+  if (colons < 2) {
+    return [false, "Too few separators"]
+  }
+
+  if (!IP6_CHARS.test(addr)) {
+    return [false, "Invalid characters"]
+  }
+
+
+
+  if (addr[addr.length -1] === ':' && addr[addr.length -2] !== ':') {
+    return [false, "Can't end with a single separator"]
+  }
+
+  let hextetLength = 0;
+  let colonsSeen = 0;
+  let doubleColon = false;
+  for (let i = addr.length - 1; i >= 0; i--) {
+    if (addr[i] !== ':') {
+      hextetLength += 1;
+      colonsSeen = 0;
+    } else {
+      hextetLength = 0;
+      colonsSeen += 1;
+    }
+    if (hextetLength > 4) {
+      return [false, "Can't have more then 4 character between a separator"]
+    }
+
+
+    if (colonsSeen === 2) {
+      if (doubleColon) {
+        return [false, "Can't have 2 '::' compressions in one address"]
+      } else {
+        doubleColon = true
+      }
+    }
+
+    if (colonsSeen > 2) {
+      return [false, "Can't have more then 3 separators in a row"]
+    }
+  }
+
+  if ((!doubleColon) && (colons < 7)) {
+    return [false, "Can't have less then 8 hextets without a '::' compression"]
+  }
+
+  if (countOccurrences(addrMaybeCIDR, "/") === 1) {
+    if (addrMaybeCIDR.endsWith("/")) {
+      return [false, "Can't have empty CIDR"]
+    }
+
+    if (parseInt(cidr, 10) < 0 || parseInt(cidr, 10) > 128) {
+      return [false, "Invalid CIDR, range is 0 - 128 inclusive"]
+    }
+
+  } else if (countOccurrences(addrMaybeCIDR, "/") > 1) {
+    return [false, "Can't have more then 1 CIDR"]
+  }
+
+  return [true, null]
+}
+
+function countOccurrences(string, substring) {
+  return string.split(substring).length - 1;
+}
+
+
+
+
+function parseIPv4WithCidr(addressWithCIDR, defaultCIDR = -1) {
+  let [addressSTR, cidrSTR] = addressWithCIDR.split('/');
+
+  let ipv4BigInt = BigInt(0);
+  let octets = addressSTR.split('.').map(Number);
+
+  for (let i = 0; i < 4; i++) {
+    ipv4BigInt = (ipv4BigInt << BigInt(8)) | BigInt(octets[i]);
+  }
+
+  let cidr = cidrSTR ? parseInt(cidrSTR, 10) : defaultCIDR;
+
+
+  return { addr: ipv4BigInt, cidr: cidr };
+}
+
+function parseIPv6WithCIDR(addressWithCIDR, defaultCIDR = -1, isKnownValid = false) {
+  let [addressSTR, cidrSTR] = addressWithCIDR.split('/');
+  let addr = BigInt(0);
+  let bitPos = 0;
+  let colonHexRemaining = 16;
+  let colonsSeen = 0;
+
+  if (!isKnownValid) {
+    let [isValid, problem] = isValidIPv6Addr(addressSTR);
+    if (!isValid) {
+      debugLog(problem)
+      throw new Error('not_ipv6')
+    }
+  }
+
+
+
+  let colons = countOccurrences(addressSTR, ":")
+  let doubleSkip = 16 * (8 - colons)
+
+
+
+  for (let i = addressSTR.length - 1; i >= 0; i--) {
+    if (colonsSeen >= 2) {
+      bitPos += doubleSkip
+    } else if (colonsSeen === 1) {
+      bitPos += colonHexRemaining;
+      colonHexRemaining = 16;
+    }
+    if (addressSTR[i] !== ':') {
+      colonsSeen = 0
+      addr = setNibbleAtPosition(addr, addressSTR[i], bitPos);
+      bitPos += 4;
+      colonHexRemaining -= 4;
+    } else {
+      colonsSeen += 1;
+    }
+  }
+
+
+
+  let cidr = cidrSTR ? parseInt(cidrSTR, 10) : defaultCIDR;
+
+
+  return { addr: addr, cidr: cidr };
+}
+
+
+function renderIPv4(addr, format = options["ipv4Format"]) {
+
+  if (format === "dotDecimal") {
+    return renderIPv4DotDecimal(addr);
+
+  } else if (format === "octetHex") {
+    return renderIPv4Hex(addr, 2);
+
+  } else if (format === "singleBlockHex") {
+    return renderIPv4Hex(addr, 8, true, "shouldnotsee", "0x");
+
+  } else if (format === "ipv6Like") {
+    return renderIPv4Hex(addr, 4, true, ":");
+
+  }
+
+
+  return renderIPv4DotDecimal(addr)
+}
+
+function renderIPv4DotDecimal(addr) {
+  let ipv4 = []
+
+  for (let i = 3; i >= 0; i--) {
+    let mask = (BigInt(1) << BigInt(8)) - BigInt(1);
+
+    let oct = addr >> BigInt(i * 8);
+    oct = oct & mask
+
+    ipv4.push(oct)
+  }
+
+  return ipv4.join(".")
+
+}
+
+
+function renderIPv4Hex(bigInt, groupSize, removeLeading0s = false, joiner = ":", prepend = "", append = "") {
+  let ipv4Bits = BigInt(bigInt)
+
+
+  let hex = ipv4Bits.toString(16).padStart(8, '0');
+
+  let ipv4Parts = [];
+  for (let i = 0; i < 8 / groupSize; i++) {
+    ipv4Parts.push(hex.substr(i * groupSize, groupSize));
+  }
+
+  if (removeLeading0s) {
+    ipv4Parts = ipv4Parts.map(group => group.replace(/^0+/, '') || '0');
+  }
+
+
+  let ipv4Addr = ipv4Parts.join(joiner);
+
+  if (prepend !== "") {
+    ipv4Addr = prepend + ipv4Addr
+  }
+
+  if (append !== "") {
+    ipv4Addr = ipv4Addr + append
+  }
+
+  return ipv4Addr;
+}
+
+function renderIPv6(bigInt, nat64 = false) {
+  let ipv6Bits = BigInt(bigInt)
+  let ipv4Bits = BigInt(bigInt)
+
+  let addrMask = (BigInt(1) << BigInt(32)) - BigInt(1);
+
+  let ipv4Format = "";
+  let changeV4Format = true;
+
+
+  if (nat64) {
+    debugLog("nat64 format: ", options["nat64Format"])
+    if (options["nat64Format"] === "followV4") {
+      ipv4Format = options["ipv4Format"];
+      ipv6Bits = ipv6Bits & ~addrMask
+      ipv4Bits = ipv4Bits & addrMask
+    } else if (options["nat64Format"] === "ipv6Hex") {
+      ipv4Format = "";
+      changeV4Format = false;
+    } else if (options["nat64Format"] === "dotDecimal") {
+      ipv4Format = "dotDecimal";
+      ipv6Bits = ipv6Bits & ~addrMask
+      ipv4Bits = ipv4Bits & addrMask
+    }
+  }
+  let shouldFormatNat64 = nat64 && changeV4Format;
+
+
+  let hex = ipv6Bits.toString(16).padStart(32, '0');
+
+  let ipv6Parts = [];
+  for (let i = 0; i < 8; i++) {
+    ipv6Parts.push(hex.substr(i * 4, 4));
+  }
+
+  ipv6Parts = ipv6Parts.map(group => group.replace(/^0+/, '') || '0');
+
+  let zeroStart = -1;
+  let zeroLength = 0;
+  let bestZeroStart = -1;
+  let bestZeroLength = 0;
+
+  for (let i = 0; i < ipv6Parts.length; i++) {
+    if (ipv6Parts[i] === '0') {
+      if (zeroStart === -1) {
+        zeroStart = i;
+      }
+      zeroLength++;
+    } else {
+      if (zeroLength > bestZeroLength) {
+        bestZeroStart = zeroStart;
+        bestZeroLength = zeroLength;
+      }
+      zeroStart = -1;
+      zeroLength = 0;
+    }
+  }
+
+  if (zeroLength > bestZeroLength) {
+    bestZeroStart = zeroStart;
+    bestZeroLength = zeroLength;
+  }
+
+  if (bestZeroLength > 1) {
+    ipv6Parts.splice(bestZeroStart, bestZeroLength, '');
+  }
+
+  let ipv6Addr = ipv6Parts.join(':');
+
+  if (ipv6Addr.startsWith(':')) {
+    ipv6Addr = ':' + ipv6Addr;
+  }
+
+  if (ipv6Addr.endsWith(':')) {
+    if (!(ipv6Parts.length -1 === 6 && shouldFormatNat64 )) {
+      ipv6Addr = ipv6Addr + ':';
+    }
+  }
+
+  if (shouldFormatNat64) {
+    let ipv4 = renderIPv4(ipv4Bits, ipv4Format);
+    ipv6Addr += ipv4
+  }
+
+
+
+  return ipv6Addr;
+}
+
+

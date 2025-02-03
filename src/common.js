@@ -24,6 +24,8 @@ const FLAG_CONNECTED = 0x8;
 const FLAG_WEBSOCKET = 0x10;
 const FLAG_NOTWORKER = 0x20;  // from a tab, not a service worker
 
+const IPV4_ONLY_DOMAINS = new Set(["ipv4.google.com", "ipv4.icanhazip.com", "ipv4.whatismyip.akamai.com"]);
+
 // Returns an Object with no default properties.
 function newMap() {
   return Object.create(null);

@@ -39,7 +39,7 @@ user can demand a popup before any IP addresses are available.
 
 if (chrome.runtime.getManifest().background.service_worker) {
   // This line runs on Chrome, but not Firefox.
-  importScripts("common.js");
+  importScripts("common.js", "iputil.js");
 }
 
 // Possible states for an instance of TabInfo.
@@ -98,6 +98,23 @@ function parseUrl(url) {
     }
   }
   return { domain: domain, ssl: ssl, ws: ws, origin: u.origin };
+}
+
+function updateNAT64(domain, addr) {
+  if (!(IPV4_ONLY_DOMAINS.has(domain) && addr)) {
+    return;
+  }
+  const packed = parseIP(addr);
+  if (packed.length != 128/4) {
+    return;
+  }
+  // Heuristic: Don't consider this a NAT64 prefix if the embedded
+  // IPv4 address falls under 0.x.x.x/8.
+  // This handles cases like "all traffic is proxied to ::1".
+  if (packed.substr(96/4, 2) == '00') {
+    return;
+  }
+  console.log("NAT64 detected!", formatIPv6(packed.slice(0, 96/4)) + "/96", formatIPv6WithDots(packed));
 }
 
 class SaveableEntry {
@@ -548,7 +565,7 @@ class IPCacheEntry extends SaveableEntry {
 // tabId -> TabInfo
 const tabMap = new SaveableMap(TabInfo, "tab/")
 
-// requestId -> {tabInfo, domain}
+// requestId -> RequestInfo
 const requestMap = new SaveableMap(RequestInfo, "req/");
 
 // Firefox-only domain->ip cache, to help work around
@@ -954,6 +971,11 @@ chrome.webRequest.onResponseStarted.addListener(async (details) => {
 
   let addr = details.ip;
   let fromCache = details.fromCache;
+
+  if (!fromCache) {
+    updateNAT64(parsed.domain, addr);
+  }
+
   if (ipCache) {
     // This runs on Firefox only.
     if (addr) {

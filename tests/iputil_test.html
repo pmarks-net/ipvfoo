@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="tinytest.js"></script> <script src="../src/iputil.js"></script>
+<script>
+tests({
+  'valid_ipv6': function() {
+    const cases = [
+      ["::", "00000000000000000000000000000000", "::", "::0.0.0.0"],
+      ["ffff:ffff:ffff:ffff:ffff:ffff:ffff:0ffff", "ffffffffffffffffffffffffffffffff", "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"],
+      ["2001:db8::1", "20010db8000000000000000000000001", "2001:db8::1", "2001:db8::0.0.0.1"],
+      ["2001:db8::1.2.3.255", "20010db80000000000000000010203ff", "2001:db8::102:3ff", "2001:db8::1.2.3.255"],
+      ["1:2:3:4:5:6:7:8", "00010002000300040005000600070008", "1:2:3:4:5:6:7:8", "1:2:3:4:5:6:0.7.0.8"],
+      ["1:2:3:4:5:6:7::", "00010002000300040005000600070000", "1:2:3:4:5:6:7:0", "1:2:3:4:5:6:0.7.0.0"],
+      ["::1:2:3:4:5:6:7", "00000001000200030004000500060007", "0:1:2:3:4:5:6:7", "0:1:2:3:4:5:0.6.0.7"],
+      ["::1:2.3.4.5", "00000000000000000000000102030405", "::1:203:405", "::1:2.3.4.5"],
+    ];
+    for (const [input, output, noDots, withDots] of cases) {
+      assertEquals(parseIP(input), output);
+      assertEquals(formatIPv6(output), noDots);
+      assertEquals(formatIPv6WithDots(output), withDots);
+    }
+  },
+  'format_ipv6_96': function() {
+    assertEquals(formatIPv6("200000000000000000000001"), "2000::1:0:0");
+    assertEquals(formatIPv6WithDots("200000000000000000000001"), "2000::1:0.0.0.0");
+  },
+  'valid_ipv4': function() {
+    assertEquals(parseIP("0.0.0.0"), "00000000");
+    assertEquals(parseIP("255.255.255.255"), "ffffffff");
+    assertEquals(parseIP("1.2.3.4"), "01020304");
+  },
+  'bogus': function() {
+    // Test cases from Guava InetAddressesTest.java
+    const bogusInputs = [
+      undefined,
+      null,
+      "",
+      "016.016.016.016",
+      "016.016.016",
+      "016.016",
+      "016",
+      "000.000.000.000",
+      "000",
+      "0x0a.0x0a.0x0a.0x0a",
+      "0x0a.0x0a.0x0a",
+      "0x0a.0x0a",
+      "0x0a",
+      "42.42.42.42.42",
+      "42.42.42",
+      "42.42",
+      "42",
+      "42..42.42",
+      "42..42.42.42",
+      "42.42.42.42.",
+      "42.42.42.42...",
+      ".42.42.42.42",
+      ".42.42.42",
+      "...42.42.42.42",
+      "42.42.42.-0",
+      "42.42.42.+0",
+      ".",
+      "...",
+      "bogus",
+      "bogus.com",
+      "192.168.0.1.com",
+      "12345.67899.-54321.-98765",
+      "257.0.0.0",
+      "42.42.42.-42",
+      "42.42.42.ab",
+      "3ffe::1.net",
+      "3ffe::1::1",
+      "1::2::3::4:5",
+      "::7:6:5:4:3:2:", // should end with ":0"
+      ":6:5:4:3:2:1::", // should begin with "0:"
+      "2001::db:::1",
+      "FEDC:9878",
+      "+1.+2.+3.4",
+      "1.2.3.4e0",
+      "6:5:4:3:2:1:0", // too few parts
+      "::7:6:5:4:3:2:1:0", // too many parts
+      "7:6:5:4:3:2:1:0::", // too many parts
+      "9:8:7:6:5:4:3::2:1", // too many parts
+      "0:1:2:3::4:5:6:7", // :: must remove at least one 0.
+      "3ffe:0:0:0:0:0:0:0:1", // too many parts (9 instead of 8)
+      "3ffe::10000", // hextet exceeds 16 bits
+      "3ffe::goog",
+      "3ffe::-0",
+      "3ffe::+0",
+      "3ffe::-1",
+      ":",
+      ":::",
+      "::1.2.3",
+      "::1.2.3.4.5",
+      "::1.2.3.4:",
+      "1.2.3.4::",
+      "2001:db8::1:",
+      ":2001:db8::1",
+      ":1:2:3:4:5:6:7",
+      "1:2:3:4:5:6:7:",
+      ":1:2:3:4:5:6:"
+    ];
+    for (const x of bogusInputs) {
+      let caught = false;
+      try {
+        parseIP(x);
+      } catch {
+        caught = true;
+      }
+      assert(caught, `input ${x} should have failed`);
+    };
+  }
+});
+</script>
+</head>
+<body>see console</body>
+</html>

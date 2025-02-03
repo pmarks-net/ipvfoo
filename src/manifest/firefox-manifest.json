@@ -9,7 +9,7 @@
     "128": "icon128.png"
   },
   "background": {
-    "scripts": ["common.js", "background.js"]
+    "scripts": ["common.js", "iputil.js", "background.js"]
   },
   "browser_specific_settings": {
     "gecko": {

@@ -16,6 +16,8 @@ limitations under the License.
 
 "use strict";
 
+// Requires <script src="iputil.js">
+
 // Flags are bitwise-OR'd across all connections to a domain.
 const FLAG_SSL = 0x1;
 const FLAG_NOSSL = 0x2;
@@ -23,6 +25,8 @@ const FLAG_UNCACHED = 0x4;
 const FLAG_CONNECTED = 0x8;
 const FLAG_WEBSOCKET = 0x10;
 const FLAG_NOTWORKER = 0x20;  // from a tab, not a service worker
+
+const IPV4_ONLY_DOMAINS = new Set(["ipv4.google.com", "ipv4.icanhazip.com", "ipv4.whatismyip.akamai.com"]);
 
 // Returns an Object with no default properties.
 function newMap() {
@@ -37,6 +41,13 @@ function clearMap(m) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function removeChildren(n) {
+  while (n.hasChildNodes()) {
+    n.removeChild(n.lastChild);
+  }
+  return n;
 }
 
 const spriteImg = {ready: false};
@@ -152,13 +163,22 @@ const DEFAULT_OPTIONS = {
   incognitoColorScheme: "lightfg",
 };
 
+const NAT64_KEY = "nat64/";
+const NAT64_VALIDATE = /^nat64\/[0-9a-f]{24}$/;
+const NAT64_DEFAULT = parseIP("64:ff9b::").slice(0, 96/4);
+
 let _watchOptionsFunc = null;
-const options = {ready: false};
+const options = {ready: false, [NAT64_KEY]: new Set([NAT64_DEFAULT])};
 const optionsReady = (async function() {
   const items = await chrome.storage.sync.get();
   for (const option of Object.keys(DEFAULT_OPTIONS)) {
     options[option] = items.hasOwnProperty(option) ?
         items[option] : DEFAULT_OPTIONS[option];
+  }
+  for (const option of Object.keys(items)) {
+    if (NAT64_VALIDATE.test(option)) {
+      options[NAT64_KEY].add(option.slice(NAT64_KEY.length));
+    }
   }
   options.ready = true;
   if (_watchOptionsFunc) {
@@ -177,6 +197,20 @@ chrome.storage.sync.onChanged.addListener(function(changes) {
         change.newValue : DEFAULT_OPTIONS[option];
     optionsChanged.push(option);
   }
+  let nat64Changed = false;
+  for (const [option, {oldValue, newValue}] of Object.entries(changes)) {
+    if (NAT64_VALIDATE.test(option)) {
+      const packed96 = option.slice(NAT64_KEY.length);
+      if (newValue && !options[NAT64_KEY].has(packed96)) {
+        options[NAT64_KEY].add(packed96);
+        nat64Changed = true;
+      } else if (!newValue && options[NAT64_KEY].has(packed96)) {
+        options[NAT64_KEY].delete(packed96);
+        nat64Changed = true;
+      }
+    }
+  }
+  if (nat64Changed) optionsChanged.push(NAT64_KEY);
   if (_watchOptionsFunc && optionsChanged.length) {
     _watchOptionsFunc(optionsChanged);
   }
@@ -203,4 +237,33 @@ function setOptions(newOptions) {
   }
   chrome.storage.sync.set(toSet);
   return true;  // caller should wait for watchOptions()
+}
+
+function addNAT64(packed96) {
+  if (options[NAT64_KEY].has(packed96)) {
+    return;
+  }
+  const key = NAT64_KEY + packed96;
+  if (!NAT64_VALIDATE.test(key)) throw "invalid packed96"
+  options[NAT64_KEY].add(packed96);
+  chrome.storage.sync.set({[key]: 1});
+  // NAT64 changes are reported synchronously.  When onChanged fires,
+  // our local Set is used for deduplication.
+  _watchOptionsFunc([NAT64_KEY]);
+}
+
+function revertNAT64() {
+  let toRemove = [];
+  for (const prefix96 of options[NAT64_KEY].keys()) {
+    if (prefix96 != NAT64_DEFAULT) {
+      toRemove.push(NAT64_KEY + prefix96);
+    }
+  }
+  options[NAT64_KEY] = new Set([NAT64_DEFAULT]);
+  if (toRemove.length) {
+    chrome.storage.sync.remove(toRemove);
+    // NAT64 changes are reported synchronously.  When onChanged fires,
+    // our local Set is used for deduplication.
+    _watchOptionsFunc([NAT64_KEY]);
+  }
 }

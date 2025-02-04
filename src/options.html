@@ -20,7 +20,7 @@ limitations under the License.
   <meta name="viewport" content="width=360, initial-scale=1" />
   <style type="text/css">
   body {
-    font-family: "Noto Sans", Arial, sans-serif;
+    font-family: sans-serif;
     font-size: 10pt;
     background-color: #fff;
     color: #444;
@@ -37,6 +37,16 @@ limitations under the License.
     border-style: solid;
     padding: 0;
   }
+  #nat64 table, #nat64 td, #nat64 tr {
+    font-family: monospace;
+    color: #800000;
+    padding: 3pt;
+  }
+  ul {
+    list-style-position: inside;
+    padding: 0;
+    margin: 0;
+  }
   label {
     display: flex;
     padding: 1em;
@@ -44,6 +54,9 @@ limitations under the License.
   }
   input[type="radio"] {
     margin-right: 1em;
+  }
+  a, a:visited {
+    color: blue;
   }
   .darkfg_frame {
     background-color: #f2f2f2;
@@ -66,8 +79,15 @@ limitations under the License.
       background-color: #222;
       color: #eee;
     }
+    a, a:visited {
+      color: lightblue;
+    }
+    #nat64 table, #nat64 td, #nat64 tr {
+      color: #ff8080;
+    }
   }
   </style>
+  <script src="iputil.js"></script>
   <script src="common.js"></script>
   <script src="options.js"></script>
 </head>
@@ -119,6 +139,15 @@ limitations under the License.
 
   <br>
   Note that popups use the system light/dark theme.
+  <br><br>
+
+  <h1>NAT64 prefixes</h1>
+  Prefixes are discovered automatically when you visit these IPv4-only pages using a NAT64 connection:
+  <ul id="ipv4pages"></ul>
+  <br>
+  <table id="nat64">
+    <tr><td>null::/96</td></tr>
+  </table>
 
   <div style="display:inline-block; padding-top:1.5em; width:100%">
     <button id="revert_btn" style="float:left" class="disabler">Revert to Defaults</button>

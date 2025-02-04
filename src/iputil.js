@@ -27,7 +27,6 @@ function parseIP(s) {
       const lastColon = s.lastIndexOf(COLON);
       const prefix = textToPackedIPv6(s.slice(0, lastColon) + ':0:0');
       const suffix = textToPackedIPv4(s.slice(lastColon + 1));
-      console.log(prefix, suffix);
       return prefix.slice(0, 96/4) + suffix;
     }
     return textToPackedIPv6(s);

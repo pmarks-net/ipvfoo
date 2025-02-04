@@ -38,8 +38,9 @@ user can demand a popup before any IP addresses are available.
 "use strict";
 
 if (chrome.runtime.getManifest().background.service_worker) {
-  // This line runs on Chrome, but not Firefox.
-  importScripts("common.js", "iputil.js");
+  // This only runs on Chrome.
+  // Firefox uses manifest.json/background/scripts instead.
+  importScripts("iputil.js", "common.js");
 }
 
 // Possible states for an instance of TabInfo.
@@ -106,15 +107,31 @@ function updateNAT64(domain, addr) {
   }
   const packed = parseIP(addr);
   if (packed.length != 128/4) {
-    return;
+    return;  // not an IPv6 address
   }
   // Heuristic: Don't consider this a NAT64 prefix if the embedded
-  // IPv4 address falls under 0.x.x.x/8.
-  // This handles cases like "all traffic is proxied to ::1".
+  // IPv4 address falls under 0.x.x.x/8.  This filters out cases where all
+  // traffic is proxied to the same address, assuming that most proxies
+  // have a low-numbered suffix like ::1.
   if (packed.substr(96/4, 2) == '00') {
     return;
   }
-  console.log("NAT64 detected!", formatIPv6(packed.slice(0, 96/4)) + "/96", formatIPv6WithDots(packed));
+  // If this is a new prefix, the watchOptions callback will handle it.
+  addNAT64(packed.slice(0, 96/4));
+}
+
+function reformatForNAT64(addr) {
+  let packed128 = "";
+  try {
+    packed128 = parseIP(addr);
+  } catch {
+    return addr;  // no change
+  }
+  if (packed128.length != 128/4) {
+    return addr;  // no change
+  }
+  const isNAT64 = options[NAT64_KEY].has(packed128.slice(0, 96/4));
+  return formatIPv6(packed128, /*with_dots=*/isNAT64);
 }
 
 class SaveableEntry {
@@ -495,11 +512,9 @@ class DomainInfo {
     return new DomainInfo(tabInfo, domain, addr, flags);
   }
 
-  // In theory, we should be using a full-blown subnet parser/matcher here,
-  // but let's keep it simple and stick with text for now.
   addrVersion() {
     if (this.addr) {
-      if (/^64:ff9b::/.test(this.addr)) return "4";  // RFC6052
+      // NAT64 addresses use the prefix::a.b.c.d format.
       if (this.addr.indexOf(".") >= 0) return "4";
       if (this.addr.indexOf(":") >= 0) return "6";
     }
@@ -638,6 +653,7 @@ const initStorage = async () => {
   // These are be no-ops unless initStorage() is called manually.
   clearMap(tabMap);
   clearMap(requestMap);
+  if (ipCache) clearMap(ipCache);
 
   const items = await chrome.storage.session.get();
   const unparseable = [];
@@ -995,7 +1011,7 @@ chrome.webRequest.onResponseStarted.addListener(async (details) => {
       }
     }
   }
-  addr = addr || "(no address)";
+  addr = reformatForNAT64(addr) || "(no address)";
 
   let flags = parsed.ssl ? FLAG_SSL : FLAG_NOSSL;
   if (parsed.ws) {
@@ -1070,12 +1086,21 @@ chrome.contextMenus?.onClicked.addListener((info, tab) => {
 
 watchOptions(async (optionsChanged) => {
   await storageReady;
-  for (const option of optionsChanged) {
-    if (!option.endsWith("ColorScheme")) continue;
-    for (const tabInfo of Object.values(tabMap)) {
-      if (tabInfo.color == option) {
-        tabInfo.refreshPageAction();
+  optionsChanged = new Set(optionsChanged);
+  for (const tabInfo of Object.values(tabMap)) {
+    let refreshPageAction = optionsChanged.has(tabInfo.color);
+    if (optionsChanged.has(NAT64_KEY)) {
+      for (const [domain, di] of Object.entries(tabInfo.domains)) {
+        const newAddr = reformatForNAT64(di.addr);
+        if (di.addr != newAddr) {
+          di.addr = newAddr;
+          tabInfo.pushOne(domain);
+          refreshPageAction = true;
+        }
       }
+    }
+    if (refreshPageAction) {
+      tabInfo.refreshPageAction();
     }
   }
 });

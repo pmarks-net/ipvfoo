@@ -183,13 +183,6 @@ function scrollbarHack() {
   }, 200);
 }
 
-function removeChildren(n) {
-  while (n.hasChildNodes()) {
-    n.removeChild(n.lastChild);
-  }
-  return n;
-}
-
 // Copy the contents of src into dst, making minimal changes.
 function minimalCopy(src, dst) {
   dst.className = src.className;

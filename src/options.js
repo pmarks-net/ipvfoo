@@ -32,11 +32,33 @@ window.onload = async () => {
     }
   }
 
+  const ipv4pages = document.getElementById("ipv4pages");
+  for (const domain of IPV4_ONLY_DOMAINS.keys()) {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = `https://${domain}`;
+    a.target = "_blank";
+    a.textContent = domain;
+    li.appendChild(a);
+    ipv4pages.appendChild(li);
+  }
+
   watchOptions(function(optionsChanged) {
     for (const option of optionsChanged) {
-      if (!option.endsWith("ColorScheme")) continue;
-      const radio = document.optionsForm[option];
-      radio.value = options[option];
+      if (option.endsWith("ColorScheme")) {
+        const radio = document.optionsForm[option];
+        radio.value = options[option];
+      } else if (option == NAT64_KEY) {
+        const table = document.getElementById("nat64");
+        removeChildren(table);
+        for (const packed96 of Array.from(options[NAT64_KEY]).sort()) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.appendChild(document.createTextNode(formatIPv6(packed96) + "/96"));
+          tr.appendChild(td);
+          table.appendChild(tr);
+        }
+      }
     }
     disableAll(false);
   });
@@ -53,6 +75,7 @@ window.onload = async () => {
   };
 
   document.getElementById("revert_btn").onclick = function() {
+    revertNAT64();
     if (setOptions(DEFAULT_OPTIONS)) {
       disableAll(true);
     }

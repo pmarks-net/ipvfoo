@@ -62,7 +62,7 @@ function connectToExtension() {
   const port = chrome.runtime.connect(null, {name: tabId});
   port.onMessage.addListener((msg) => {
     document.bgColor = "";
-    console.log("onMessage", msg.cmd, msg);
+    //console.log("onMessage", msg.cmd, msg);
     switch (msg.cmd) {
       case "pushAll":
         return pushAll(msg.tuples, msg.pattern, msg.spillCount);

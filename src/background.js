@@ -117,10 +117,10 @@ function updateNAT64(domain, addr) {
     return;
   }
   // If this is a new prefix, the watchOptions callback will handle it.
-  addNAT64(packed.slice(0, 96/4));
+  addPackedNAT64(packed.slice(0, 96/4));
 }
 
-function reformatForNAT64(addr) {
+function reformatForNAT64(addr, doLookup=true) {
   let packed128 = "";
   try {
     packed128 = parseIP(addr);
@@ -130,7 +130,7 @@ function reformatForNAT64(addr) {
   if (packed128.length != 128/4) {
     return addr;  // no change
   }
-  const isNAT64 = options[NAT64_KEY].has(packed128.slice(0, 96/4));
+  const isNAT64 = doLookup && options[NAT64_KEY].has(packed128.slice(0, 96/4));
   return formatIPv6(packed128, /*with_dots=*/isNAT64);
 }
 
@@ -1072,7 +1072,8 @@ chrome.contextMenus?.onClicked.addListener((info, tab) => {
   if (info.menuItemId != MENU_ID) return;
   const text = info.selectionText;
   if (IP4_CHARS.test(text) || IP6_CHARS.test(text)) {
-    chrome.tabs.create({url: `https://bgp.he.net/ip/${text}`});
+    // bgp.he.net doesn't support dotted IPv6 addresses.
+    chrome.tabs.create({url: `https://bgp.he.net/ip/${reformatForNAT64(text, false)}`});
   } else if (DNS_CHARS.test(text)) {
     chrome.tabs.create({url: `https://bgp.he.net/dns/${text}`});
   } else {

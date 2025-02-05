@@ -239,7 +239,17 @@ function setOptions(newOptions) {
   return true;  // caller should wait for watchOptions()
 }
 
-function addNAT64(packed96) {
+// Users can manually call this function to add a NAT64 prefix from the console.
+function addNAT64(ip) {
+  if (ip.endsWith("/96")) {
+    ip = ip.slice(0, ip.length-3);
+  }
+  const packed96 = parseIP(ip).slice(0, 96/4);
+  addPackedNAT64(packed96);
+  return `Added NAT64 prefix ${formatIPv6(packed96)}/96`;
+}
+
+function addPackedNAT64(packed96) {
   if (options[NAT64_KEY].has(packed96)) {
     return;
   }
@@ -249,7 +259,7 @@ function addNAT64(packed96) {
   chrome.storage.sync.set({[key]: 1});
   // NAT64 changes are reported synchronously.  When onChanged fires,
   // our local Set is used for deduplication.
-  _watchOptionsFunc([NAT64_KEY]);
+  _watchOptionsFunc?.([NAT64_KEY]);
 }
 
 function revertNAT64() {
@@ -264,6 +274,6 @@ function revertNAT64() {
     chrome.storage.sync.remove(toRemove);
     // NAT64 changes are reported synchronously.  When onChanged fires,
     // our local Set is used for deduplication.
-    _watchOptionsFunc([NAT64_KEY]);
+    _watchOptionsFunc?.([NAT64_KEY]);
   }
 }

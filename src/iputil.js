@@ -1,3 +1,5 @@
+"use strict";
+
 const DOT = '.';
 const COLON = ':';
 const IPV6_PART_COUNT = 8;

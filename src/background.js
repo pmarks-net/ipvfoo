@@ -274,6 +274,7 @@ class TabInfo extends SaveableEntry {
 
     if (!spriteImg.ready) throw "must await spriteImgReady!";
     if (!options.ready) throw "must await optionsReady!";
+    if (!darkMode.ready) throw "must await darkModeReady!";
 
     if (tabMap[tabId]) throw "Duplicate entry in tabMap";
     if (tabTracker.exists(tabId)) {
@@ -426,7 +427,10 @@ class TabInfo extends SaveableEntry {
 
     // Don't waste time redrawing the same icon.
     if (this.lastPattern != pattern) {
-      const color = options[this.color];
+      let color = options[this.color];
+      if (color == "auto") {
+        color = darkMode.value ? "lightfg" : "darkfg";
+      }
       action.setIcon({
         "tabId": this.id(),
         "imageData": {
@@ -634,11 +638,77 @@ function lookupOriginMap(origin) {
   return originMap[origin] || new Set();
 }
 
+// This horrific mess can eventually be replaced by
+// https://github.com/w3c/webextensions/issues/229
+let initDarkMode = null;
+const darkMode = {ready: false, resolve: null, value: false};
+if (typeof window !== 'undefined' && window.matchMedia) {
+  // Watching for Dark Mode is trivial in Firefox.
+  initDarkMode = (async () => {
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    darkMode.value = query.matches;
+    query.addEventListener("change", (event) => {
+      changeDarkMode(event.matches);
+    });
+    darkMode.ready = true;
+  });
+} else {
+  initDarkMode = (async () => {
+    const p = new Promise((resolve) => {darkMode.resolve = resolve});
+    try {
+      await chrome.offscreen.createDocument({
+        url: "detectdarkmode.html",
+        reasons: ['MATCH_MEDIA'],
+        justification: 'detect light/dark mode for icon colors',
+      });
+      darkMode.value = await p;
+    } catch {
+      console.log("detectdarkmode failed!");
+    }
+    // The offscreen document can't provide darkMode updates, so kill it now.
+    // We will get updates from the popup/option windows instead.
+    try {
+      await chrome.offscreen.closeDocument();
+    } catch {
+      // ignore
+    }
+    darkMode.ready = true;
+  });
+
+  chrome.runtime.onMessage.addListener((message) => {
+    console.log("onMessage", message);
+    if (message.hasOwnProperty("darkModeOffscreen")) {
+      darkMode.resolve?.(message.darkModeOffscreen);
+      darkMode.resolve = null;
+    } else if (message.hasOwnProperty("darkModeInteractive")) {
+      // Receive updates from popup/option windows.
+      changeDarkMode(message.darkModeInteractive);
+    }
+  });
+}
+const darkModeReady = initDarkMode();
+
+async function changeDarkMode(newValue) {
+  if (!darkMode.ready || darkMode.value == newValue) return;
+  darkMode.value = newValue;
+
+  await storageReady;
+  const RCS = "regularColorScheme";
+  if (options[RCS] == "auto") {
+    for (const tabInfo of Object.values(tabMap)) {
+      if (tabInfo.color == RCS){
+        tabInfo.refreshPageAction();
+      }
+    }
+  }
+}
+
 // Must "await storageReady;" before reading maps.
 // You can force initStorage() from the console for debugging purposes.
 const initStorage = async () => {
   await spriteImgReady;
   await optionsReady;
+  await darkModeReady;
 
   // Migrate previous-version data from local to session storage.
   const oldItems = await chrome.storage.local.get();

@@ -159,7 +159,7 @@ function drawSprite(ctx, size, targets, sources) {
 }
 
 const DEFAULT_OPTIONS = {
-  regularColorScheme: "darkfg",
+  regularColorScheme: "auto",
   incognitoColorScheme: "lightfg",
 };
 
@@ -276,4 +276,15 @@ function revertNAT64() {
     // our local Set is used for deduplication.
     _watchOptionsFunc?.([NAT64_KEY]);
   }
+}
+
+if (chrome.runtime.getManifest().background.service_worker &&
+    typeof window !== 'undefined' && window.matchMedia) {
+  // We are running in Chrome, and the Options or Popup UI is visible.
+  // Send darkMode updates to the service_worker.
+  const query = window.matchMedia('(prefers-color-scheme: dark)');
+  chrome.runtime.sendMessage({darkModeInteractive: query.matches});
+  query.addEventListener("change", (event) => {
+    chrome.runtime.sendMessage({darkModeInteractive: event.matches});
+  });
 }

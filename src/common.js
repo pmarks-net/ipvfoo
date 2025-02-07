@@ -169,50 +169,55 @@ const NAT64_DEFAULT = parseIP("64:ff9b::").slice(0, 96/4);
 
 let _watchOptionsFunc = null;
 const options = {ready: false, [NAT64_KEY]: new Set([NAT64_DEFAULT])};
+const optionsDirty = {};  // {option: number of writes in flight}
 const optionsReady = (async function() {
-  const items = await chrome.storage.sync.get();
-  for (const option of Object.keys(DEFAULT_OPTIONS)) {
-    options[option] = items.hasOwnProperty(option) ?
-        items[option] : DEFAULT_OPTIONS[option];
+  for (const [option, value] of Object.entries(DEFAULT_OPTIONS)) {
+    options[option] = value;
+    optionsDirty[option] = 0;
   }
-  for (const option of Object.keys(items)) {
-    if (NAT64_VALIDATE.test(option)) {
+  const items = await chrome.storage.sync.get();
+  for (const [option, value] of Object.entries(items)) {
+    if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
+      options[option] = value;
+    } else if (NAT64_VALIDATE.test(option)) {
       options[NAT64_KEY].add(option.slice(NAT64_KEY.length));
     }
   }
   options.ready = true;
-  if (_watchOptionsFunc) {
-    _watchOptionsFunc(Object.keys(options));
-  }
+  _watchOptionsFunc?.(Object.keys(options));
 })();
 
 chrome.storage.sync.onChanged.addListener(function(changes) {
   // changes = {option: {oldValue: x, newValue: y}}
   if (!options.ready) return;
   const optionsChanged = [];
-  for (const option of Object.keys(DEFAULT_OPTIONS)) {
-    const change = changes[option];
-    if (!change) continue;
-    options[option] = change.hasOwnProperty("newValue") ?
-        change.newValue : DEFAULT_OPTIONS[option];
-    optionsChanged.push(option);
-  }
-  let nat64Changed = false;
   for (const [option, {oldValue, newValue}] of Object.entries(changes)) {
-    if (NAT64_VALIDATE.test(option)) {
+    if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
+      const value = newValue || DEFAULT_OPTIONS[option];
+      if (options[option] != value) {
+        if (optionsDirty[option] > 1) {
+          // Forget local changes that occurred mid-write.
+          optionsDirty[option] = 1;
+        }
+        options[option] = value;
+        optionsChanged.push(option);
+      }
+    } else if (NAT64_VALIDATE.test(option)) {
       const packed96 = option.slice(NAT64_KEY.length);
       if (newValue && !options[NAT64_KEY].has(packed96)) {
         options[NAT64_KEY].add(packed96);
-        nat64Changed = true;
       } else if (!newValue && options[NAT64_KEY].has(packed96)) {
         options[NAT64_KEY].delete(packed96);
-        nat64Changed = true;
+      } else {
+        continue;  // no change
+      }
+      if (!optionsChanged.includes(NAT64_KEY)) {
+        optionsChanged.push(NAT64_KEY);
       }
     }
   }
-  if (nat64Changed) optionsChanged.push(NAT64_KEY);
-  if (_watchOptionsFunc && optionsChanged.length) {
-    _watchOptionsFunc(optionsChanged);
+  if (optionsChanged.length) {
+    _watchOptionsFunc?.(optionsChanged);
   }
 });
 
@@ -225,18 +230,44 @@ function watchOptions(f) {
 }
 
 function setOptions(newOptions) {
-  console.log("setOptions", newOptions);
   const toSet = {};
+  const optionsChanged = [];
   for (const option of Object.keys(DEFAULT_OPTIONS)) {
-    if (newOptions[option] != options[option]) {
-      toSet[option] = newOptions[option];
+    const value = newOptions[option];
+    if (options[option] != value) {
+      options[option] = value;
+      optionsChanged.push(option);
+      if (++optionsDirty[option] == 1) {
+        toSet[option] = value;
+      } else {
+        // dirty > 1; the value is buffered and written later.
+        console.log("setOptions buffered", option);
+      }
     }
   }
-  if (Object.keys(toSet).length == 0) {
-    return false;  // no change
+  const doSet = () => {
+    if (Object.keys(toSet).length == 0) {
+      return;  // no change
+    }
+    chrome.storage.sync.set(toSet, () => {
+      for (const [option, value] of Object.entries(toSet)) {
+        const dirty = optionsDirty[option];
+        if (dirty > 1 && value != options[option]) {
+          // user changed the value mid-write; push the latest value.
+          toSet[option] = options[option];
+          optionsDirty[option] = 1;
+        } else {
+          delete toSet[option];
+          optionsDirty[option] = 0;
+        }
+      }
+      doSet();
+    });
+  };
+  doSet();
+  if (optionsChanged.length) {
+    _watchOptionsFunc?.(optionsChanged);
   }
-  chrome.storage.sync.set(toSet);
-  return true;  // caller should wait for watchOptions()
 }
 
 // Users can manually call this function to add a NAT64 prefix from the console.

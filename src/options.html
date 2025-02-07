@@ -17,7 +17,7 @@ limitations under the License.
 -->
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=360, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style type="text/css">
   body {
     font-family: sans-serif;
@@ -35,14 +35,17 @@ limitations under the License.
     border-collapse: collapse;
     border-color: #888;
     border-style: solid;
-    padding: 0;
+    padding: 3pt;
     white-space: nowrap;
     vertical-align: middle;
+  }
+  td {
+    border-left: none;
+    border-right: none;
   }
   #nat64 table, #nat64 td, #nat64 tr {
     font-family: monospace;
     color: #800000;
-    padding: 3pt;
   }
   ul {
     list-style-position: inside;
@@ -51,27 +54,24 @@ limitations under the License.
   }
   label {
     display: flex;
-    padding: 1em;
+    padding: 0pt;
     align-items: center;
   }
   input[type="radio"] {
-    margin-right: 1em;
+    margin-right: 3pt;
   }
   a, a:visited {
     color: blue;
   }
   .darkfg_frame {
     background-color: #f2f2f2;
-    font-size: 0;
     padding: 8px;
   }
   .lightfg_frame {
     background-color: #505050;
-    font-size: 0;
     padding: 8px;
   }
   .colorscheme_title {
-    padding: 1em;
     font-weight: bold;
   }
 
@@ -102,7 +102,7 @@ limitations under the License.
         <td class="colorscheme_title">Regular tabs:</td>
         <td>
           <label>
-            <input type="radio" name="regularColorScheme" value="darkfg" class="disabler">
+            <input type="radio" name="regularColorScheme" value="darkfg">
             <div class="darkfg_frame">
               <canvas id="regularColorScheme:darkfg" width="16px" height="16px"></canvas>
             </div>
@@ -110,7 +110,7 @@ limitations under the License.
         </td>
         <td>
           <label>
-            <input type="radio" name="regularColorScheme" value="lightfg" class="disabler">
+            <input type="radio" name="regularColorScheme" value="lightfg">
             <div class="lightfg_frame">
               <canvas id="regularColorScheme:lightfg" width="16px" height="16px"></canvas>
             </div>
@@ -118,7 +118,7 @@ limitations under the License.
         </td>
         <td>
           <label>
-            <input type="radio" name="regularColorScheme" value="auto" class="disabler">
+            <input type="radio" name="regularColorScheme" value="auto">
             Auto
           </label>
         </td>
@@ -127,7 +127,7 @@ limitations under the License.
         <td class="colorscheme_title">Incognito tabs:</td>
         <td>
           <label>
-            <input type="radio" name="incognitoColorScheme" value="darkfg" class="disabler">
+            <input type="radio" name="incognitoColorScheme" value="darkfg">
             <div class="darkfg_frame">
               <canvas id="incognitoColorScheme:darkfg" width="16px" height="16px"></canvas>
             </div>
@@ -135,7 +135,7 @@ limitations under the License.
         </td>
         <td>
           <label>
-            <input type="radio" name="incognitoColorScheme" value="lightfg" class="disabler">
+            <input type="radio" name="incognitoColorScheme" value="lightfg">
             <div class="lightfg_frame">
               <canvas id="incognitoColorScheme:lightfg" width="16px" height="16px"></canvas>
             </div>
@@ -158,7 +158,7 @@ limitations under the License.
   </table>
 
   <div style="display:inline-block; padding-top:1.5em; width:100%">
-    <button id="revert_btn" style="float:left" class="disabler">Revert to Defaults</button>
+    <button id="revert_btn" style="float:left">Revert to Defaults</button>
     <button id="dismiss_btn" style="float:right">Dismiss</button>
   </div>
 </body>

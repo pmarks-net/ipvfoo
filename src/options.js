@@ -19,7 +19,6 @@ limitations under the License.
 // Requires <script src="common.js">
 
 window.onload = async () => {
-  disableAll(true);
   await spriteImgReady;
 
   for (const option of Object.keys(DEFAULT_OPTIONS)) {
@@ -45,7 +44,7 @@ window.onload = async () => {
 
   watchOptions(function(optionsChanged) {
     for (const option of optionsChanged) {
-      if (option.endsWith("ColorScheme")) {
+      if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
         const radio = document.optionsForm[option];
         radio.value = options[option];
       } else if (option == NAT64_KEY) {
@@ -60,25 +59,19 @@ window.onload = async () => {
         }
       }
     }
-    disableAll(false);
   });
 
   document.optionsForm.onchange = function(evt) {
     const newOptions = {};
     for (const option of Object.keys(DEFAULT_OPTIONS)) {
-      if (!option.endsWith("ColorScheme")) continue;
       newOptions[option] = document.optionsForm[option].value;
     }
-    if (setOptions(newOptions)) {
-      disableAll(true);
-    }
+    setOptions(newOptions);
   };
 
   document.getElementById("revert_btn").onclick = function() {
     revertNAT64();
-    if (setOptions(DEFAULT_OPTIONS)) {
-      disableAll(true);
-    }
+    setOptions(DEFAULT_OPTIONS);
   };
 
   document.getElementById("dismiss_btn").onclick = function() {
@@ -88,10 +81,4 @@ window.onload = async () => {
       window.close();
     }
   };
-}
-
-function disableAll(disabled) {
-  for (const e of document.getElementsByClassName("disabler")) {
-    e.disabled = disabled;
-  }
 }

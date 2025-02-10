@@ -81,4 +81,20 @@ window.onload = async () => {
       window.close();
     }
   };
+
+  // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1946972
+  if (typeof browser != "undefined") {
+    document.body.addEventListener("click", function(e) {
+      if (e.target.tagName == "A" && (e.ctrlKey || e.metaKey || e.shiftKey)) {
+        window.open(e.target.href);
+        e.preventDefault();
+      }
+    });
+    document.body.addEventListener("auxclick", function(e) {
+      if (e.target.tagName == "A" && e.button == 1) {
+        window.open(e.target.href);
+        e.preventDefault();
+      }
+    });
+  }
 }

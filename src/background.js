@@ -74,6 +74,15 @@ function debugLog() {
   }
 }
 
+// Log errors from async listeners, because otherwise Firefox hides them
+// in the global console.
+function wrap(f) {
+  const tracer = new Error("wrap() stack trace");
+  return (...args) => f(...args).catch((err) => {
+    console.error("Error in async listener:", err, tracer);
+  });
+}
+
 function parseUrl(url) {
   let domain = null;
   let ssl = false;
@@ -809,21 +818,21 @@ class Popups {
 
 const popups = new Popups();
 
-chrome.runtime.onConnect.addListener(async (port) => {
+chrome.runtime.onConnect.addListener(wrap(async (port) => {
   await storageReady;
   popups.attachPort(port);
   port.onDisconnect.addListener(() => {
     popups.detachPort(port);
   });
-});
+}));
 
 // Refresh icons after chrome.runtime.reload()
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(wrap(async () => {
   await storageReady;
   for (const tabInfo of Object.values(tabMap)) {
     tabInfo.refreshPageAction();
   }
-});
+}));
 
 // -- TabTracker --
 
@@ -843,19 +852,19 @@ class TabTracker {
   tabSet = newMap();  // Set of all known tabIds
 
   constructor() {
-    chrome.tabs.onCreated.addListener(async (tab) => {
+    chrome.tabs.onCreated.addListener(wrap(async (tab) => {
       await storageReady;
       this.#addTab(tab.id, "onCreated");
-    });
-    chrome.tabs.onRemoved.addListener(async (tabId) => {
+    }));
+    chrome.tabs.onRemoved.addListener(wrap(async (tabId) => {
       await storageReady;
       this.#removeTab(tabId, "onRemoved");
-    });
-    chrome.tabs.onReplaced.addListener(async (addId, removeId) => {
+    }));
+    chrome.tabs.onReplaced.addListener(wrap(async (addId, removeId) => {
       await storageReady;
       this.#removeTab(removeId, "onReplaced");
       this.#addTab(addId, "onReplaced");
-    });
+    }));
     this.#pollAllTabs();
   }
 
@@ -911,7 +920,7 @@ const tabTracker = new TabTracker();
 //
 // Conveniently, this also ensures that the previous page data is cleared
 // when navigating to a file://, chrome://, or Chrome Web Store URL.
-chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
+chrome.webNavigation.onBeforeNavigate.addListener(wrap(async (details) => {
   if (!(details.frameId == 0 && details.tabId > 0)) {
     return;
   }
@@ -926,9 +935,9 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   tabMap.remove(details.tabId);
   tabInfo = tabMap.lookupOrNew(details.tabId);
   tabInfo.setInitialDomain(-1, parsed.domain, parsed.origin);
-});
+}));
 
-chrome.webNavigation.onCommitted.addListener(async (details) => {
+chrome.webNavigation.onCommitted.addListener(wrap(async (details) => {
   debugLog("wN.oC", details?.tabId, details?.url, details);
   await storageReady;
   if (details.frameId != 0) {
@@ -937,14 +946,14 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   const parsed = parseUrl(details.url);
   const tabInfo = tabMap.lookupOrNew(details.tabId);
   tabInfo.setCommitted(parsed.domain, parsed.origin);
-});
+}));
 
 // -- tabs --
 
 // Whenever anything tab-related happens, try to refresh the pageAction.  This
 // is hacky and inefficient, but the back-stabbing browser leaves me no choice.
 // This seems to fix http://crbug.com/124970 and some problems on Google+.
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+chrome.tabs.onUpdated.addListener(wrap(async (tabId, changeInfo, tab) => {
   debugLog("tabs.oU", tabId);
   await storageReady;
   const tabInfo = tabMap[tabId];
@@ -953,11 +962,11 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         "incognitoColorScheme" : "regularColorScheme";
     tabInfo.refreshPageAction();
   }
-});
+}));
 
 // -- webRequest --
 
-chrome.webRequest.onBeforeRequest.addListener(async (details) => {
+chrome.webRequest.onBeforeRequest.addListener(wrap(async (details) => {
   //debugLog("wR.oBR", details?.tabId, details?.url, details);
   await storageReady;
   const tabId = details.tabId;
@@ -1000,14 +1009,14 @@ chrome.webRequest.onBeforeRequest.addListener(async (details) => {
   }
   requestInfo.domain = null;
   requestInfo.save();
-}, FILTER_ALL_URLS);
+}), FILTER_ALL_URLS);
 
 // In the event of a redirect, the mainOrigin may change
 // (from http: to https:) between the onBeforeRequest and onCommitted events,
 // triggering an "access denied" error.  Patch this from onBeforeRedirect.
 //
 // As of 2022, this can be tested by visiting http://maps.google.com/
-chrome.webRequest.onBeforeRedirect.addListener(async (details) => {
+chrome.webRequest.onBeforeRedirect.addListener(wrap(async (details) => {
   await storageReady;
   if (!(details.type == "main_frame" ||
         details.type == "outermost_frame")) {
@@ -1030,9 +1039,9 @@ chrome.webRequest.onBeforeRedirect.addListener(async (details) => {
     tabInfo.setInitialDomain(requestInfo.id(), parsed.domain, parsed.origin);
   }
 
-}, FILTER_ALL_URLS);
+}), FILTER_ALL_URLS);
 
-chrome.webRequest.onResponseStarted.addListener(async (details) => {
+chrome.webRequest.onResponseStarted.addListener(wrap(async (details) => {
   //debugLog("wR.oRS", details?.tabId, details?.url, details);
   await storageReady;
   const requestInfo = requestMap[details.requestId];
@@ -1099,9 +1108,9 @@ chrome.webRequest.onResponseStarted.addListener(async (details) => {
   for (const tabInfo of tabInfos) {
     tabInfo.addDomain(parsed.domain, addr, flags);
   }
-}, FILTER_ALL_URLS);
+}), FILTER_ALL_URLS);
 
-const forgetRequest = async (details) => {
+const forgetRequest = wrap(async (details) => {
   await storageReady;
   const requestInfo = requestMap.remove(details.requestId);
   if (!requestInfo?.domain) {
@@ -1113,7 +1122,7 @@ const forgetRequest = async (details) => {
       tabInfo.domains[requestInfo.domain]?.countDown();
     }
   }
-};
+});
 chrome.webRequest.onCompleted.addListener(forgetRequest, FILTER_ALL_URLS);
 chrome.webRequest.onErrorOccurred.addListener(forgetRequest, FILTER_ALL_URLS);
 

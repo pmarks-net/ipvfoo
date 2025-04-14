@@ -84,7 +84,13 @@ const _canvasElements = newMap();
 function _getCanvasContext(size) {
   let c = _canvasElements[size];
   if (!c) {
-    c = _canvasElements[size] = new OffscreenCanvas(size, size);
+    if (typeof document !== 'undefined') {
+      c = document.createElement("canvas");
+      c.width = c.height = size;
+    } else {
+      c = new OffscreenCanvas(size, size);
+    }
+    _canvasElements[size] = c;
   }
   return c.getContext("2d", {willReadFrequently: true});
 }

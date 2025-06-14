@@ -171,10 +171,14 @@ const DEFAULT_OPTIONS = {
 
 const NAT64_KEY = "nat64/";
 const NAT64_VALIDATE = /^nat64\/[0-9a-f]{24}$/;
-const NAT64_DEFAULT = parseIP("64:ff9b::").slice(0, 96/4);
+const NAT64_DEFAULTS = new Set([
+  parseIP("::ffff:0:0").slice(0, 96/4),  // For stupid AAAA records
+  parseIP("64:ff9b::").slice(0, 96/4),   // RFC 6052
+  parseIP("64:ff9b:1::").slice(0, 96/4), // RFC 8215
+]);
 
 let _watchOptionsFunc = null;
-const options = {ready: false, [NAT64_KEY]: new Set([NAT64_DEFAULT])};
+const options = {ready: false, [NAT64_KEY]: new Set(NAT64_DEFAULTS)};
 const optionsDirty = {};  // {option: number of writes in flight}
 const optionsReady = (async function() {
   for (const [option, value] of Object.entries(DEFAULT_OPTIONS)) {
@@ -302,11 +306,11 @@ function addPackedNAT64(packed96) {
 function revertNAT64() {
   let toRemove = [];
   for (const prefix96 of options[NAT64_KEY].keys()) {
-    if (prefix96 != NAT64_DEFAULT) {
+    if (!NAT64_DEFAULTS.has(prefix96)) {
       toRemove.push(NAT64_KEY + prefix96);
     }
   }
-  options[NAT64_KEY] = new Set([NAT64_DEFAULT]);
+  options[NAT64_KEY] = new Set(NAT64_DEFAULTS);
   if (toRemove.length) {
     chrome.storage.sync.remove(toRemove);
     // NAT64 changes are reported synchronously.  When onChanged fires,

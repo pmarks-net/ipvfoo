@@ -1154,7 +1154,7 @@ chrome.contextMenus?.onClicked.addListener((info, tab) => {
     // bgp.he.net doesn't support dotted IPv6 addresses.
     chrome.tabs.create({ url: `${ipProviderUrls[options["ipLookupProvider"]]}${reformatForNAT64(text, false)}` });
   } else if (DNS_CHARS.test(text)) {
-    chrome.tabs.create({ url: `${ipProviderUrls[options["dnsLookupProvider"]]}${text}` });
+    chrome.tabs.create({ url: `${dnsProviderUrls[options["dnsLookupProvider"]]}${text}` });
   } else {
     // Malformed selection; shake the popup content.
     const tabId = /#(\d+)$/.exec(info.pageUrl);

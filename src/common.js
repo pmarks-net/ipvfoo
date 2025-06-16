@@ -172,14 +172,14 @@ const DEFAULT_OPTIONS = {
 };
 
 const ipProviderUrls = {
-  he: "https://bgp.he.net/ip/",
-  ipinfoio: "https://ipinfo.io/",
-  addrtools: "https://info.addr.tools/"
+  "he": "https://bgp.he.net/ip/",
+  "ipinfoio": "https://ipinfo.io/",
+  "addrtools": "https://info.addr.tools/"
 };
 
 const dnsProviderUrls = {
-  he: "https://bgp.he.net/dns/",
-  addrtools: "https://info.addr.tools/"
+  "he": "https://bgp.he.net/dns/",
+  "addrtools": "https://info.addr.tools/"
 };
 
 const NAT64_KEY = "nat64/";

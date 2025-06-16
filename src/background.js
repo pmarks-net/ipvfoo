@@ -1139,7 +1139,7 @@ const MENU_ID = "ipvfoo-lookup";
 
 chrome.contextMenus?.removeAll(() => {
   chrome.contextMenus.create({
-    title: "Look up on bgp.he.net",
+    title: "Look up IP address or domain",
     id: MENU_ID,
     // Scope the menu to text selection in our popup windows.
     contexts: ["selection"],
@@ -1152,9 +1152,9 @@ chrome.contextMenus?.onClicked.addListener((info, tab) => {
   const text = info.selectionText;
   if (IP4_CHARS.test(text) || IP6_CHARS.test(text)) {
     // bgp.he.net doesn't support dotted IPv6 addresses.
-    chrome.tabs.create({url: `https://bgp.he.net/ip/${reformatForNAT64(text, false)}`});
+    chrome.tabs.create({ url: `${ipProviderUrls[options["ipLookupProvider"]]}${reformatForNAT64(text, false)}` });
   } else if (DNS_CHARS.test(text)) {
-    chrome.tabs.create({url: `https://bgp.he.net/dns/${text}`});
+    chrome.tabs.create({ url: `${ipProviderUrls[options["dnsLookupProvider"]]}${text}` });
   } else {
     // Malformed selection; shake the popup content.
     const tabId = /#(\d+)$/.exec(info.pageUrl);

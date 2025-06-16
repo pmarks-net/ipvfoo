@@ -167,6 +167,19 @@ function drawSprite(ctx, size, targets, sources) {
 const DEFAULT_OPTIONS = {
   regularColorScheme: "auto",
   incognitoColorScheme: "lightfg",
+  ipLookupProvider: "he",
+  dnsLookupProvider: "he"
+};
+
+const ipProviderUrls = {
+  he: "https://bgp.he.net/ip/",
+  ipinfoio: "https://ipinfo.io/",
+  addrtools: "https://info.addr.tools/"
+};
+
+const dnsProviderUrls = {
+  he: "https://bgp.he.net/dns/",
+  addrtools: "https://info.addr.tools/"
 };
 
 const NAT64_KEY = "nat64/";

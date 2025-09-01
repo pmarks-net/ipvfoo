@@ -1,7 +1,7 @@
 {
   "name": "IPvFoo",
   "manifest_version": 3,
-  "version": "2.24",
+  "version": "2.25",
   "description": "Display the server IP address, with a realtime summary of IPv4, IPv6, and HTTPS information across all page elements.",
   "homepage_url": "https://github.com/pmarks-net/ipvfoo",
   "icons": {
@@ -18,6 +18,11 @@
     },
     "gecko_android": {
       "strict_min_version": "120.0"
+    }
+  },
+  "action": {
+    "default_icon": {
+      "16": "icon16_transparent.png"
     }
   },
   "page_action": {

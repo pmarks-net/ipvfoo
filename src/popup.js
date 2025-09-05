@@ -202,8 +202,8 @@ function pushSpillCount(count) {
 }
 
 // Shake the content (for 500ms) to signal an error.
-function shake() {
-  document.body.className = "shake";
+function shake(type) {
+  document.body.className = "shake_" + type;
   setTimeout(function() {
     document.body.className = "";
   }, 600);

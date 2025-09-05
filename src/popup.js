@@ -70,14 +70,8 @@ function connectToExtension() {
     //console.log("onMessage", msg.cmd, msg);
     switch (msg.cmd) {
       case "pushAll":
-        for (const tuple of msg.tuples) {
-          data.domains.push(tuple[0]);
-          data.ips.push(tuple[1]);
-        }
         return pushAll(msg.tuples, msg.pattern, msg.spillCount);
       case "pushOne":
-        data.domains.push(msg.tuple[0]);
-        data.ips.push(msg.tuple[1]);
         return pushOne(msg.tuple);
       case "pushPattern":
         return pushPattern(msg.pattern);
@@ -280,6 +274,9 @@ function makeRow(isFirst, tuple) {
   const addr = tuple[1];
   const version = tuple[2];
   const flags = tuple[3];
+  
+  data.domains.push(domain);
+  data.ips.push(addr);
 
   const tr = document.createElement("tr");
   if (isFirst) {

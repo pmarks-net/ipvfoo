@@ -98,3 +98,29 @@ window.onload = async () => {
     });
   }
 }
+
+document.addEventListener("DOMContentLoaded", function() {
+  // IP Lookup Provider
+  const ipLookupSelect = document.getElementById("ipLookupProvider");
+  if (ipLookupSelect && typeof ipProviderUrls === "object") {
+    ipLookupSelect.innerHTML = "";
+    for (const [key, url] of Object.entries(ipProviderUrls)) {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      ipLookupSelect.appendChild(option);
+    }
+  }
+
+  // DNS Lookup Provider
+  const dnsLookupSelect = document.getElementById("dnsLookupProvider");
+  if (dnsLookupSelect && typeof dnsProviderUrls === "object") {
+    dnsLookupSelect.innerHTML = "";
+    for (const [key, url] of Object.entries(dnsProviderUrls)) {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      dnsLookupSelect.appendChild(option);
+    }
+  }
+});

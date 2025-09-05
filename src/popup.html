@@ -133,6 +133,12 @@ img::selection {
 #pattern_icon_lightfg {
   display: none;
 }
+.copy_buttons {
+  margin-top: 3pt;
+}
+.copy_data {
+  color: #ff8080;
+}
 
 /* dark mode */
 @media (prefers-color-scheme: dark) {
@@ -164,9 +170,12 @@ img::selection {
   #pattern_icon_lightfg {
     display: initial;
   }
+  .copy_data {
+    color: #ff8080;
+  }
 }
 
-@keyframes shake {
+@keyframes shake_error {
   from, to {
     transform: translate3d(0, 0, 0);
   }
@@ -177,8 +186,25 @@ img::selection {
     transform: translate3d(-5px, 0, 0);
   }
 }
-.shake {
-  animation-name: shake;
+
+@keyframes shake_success {
+  from, to {
+    transform: translate3d(0, 0, 0);
+  }
+  20%, 60% {
+    transform: translate3d(0, 2px, 0);
+  }
+  40%, 80% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+.shake-error {
+  animation-name: shake_error;
+  animation-duration: 500ms;
+}
+.shake_success {
+  animation-name: shake_success;
   animation-duration: 500ms;
 }
 
@@ -193,6 +219,12 @@ img::selection {
   <table id="addr_table" height="1px"></table>
   <div id="spill_count_container">
   &#x22ee; <span id="spill_count">0</span> requests omitted
+  </div>
+  <div class="copy_buttons">
+    Copy data:<br>
+    - All domains: <a href="#" class="copy_data" data-type="domains-list">list</a> | <a href="#" class="copy_data" data-type="domains-comma">commas</a></br>
+    - Base domains: <a href="#" class="copy_data" data-type="sdl-list">list</a> | <a href="#" class="copy_data" data-type="sdl-comma">commas</a></br>
+    - IPs: <a href="#" class="copy_data" data-type="ips-list">list</a> | <a href="#" class="copy_data" data-type="ips-comma">commas</a>
   </div>
   <div id="mobile_footer">
     <div id="options_link"><a href="options.html">Options</a></div>

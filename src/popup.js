@@ -27,6 +27,10 @@ if (!isFinite(Number(tabId))) {
   throw "Bad tabId";
 }
 
+let data = {
+  domains: [],
+  ips: [],
+};
 let table = null;
 
 window.onload = async function() {
@@ -37,6 +41,7 @@ window.onload = async function() {
     document.getElementById("mobile_footer").style.display = "flex";
   }
   connectToExtension();
+  addCopyActions();
 };
 
 async function beg() {
@@ -65,15 +70,21 @@ function connectToExtension() {
     //console.log("onMessage", msg.cmd, msg);
     switch (msg.cmd) {
       case "pushAll":
+        for (const tuple of msg.tuples) {
+          data.domains.push(tuple[0]);
+          data.ips.push(tuple[1]);
+        }
         return pushAll(msg.tuples, msg.pattern, msg.spillCount);
       case "pushOne":
+        data.domains.push(msg.tuple[0]);
+        data.ips.push(msg.tuple[1]);
         return pushOne(msg.tuple);
       case "pushPattern":
         return pushPattern(msg.pattern);
       case "pushSpillCount":
         return pushSpillCount(msg.spillCount);
       case "shake":
-        return shake();
+        return shake("error");
     }
   });
 
@@ -81,6 +92,44 @@ function connectToExtension() {
     document.bgColor = "lightpink";
     setTimeout(connectToExtension, 1);
   });
+}
+
+function addCopyActions() {
+  document.querySelectorAll("a.copy_data").forEach((a) => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+
+      copyList(a.dataset.type);
+    });
+  });
+}
+
+// Copy domains/IPs helper.
+function copyList(kind) {
+  const [type, list] = kind.split("-");
+  const joiner = list == "comma" ? ", " : "\n";
+
+  let content = [];
+  switch (type) {
+    case "domains":
+      content = data.domains;
+      break;
+    case "sdl":
+      content = getSecondLevelDomains(data.domains);
+      break;
+    case "ips":
+      content = data.ips;
+      break;
+  }
+
+  content = Array.from(new Set(content));
+  const clipboardContent = content.join(joiner);
+  try {
+    navigator.clipboard.writeText(clipboardContent);
+    shake("success");
+  } catch (err) {
+    shake("error");
+  }
 }
 
 // Clear the table, and fill it with new data.
@@ -402,4 +451,19 @@ function selectWholeAddress(node, sel) {
     sel.removeAllRanges();
     sel.addRange(range);
   }
+}
+
+// Return only base domains, e.g. example.com from a.b.example.com.
+function getSecondLevelDomains(domains) {
+  const sdls = new Set();
+  domains.forEach((domain) => {
+    const split = domain.split(".");
+    if (split.length > 2) {
+      const topDomain = split.slice(split.length - 2).join(".");
+      sdls.add(topDomain);
+    } else {
+      sdls.add(domain);
+    }
+  });
+  return Array.from(sdls);
 }

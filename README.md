@@ -38,7 +38,7 @@ Firefox shows this error when running the Chrome version:
 > There was an error during the temporary add-on installation.  
 > background.service_worker is currently disabled. Add background.scripts.
 
-Chrome shows these errors when running the Firefox version:
+Chrome shows this error when running the Firefox version:
 
 > 'background.scripts' requires manifest version of 2 or lower.  
 > 'page_action' requires manifest version of 2 or lower.

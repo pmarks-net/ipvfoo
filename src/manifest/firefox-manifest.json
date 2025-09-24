@@ -1,7 +1,7 @@
 {
   "name": "IPvFoo",
   "manifest_version": 3,
-  "version": "2.25",
+  "version": "2.26",
   "description": "Display the server IP address, with a realtime summary of IPv4, IPv6, and HTTPS information across all page elements.",
   "homepage_url": "https://github.com/pmarks-net/ipvfoo",
   "icons": {

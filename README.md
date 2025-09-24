@@ -43,8 +43,7 @@ Chrome shows this error when running the Firefox version:
 > 'background.scripts' requires manifest version of 2 or lower.  
 > 'page_action' requires manifest version of 2 or lower.
 
-To switch between versions, see the `use_*_manifest.sh.bat` scripts in the manifest/ directory.
-
+The `use_*_manifest.sh.bat` scripts in the [manifest](src/manifest/) directory may be used to switch between versions.
 
 <br><br><br>
 Donate: https://liberapay.com/pmarks

@@ -31,7 +31,7 @@ IPvFoo cannot be [ported to Safari](https://github.com/pmarks-net/ipvfoo/issues/
 
 ## Running IPvFoo unpacked from git
 
-IPvFoo uses a common codebase for Chrome and Firefox, but `manifest.json` is browser specific.
+IPvFoo shares a common codebase for Chrome and Firefox, but `manifest.json` is browser specific.
 
 Firefox shows this error when running the Chrome version:
 

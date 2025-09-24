@@ -29,5 +29,22 @@ https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobe
 
 IPvFoo cannot be [ported to Safari](https://github.com/pmarks-net/ipvfoo/issues/39) because the `webRequest` API does not report IP addresses.  In theory, a Safari extension could do its own DNS lookups over HTTPS, but such behavior is beyond the scope of IPvFoo.
 
+## Running IPvFoo unpacked from git
+
+IPvFoo uses a common codebase for Chrome and Firefox, but `manifest.json` is browser specific.
+
+Firefox shows this error when running the Chrome version:
+
+> There was an error during the temporary add-on installation.  
+> background.service_worker is currently disabled. Add background.scripts.
+
+Chrome shows these errors when running the Firefox version:
+
+> 'background.scripts' requires manifest version of 2 or lower.  
+> 'page_action' requires manifest version of 2 or lower.
+
+To switch between versions, see the `use_*_manifest.sh.bat` scripts in the manifest/ directory.
+
+
 <br><br><br>
 Donate: https://liberapay.com/pmarks

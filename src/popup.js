@@ -244,10 +244,11 @@ function makeRow(isFirst, tuple) {
   // Build the "Domain" column.
   const domainTd = document.createElement("td");
   domainTd.appendChild(sslImg);
-  const domainContent = domain.length > LONG_DOMAIN
-    ? makeSnippedText(domain, Math.floor(LONG_DOMAIN / 2))
-    : domain;
-  domainTd.appendChild(makeHoverText(domainContent));
+  if (domain.length > LONG_DOMAIN) {
+    domainTd.appendChild(makeSnippedText(domain, Math.floor(LONG_DOMAIN / 2)));
+  } else {
+    domainTd.appendChild(document.createTextNode(domain));
+  }
   domainTd.className = "domainTd";
   domainTd.onclick = handleClick;
   domainTd.oncontextmenu = handleContextMenu;
@@ -261,7 +262,7 @@ function makeRow(isFirst, tuple) {
   }
   const connectedClass = (flags & FLAG_CONNECTED) ? " highlight" : "";
   addrTd.className = `addrTd${addrClass}${connectedClass}`;
-  addrTd.appendChild(makeHoverText(addr));
+  addrTd.appendChild(document.createTextNode(addr));
   addrTd.onclick = handleClick;
   addrTd.oncontextmenu = handleContextMenu;
 
@@ -294,14 +295,6 @@ function makeRow(isFirst, tuple) {
   tr.appendChild(addrTd);
   tr.appendChild(cacheTd);
   return tr;
-}
-
-// Returns <span class=hover-text>content</span>
-function makeHoverText(content) {
-  const span = document.createElement("span");
-  span.className = "hover-text";
-  span.appendChild(content.nodeType ? content : document.createTextNode(content));
-  return span;
 }
 
 // Given a long domain name, generate "prefix...suffix".  When the user

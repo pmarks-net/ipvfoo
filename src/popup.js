@@ -16,6 +16,8 @@ limitations under the License.
 
 "use strict";
 
+// Requires <script src="common.js">
+
 const ALL_URLS = "<all_urls>";
 const IS_MOBILE = /\bMobile\b/.test(navigator.userAgent);
 
@@ -38,6 +40,17 @@ window.onload = async function() {
   }
   connectToExtension();
 };
+
+// Monitor for dark mode updates.
+const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+let darkMode = darkModeQuery.matches;
+darkModeQuery.addEventListener("change", async (event) => {
+  darkMode = event.matches;
+  await optionsReady;
+  if (lastColor) {
+    setColorIsDarkMode(lastColor, darkMode);
+  }
+});
 
 async function beg() {
   const p = await chrome.permissions.getAll();
@@ -65,11 +78,11 @@ function connectToExtension() {
     //console.log("onMessage", msg.cmd, msg);
     switch (msg.cmd) {
       case "pushAll":
-        return pushAll(msg.tuples, msg.pattern, msg.spillCount);
+        return pushAll(msg.tuples, msg.pattern, msg.color, msg.spillCount);
       case "pushOne":
         return pushOne(msg.tuple);
       case "pushPattern":
-        return pushPattern(msg.pattern);
+        return pushPattern(msg.pattern, msg.color);
       case "pushSpillCount":
         return pushSpillCount(msg.spillCount);
       case "shake":
@@ -84,12 +97,12 @@ function connectToExtension() {
 }
 
 // Clear the table, and fill it with new data.
-function pushAll(tuples, pattern, spillCount) {
+function pushAll(tuples, pattern, color, spillCount) {
   removeChildren(table);
   for (let i = 0; i < tuples.length; i++) {
     table.appendChild(makeRow(i == 0, tuples[i]));
   }
-  pushPattern(pattern);
+  pushPattern(pattern, color);
   pushSpillCount(spillCount);
 }
 
@@ -121,7 +134,12 @@ function pushOne(tuple) {
 }
 
 let lastPattern = "";
-async function pushPattern(pattern) {
+let lastColor = "";  // regular/incognito color scheme
+async function pushPattern(pattern, color) {
+  if (lastColor != color) {
+    lastColor = color;
+    setColorIsDarkMode(lastColor, darkMode);
+  }
   if (!IS_MOBILE) {
     return;
   }

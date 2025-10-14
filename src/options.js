@@ -19,18 +19,6 @@ limitations under the License.
 // Requires <script src="common.js">
 
 window.onload = async () => {
-  await spriteImgReady;
-
-  for (const option of Object.keys(DEFAULT_OPTIONS)) {
-    if (!option.endsWith("ColorScheme")) continue;
-    for (const color of ["darkfg", "lightfg"]) {
-      const canvas = document.getElementById(`${option}:${color}`);
-      const ctx = canvas.getContext("2d");
-      const imageData = buildIcon("646", 16, color);
-      ctx.putImageData(imageData, 0, 0);
-    }
-  }
-
   const ipv4pages = document.getElementById("ipv4pages");
   for (const domain of IPV4_ONLY_DOMAINS.keys()) {
     const li = document.createElement("li");
@@ -44,10 +32,7 @@ window.onload = async () => {
 
   watchOptions(function(optionsChanged) {
     for (const option of optionsChanged) {
-      if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
-        const radio = document.optionsForm[option];
-        radio.value = options[option];
-      } else if (option == NAT64_KEY) {
+      if (option == NAT64_KEY) {
         const table = document.getElementById("nat64");
         removeChildren(table);
         for (const packed96 of Array.from(options[NAT64_KEY]).sort()) {
@@ -61,17 +46,8 @@ window.onload = async () => {
     }
   });
 
-  document.optionsForm.onchange = function(evt) {
-    const newOptions = {};
-    for (const option of Object.keys(DEFAULT_OPTIONS)) {
-      newOptions[option] = document.optionsForm[option].value;
-    }
-    setOptions(newOptions);
-  };
-
   document.getElementById("revert_btn").onclick = function() {
     revertNAT64();
-    setOptions(DEFAULT_OPTIONS);
   };
 
   document.getElementById("dismiss_btn").onclick = function() {

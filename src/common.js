@@ -164,10 +164,8 @@ function drawSprite(ctx, size, targets, sources) {
                 target[0], target[1], source[2], source[3]);
 }
 
-const DEFAULT_OPTIONS = {
-  regularColorScheme: "auto",
-  incognitoColorScheme: "lightfg",
-};
+const REGULAR_COLOR = "regularColorScheme";
+const INCOGNITO_COLOR = "incognitoColorScheme";
 
 const NAT64_KEY = "nat64/";
 const NAT64_VALIDATE = /^nat64\/[0-9a-f]{24}$/;
@@ -178,18 +176,22 @@ const NAT64_DEFAULTS = new Set([
 ]);
 
 let _watchOptionsFunc = null;
-const options = {ready: false, [NAT64_KEY]: new Set(NAT64_DEFAULTS)};
-const optionsDirty = {};  // {option: number of writes in flight}
+const options = {
+  ready: false,
+  [REGULAR_COLOR]: "darkfg",  // default immediately replaced
+  [INCOGNITO_COLOR]: "lightfg",
+  [NAT64_KEY]: new Set(NAT64_DEFAULTS),
+};
 const optionsReady = (async function() {
-  for (const [option, value] of Object.entries(DEFAULT_OPTIONS)) {
-    options[option] = value;
-    optionsDirty[option] = 0;
-  }
-  const items = await chrome.storage.sync.get();
-  for (const [option, value] of Object.entries(items)) {
-    if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
+  const [localItems, syncItems] = await Promise.all(
+      [chrome.storage.local.get(), chrome.storage.sync.get()]);
+  for (const [option, value] of Object.entries(localItems)) {
+    if (option == REGULAR_COLOR || option == INCOGNITO_COLOR) {
       options[option] = value;
-    } else if (NAT64_VALIDATE.test(option)) {
+    }
+  }
+  for (const [option, value] of Object.entries(syncItems)) {
+    if (NAT64_VALIDATE.test(option)) {
       options[NAT64_KEY].add(option.slice(NAT64_KEY.length));
     }
   }
@@ -197,22 +199,29 @@ const optionsReady = (async function() {
   _watchOptionsFunc?.(Object.keys(options));
 })();
 
+chrome.storage.local.onChanged.addListener(function(changes) {
+  // changes = {option: {oldValue: x, newValue: y}}
+  if (!options.ready) return;
+  const optionsChanged = [];
+  for (const [option, {oldValue, newValue}] of Object.entries(changes)) {
+    if (option == REGULAR_COLOR || option == INCOGNITO_COLOR) {
+      if (options[option] != newValue) {
+        options[option] = newValue;
+        optionsChanged.push(option);
+      }
+    }
+  }
+  if (optionsChanged.length) {
+    _watchOptionsFunc?.(optionsChanged);
+  }
+});
+
 chrome.storage.sync.onChanged.addListener(function(changes) {
   // changes = {option: {oldValue: x, newValue: y}}
   if (!options.ready) return;
   const optionsChanged = [];
   for (const [option, {oldValue, newValue}] of Object.entries(changes)) {
-    if (DEFAULT_OPTIONS.hasOwnProperty(option)) {
-      const value = newValue || DEFAULT_OPTIONS[option];
-      if (options[option] != value) {
-        if (optionsDirty[option] > 1) {
-          // Forget local changes that occurred mid-write.
-          optionsDirty[option] = 1;
-        }
-        options[option] = value;
-        optionsChanged.push(option);
-      }
-    } else if (NAT64_VALIDATE.test(option)) {
+    if (NAT64_VALIDATE.test(option)) {
       const packed96 = option.slice(NAT64_KEY.length);
       if (newValue && !options[NAT64_KEY].has(packed96)) {
         options[NAT64_KEY].add(packed96);
@@ -239,44 +248,15 @@ function watchOptions(f) {
   }
 }
 
-function setOptions(newOptions) {
-  const toSet = {};
-  const optionsChanged = [];
-  for (const option of Object.keys(DEFAULT_OPTIONS)) {
-    const value = newOptions[option];
-    if (options[option] != value) {
-      options[option] = value;
-      optionsChanged.push(option);
-      if (++optionsDirty[option] == 1) {
-        toSet[option] = value;
-      } else {
-        // dirty > 1; the value is buffered and written later.
-        console.log("setOptions buffered", option);
-      }
-    }
+function setColorIsDarkMode(option, isDarkMode) {
+  if (!(option == REGULAR_COLOR || option == INCOGNITO_COLOR)) {
+    throw new Error("invalid color scheme", option);
   }
-  const doSet = () => {
-    if (Object.keys(toSet).length == 0) {
-      return;  // no change
-    }
-    chrome.storage.sync.set(toSet, () => {
-      for (const [option, value] of Object.entries(toSet)) {
-        const dirty = optionsDirty[option];
-        if (dirty > 1 && value != options[option]) {
-          // user changed the value mid-write; push the latest value.
-          toSet[option] = options[option];
-          optionsDirty[option] = 1;
-        } else {
-          delete toSet[option];
-          optionsDirty[option] = 0;
-        }
-      }
-      doSet();
-    });
-  };
-  doSet();
-  if (optionsChanged.length) {
-    _watchOptionsFunc?.(optionsChanged);
+  const value = isDarkMode ? "lightfg" : "darkfg";
+  if (options[option] != value) {
+    options[option] = value;
+    chrome.storage.local.set({[option]: value});
+    _watchOptionsFunc?.([option]);
   }
 }
 
@@ -317,15 +297,4 @@ function revertNAT64() {
     // our local Set is used for deduplication.
     _watchOptionsFunc?.([NAT64_KEY]);
   }
-}
-
-if (chrome.runtime.getManifest().background.service_worker &&
-    typeof window !== 'undefined' && window.matchMedia) {
-  // We are running in Chrome, and the Options or Popup UI is visible.
-  // Send darkMode updates to the service_worker.
-  const query = window.matchMedia('(prefers-color-scheme: dark)');
-  chrome.runtime.sendMessage({darkModeInteractive: query.matches});
-  query.addEventListener("change", (event) => {
-    chrome.runtime.sendMessage({darkModeInteractive: event.matches});
-  });
 }

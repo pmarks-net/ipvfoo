@@ -291,7 +291,7 @@ class TabInfo extends SaveableEntry {
   spillCount = 0;        // How many requests didn't fit in domains.
   lastPattern = "";      // To avoid redundant icon redraws.
   lastTooltip = "";      // To avoid redundant tooltip updates.
-  color = "regularColorScheme";  // ... or incognitoColorScheme.
+  color = REGULAR_COLOR  // or INCOGNITO_COLOR
 
   // Private, to avoid writing to storage.
   #state = TAB_BIRTH;
@@ -301,7 +301,6 @@ class TabInfo extends SaveableEntry {
 
     if (!spriteImg.ready) throw "must await spriteImgReady!";
     if (!options.ready) throw "must await optionsReady!";
-    if (!darkMode.ready) throw "must await darkModeReady!";
 
     if (tabMap[tabId]) throw "Duplicate entry in tabMap";
     if (tabTracker.exists(tabId)) {
@@ -450,10 +449,7 @@ class TabInfo extends SaveableEntry {
 
     // Don't waste time redrawing the same icon.
     if (this.lastPattern != pattern) {
-      let color = options[this.color];
-      if (color == "auto") {
-        color = darkMode.value ? "lightfg" : "darkfg";
-      }
+      const color = options[this.color];
       actions.setIcon({
         "tabId": this.id(),
         "imageData": {
@@ -461,8 +457,8 @@ class TabInfo extends SaveableEntry {
           "32": buildIcon(pattern, 32, color),
         },
       });
-      // Send icon to the popup window (mobile only)
-      popups.pushPattern(this.id(), pattern);
+      // Send icon to the popup window.
+      popups.pushPattern(this.id(), pattern, this.color);
       actions.setPopup({
         "tabId": this.id(),
         "popup": `popup.html#${this.id()}`,
@@ -474,7 +470,7 @@ class TabInfo extends SaveableEntry {
   }
 
   pushAll() {
-    popups.pushAll(this.id(), this.getTuples(), this.lastPattern, this.spillCount);
+    popups.pushAll(this.id(), this.getTuples(), this.lastPattern, this.color, this.spillCount);
   }
 
   pushOne(domain) {
@@ -659,69 +655,46 @@ function lookupOriginMap(origin) {
   return originMap[origin] || new Set();
 }
 
-// This horrific mess can eventually be replaced by
+// Dark mode detection. This can eventually be replaced by
 // https://github.com/w3c/webextensions/issues/229
-let initDarkMode = null;
-const darkMode = {ready: false, resolve: null, value: false};
 if (typeof window !== 'undefined' && window.matchMedia) {
-  // Watching for Dark Mode is trivial in Firefox.
-  initDarkMode = (async () => {
+  // Firefox can detect dark mode from the background page.
+  (async () => {
+    await optionsReady;
     const query = window.matchMedia('(prefers-color-scheme: dark)');
-    darkMode.value = query.matches;
+    setColorIsDarkMode(REGULAR_COLOR, query.matches);
     query.addEventListener("change", (event) => {
-      changeDarkMode(event.matches);
+      setColorIsDarkMode(REGULAR_COLOR, event.matches);
     });
-    darkMode.ready = true;
-  });
+  })();
 } else {
-  initDarkMode = (async () => {
-    const p = new Promise((resolve) => {darkMode.resolve = resolve});
+  // Chrome needs an offscreen document to detect dark mode.
+  chrome.runtime.onMessage.addListener((message) => {
+    console.log("onMessage", message);
+    if (message.hasOwnProperty("darkModeOffscreen")) {
+      setColorIsDarkMode(REGULAR_COLOR, message.darkModeOffscreen);
+    }
+  });
+
+  (async () => {
+    await optionsReady;
     try {
       await chrome.offscreen.createDocument({
         url: "detectdarkmode.html",
         reasons: ['MATCH_MEDIA'],
         justification: 'detect light/dark mode for icon colors',
       });
-      darkMode.value = await p;
     } catch {
       console.log("detectdarkmode failed!");
     }
     // The offscreen document can't provide darkMode updates, so kill it now.
-    // We will get updates from the popup/option windows instead.
+    // We will still get updates from the popup windows when visible.
     try {
       await chrome.offscreen.closeDocument();
     } catch {
       // ignore
     }
-    darkMode.ready = true;
-  });
-
-  chrome.runtime.onMessage.addListener((message) => {
-    console.log("onMessage", message);
-    if (message.hasOwnProperty("darkModeOffscreen")) {
-      darkMode.resolve?.(message.darkModeOffscreen);
-      darkMode.resolve = null;
-    } else if (message.hasOwnProperty("darkModeInteractive")) {
-      // Receive updates from popup/option windows.
-      changeDarkMode(message.darkModeInteractive);
-    }
-  });
-}
-const darkModeReady = initDarkMode();
-
-async function changeDarkMode(newValue) {
-  if (!darkMode.ready || darkMode.value == newValue) return;
-  darkMode.value = newValue;
-
-  await storageReady;
-  const RCS = "regularColorScheme";
-  if (options[RCS] == "auto") {
-    for (const tabInfo of Object.values(tabMap)) {
-      if (tabInfo.color == RCS){
-        tabInfo.refreshPageAction();
-      }
-    }
-  }
+  })();
 }
 
 // Must "await storageReady;" before reading maps.
@@ -729,17 +702,6 @@ async function changeDarkMode(newValue) {
 const initStorage = async () => {
   await spriteImgReady;
   await optionsReady;
-  await darkModeReady;
-
-  // Migrate previous-version data from local to session storage.
-  const oldItems = await chrome.storage.local.get();
-  for (const [k, v] of Object.entries(oldItems)) {
-    if (k.startsWith("tab/") || k.startsWith("req/")) {
-      console.log(`migrating ${k} to storage.session`);
-      await chrome.storage.session.set({[k]: v});
-      await chrome.storage.local.remove(k);
-    }
-  }
 
   // These are be no-ops unless initStorage() is called manually.
   clearMap(tabMap);
@@ -788,11 +750,12 @@ class Popups {
     delete this.ports[tabId];
   };
 
-  pushAll(tabId, tuples, pattern, spillCount) {
+  pushAll(tabId, tuples, pattern, color, spillCount) {
     this.ports[tabId]?.postMessage({
       cmd: "pushAll",
       tuples: tuples,
       pattern: pattern,
+      color: color,
       spillCount: spillCount,
     });
   };
@@ -807,10 +770,11 @@ class Popups {
     });
   };
 
-  pushPattern(tabId, pattern) {
+  pushPattern(tabId, pattern, color) {
     this.ports[tabId]?.postMessage({
       cmd: "pushPattern",
       pattern: pattern,
+      color: color,
     });
   };
 
@@ -970,8 +934,7 @@ chrome.tabs.onUpdated.addListener(wrap(async (tabId, changeInfo, tab) => {
   await storageReady;
   const tabInfo = tabMap[tabId];
   if (tabInfo) {
-    tabInfo.color = tab.incognito ?
-        "incognitoColorScheme" : "regularColorScheme";
+    tabInfo.color = tab.incognito ? INCOGNITO_COLOR : REGULAR_COLOR;
     tabInfo.refreshPageAction();
   }
 }));

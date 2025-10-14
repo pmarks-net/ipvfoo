@@ -65,8 +65,6 @@ const NAME_VERSION = (() => {
   return `${m.name} v${m.version}`;
 })();
 
-const IS_MOBILE = /\bMobile\b/.test(navigator.userAgent);
-
 let debug = false;
 function debugLog() {
   if (debug) {

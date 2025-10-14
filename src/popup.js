@@ -19,7 +19,6 @@ limitations under the License.
 // Requires <script src="common.js">
 
 const ALL_URLS = "<all_urls>";
-const IS_MOBILE = /\bMobile\b/.test(navigator.userAgent);
 
 // Snip domains longer than this, to avoid horizontal scrolling.
 const LONG_DOMAIN = 50;

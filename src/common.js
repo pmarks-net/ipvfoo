@@ -18,6 +18,8 @@ limitations under the License.
 
 // Requires <script src="iputil.js">
 
+const IS_MOBILE = /\bMobile\b/.test(navigator.userAgent);
+
 // Flags are bitwise-OR'd across all connections to a domain.
 const FLAG_SSL = 0x1;
 const FLAG_NOSSL = 0x2;
@@ -251,6 +253,12 @@ function watchOptions(f) {
 function setColorIsDarkMode(option, isDarkMode) {
   if (!(option == REGULAR_COLOR || option == INCOGNITO_COLOR)) {
     throw new Error("invalid color scheme", option);
+  }
+  if (IS_MOBILE && option == INCOGNITO_COLOR) {
+    // Firefox for Android, the incognito popup follows the system theme
+    // regardless of toolbar color, so just assume dark mode (lightfg).
+    // I wonder if there exist edge cases where this assumption is wrong?
+    isDarkMode = true;
   }
   const value = isDarkMode ? "lightfg" : "darkfg";
   if (options[option] != value) {

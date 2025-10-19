@@ -118,7 +118,7 @@ async function getTrueTabDomain(tabId) {
   try {
     const tabInfo = await chrome.tabs.get(tabId);
     const domain = parseUrl(tabInfo.url).domain;
-  debugLog("getTrueTabDomain success", domain);
+    debugLog("getTrueTabDomain success", domain);
     return domain;
   } catch (error) {
     debugLog("getTrueTabDomain error", error);

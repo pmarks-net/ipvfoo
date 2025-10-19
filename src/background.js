@@ -108,6 +108,42 @@ function parseUrl(url) {
   return { domain: domain, ssl: ssl, ws: ws, origin: u.origin };
 }
 
+/**
+ * Gets the domain of a tab from source of truth 
+ * that is, the domain of the URL that is currently displayed in the URL bar.
+ * @param {number} tabId - The tab ID to get the URL of.
+ * @returns {Promise<string | null>} - The domain of the tab.
+ */
+async function getTrueTabDomain(tabId) {
+  try {
+    const tabInfo = await chrome.tabs.get(tabId);
+    const domain = parseUrl(tabInfo.url).domain;
+    debugLog("getTrueTabDomain success", domain);
+    return domain;
+  } catch (error) {
+    debugLog("getTrueTabDomain error", error);
+    return null;
+  }
+}
+
+/**
+ * Checks if the true tab domain matches the source of truth
+ * @param {Object} details - The details object from the webRequest event
+ * @returns {Promise<boolean>} - True if the true tab domain matches the source of truth, false otherwise
+ */
+async function isMainTabUrl(details) {
+  if (details.type != "main_frame" && details.type != "outermost_frame") {
+    return false;
+  }
+  try {
+    const trueTabDomain = await getTrueTabDomain(details.tabId);
+    return trueTabDomain === parseUrl(details.url).domain;
+  } catch (error) {
+    debugLog("isMainTabUrl error", error);
+    return false;
+  }
+}
+
 function updateNAT64(domain, addr) {
   if (!(IPV4_ONLY_DOMAINS.has(domain) && addr)) {
     return;
@@ -945,7 +981,7 @@ chrome.webRequest.onBeforeRequest.addListener(wrap(async (details) => {
   const tabId = details.tabId;
   const tabInfos = [];
   if (tabId > 0) {
-    if (details.type == "main_frame" || details.type == "outermost_frame") {
+    if (await isMainTabUrl(details)) {
       const parsed = parseUrl(details.url);
       tabMap.remove(tabId);
       const tabInfo = tabMap.lookupOrNew(tabId);
@@ -991,8 +1027,7 @@ chrome.webRequest.onBeforeRequest.addListener(wrap(async (details) => {
 // As of 2022, this can be tested by visiting http://maps.google.com/
 chrome.webRequest.onBeforeRedirect.addListener(wrap(async (details) => {
   await storageReady;
-  if (!(details.type == "main_frame" ||
-        details.type == "outermost_frame")) {
+  if (!(await isMainTabUrl(details))) {
     return;
   }
   const requestInfo = requestMap[details.requestId];

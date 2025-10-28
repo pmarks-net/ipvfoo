@@ -20,13 +20,20 @@ limitations under the License.
 
 const IS_MOBILE = /\bMobile\b/.test(navigator.userAgent);
 
-// Flags are bitwise-OR'd across all connections to a domain.
-const FLAG_SSL = 0x1;
-const FLAG_NOSSL = 0x2;
-const FLAG_UNCACHED = 0x4;
-const FLAG_CONNECTED = 0x8;
-const FLAG_WEBSOCKET = 0x10;
-const FLAG_NOTWORKER = 0x20;  // from a tab, not a service worker
+// Domain flags are bitwise-OR'd across all connections to a domain.
+const DFLAG_MASK = 0xFF00;
+const DFLAG_SSL = 0x100;
+const DFLAG_NOSSL = 0x200;
+const DFLAG_CONNECTED = 0x400;
+const DFLAG_WEBSOCKET = 0x800;
+const DFLAG_NOTWORKER = 0x1000;  // from a tab, not a service worker
+
+// Address flags refer to a specific connection, and are used to prioritize
+// which address is shown to the user.  The lowest numerical value wins.
+const AFLAG_MASK = 0xFF;
+const AFLAG_PREFETCH = 0x4;
+const AFLAG_WORKER = 0x2;
+const AFLAG_CACHE = 0x1;
 
 const IPV4_ONLY_DOMAINS = new Set(["ipv4.google.com", "ipv4.icanhazip.com", "ipv4.whatismyip.akamai.com"]);
 

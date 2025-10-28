@@ -377,7 +377,7 @@ class TabInfo extends SaveableEntry {
     this.save();
   }
 
-  addDomain(domain, addr, flags) {
+  addDomain(domain, dflags, addr, aflags) {
     let d = this.domains[domain];
     if (!d) {
       // Limit the number of domains per page, to avoid wasting RAM.
@@ -386,17 +386,21 @@ class TabInfo extends SaveableEntry {
         return;
       }
       d = this.domains[domain] =
-          new DomainInfo(this, domain, addr || "(lost)", flags);
+          new DomainInfo(this, domain, addr || "(lost)", dflags | aflags);
       d.countUp();
     } else {
       const oldAddr = d.addr;
       const oldFlags = d.flags;
-      // Don't allow a cached IP to overwrite an actually-connected IP.
-      if (addr && ((flags & FLAG_UNCACHED) || !(oldFlags & FLAG_UNCACHED))) {
+
+      // Domain flags just accumulate.
+      d.flags |= dflags;
+
+      // The numerical value of aflags determines which address to keep
+      // (uncached replaces cached, etc.)
+      if (addr && aflags <= (d.flags & AFLAG_MASK)) {
         d.addr = addr;
+        d.flags = (d.flags & DFLAG_MASK) | aflags;
       }
-      // Merge in the previous flags.
-      d.flags |= flags;
       d.countUp();
       // Don't update if nothing has changed.
       if (d.addr == oldAddr && d.flags == oldFlags) {
@@ -479,7 +483,7 @@ class TabInfo extends SaveableEntry {
   getTuples() {
     const mainDomain = this.mainDomain || "(no domain)";
     const domains = Object.keys(this.domains).sort();
-    const mainTuple = [mainDomain, "(no address)", "?", FLAG_UNCACHED | FLAG_NOTWORKER];
+    const mainTuple = [mainDomain, "(no address)", "?", 0];
     const tuples = [mainTuple];
     for (const domain of domains) {
       const d = this.domains[domain];
@@ -521,9 +525,9 @@ class DomainInfo {
     this.flags = flags;
   }
 
-  // count and FLAG_CONNECTED will be computed from requestMap.
+  // count and DFLAG_CONNECTED will be computed from requestMap.
   toJSON() {
-    return [this.addr, this.flags & ~FLAG_CONNECTED];
+    return [this.addr, this.flags & ~DFLAG_CONNECTED];
   }
 
   static fromJSON(tabInfo, domain, json) {
@@ -541,7 +545,7 @@ class DomainInfo {
   }
 
   async countUp() {
-    this.flags |= FLAG_CONNECTED;
+    this.flags |= DFLAG_CONNECTED;
     if (++this.count == 1 && !this.inhibitZero) {
       // Keep the address highlighted for at least 500ms.
       this.inhibitZero = true;
@@ -559,7 +563,7 @@ class DomainInfo {
 
   #checkZero() {
     if (this.count == 0 && !this.inhibitZero) {
-      this.flags &= ~FLAG_CONNECTED;
+      this.flags &= ~DFLAG_CONNECTED;
       this.tabInfo.pushOne(this.domain);
     }
   }
@@ -570,6 +574,7 @@ class RequestInfo extends SaveableEntry {
   // but for Service Worker requests there may be multiple tabs.
   tabIdToBorn = newMap();
   domain = null;
+  prefetch = false;
 
   afterLoad() {
     for (const [tabId, tabBorn] of Object.entries(this.tabIdToBorn)) {
@@ -581,7 +586,7 @@ class RequestInfo extends SaveableEntry {
       if (!this.domain) {
         continue;  // still waiting for onResponseStarted
       }
-      tabInfo.addDomain(this.domain, null, 0);
+      tabInfo.addDomain(this.domain, 0, null, 0);
     }
     if (Object.keys(this.tabIdToBorn).length == 0) {
       requestMap.remove(this.id());
@@ -939,19 +944,29 @@ chrome.tabs.onUpdated.addListener(wrap(async (tabId, changeInfo, tab) => {
 
 // -- webRequest --
 
+// Experimentally, a main_frame request with a documentId refers to a prefetch
+// (possibly using https://developer.chrome.com/blog/private-prefetch-proxy)
+// rather than a top-level navigation to a new URL.
+function isProperMainFrame(details) {
+  return (details.type == "main_frame" || details.type == "outermost_frame") &&
+      !details.documentId;
+}
+
 chrome.webRequest.onBeforeRequest.addListener(wrap(async (details) => {
-  //debugLog("wR.oBR", details?.tabId, details?.url, details);
+  debugLog("wR.oBR", details?.tabId, details?.url, details);
   await storageReady;
   const tabId = details.tabId;
   const tabInfos = [];
+  let prefetch = false;
   if (tabId > 0) {
-    if (details.type == "main_frame" || details.type == "outermost_frame") {
+    if (isProperMainFrame(details)) {
       const parsed = parseUrl(details.url);
       tabMap.remove(tabId);
       const tabInfo = tabMap.lookupOrNew(tabId);
       tabInfo.setInitialDomain(details.requestId, parsed.domain, parsed.origin);
       tabInfos.push(tabInfo);
     } else {
+      prefetch = (details.type == "main_frame" || details.type == "outermost_frame");
       const tabInfo = tabMap[tabId];
       if (tabInfo) {
         tabInfos.push(tabInfo);
@@ -981,6 +996,7 @@ chrome.webRequest.onBeforeRequest.addListener(wrap(async (details) => {
     requestInfo.tabIdToBorn[tabInfo.id()] = tabInfo.born;
   }
   requestInfo.domain = null;
+  requestInfo.prefetch = prefetch;
   requestInfo.save();
 }), FILTER_ALL_URLS);
 
@@ -991,8 +1007,7 @@ chrome.webRequest.onBeforeRequest.addListener(wrap(async (details) => {
 // As of 2022, this can be tested by visiting http://maps.google.com/
 chrome.webRequest.onBeforeRedirect.addListener(wrap(async (details) => {
   await storageReady;
-  if (!(details.type == "main_frame" ||
-        details.type == "outermost_frame")) {
+  if (!isProperMainFrame(details)) {
     return;
   }
   const requestInfo = requestMap[details.requestId];
@@ -1065,21 +1080,22 @@ chrome.webRequest.onResponseStarted.addListener(wrap(async (details) => {
   }
   addr = reformatForNAT64(addr) || "(no address)";
 
-  let flags = parsed.ssl ? FLAG_SSL : FLAG_NOSSL;
-  if (parsed.ws) {
-    flags |= FLAG_WEBSOCKET;
-  }
-  if (!fromCache) {
-    flags |= FLAG_UNCACHED;
-  }
-  if (details.tabId > 0) {
-    flags |= FLAG_NOTWORKER;
-  }
+  // Domain flags
+  const dflags =
+      (parsed.ssl ? DFLAG_SSL : DFLAG_NOSSL) |
+      (parsed.ws ? DFLAG_WEBSOCKET : 0);
+
+  // Address flags
+  const aflags =
+      (requestInfo.prefetch ? AFLAG_PREFETCH : 0) |
+      (details.tabId <= 0 ? AFLAG_WORKER : 0) |
+      (fromCache ? AFLAG_CACHE : 0);
+
   if (requestInfo.domain) throw `Duplicate onResponseStarted: ${parsed.domain}`;
   requestInfo.domain = parsed.domain;
   requestInfo.save();
   for (const tabInfo of tabInfos) {
-    tabInfo.addDomain(parsed.domain, addr, flags);
+    tabInfo.addDomain(parsed.domain, dflags, addr, aflags);
   }
 }), FILTER_ALL_URLS);
 

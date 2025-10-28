@@ -226,12 +226,12 @@ function makeImg(src, title) {
 }
 
 function makeSslImg(flags) {
-  switch (flags & (FLAG_SSL | FLAG_NOSSL)) {
-    case FLAG_SSL | FLAG_NOSSL:
+  switch (flags & (DFLAG_SSL | DFLAG_NOSSL)) {
+    case DFLAG_SSL | DFLAG_NOSSL:
       return makeImg(
           "gray_schrodingers_lock.png",
           "Mixture of HTTPS and non-HTTPS connections.");
-    case FLAG_SSL:
+    case DFLAG_SSL:
       return makeImg(
           "gray_lock.png",
           "Connection uses HTTPS.\n" +
@@ -277,7 +277,7 @@ function makeRow(isFirst, tuple) {
     case "4": addrClass = " ip4"; break;
     case "6": addrClass = " ip6"; break;
   }
-  const connectedClass = (flags & FLAG_CONNECTED) ? " highlight" : "";
+  const connectedClass = (flags & DFLAG_CONNECTED) ? " highlight" : "";
   addrTd.className = `addrTd${addrClass}${connectedClass}`;
   addrTd.appendChild(document.createTextNode(addr));
   addrTd.onclick = handleClick;
@@ -291,15 +291,19 @@ function makeRow(isFirst, tuple) {
   // the Cached icon because I'm too lazy to align multiple columns properly.
   const cacheTd = document.createElement("td");
   cacheTd.className = `cacheTd${connectedClass}`;
-  if (flags & FLAG_WEBSOCKET) {
+  if (flags & DFLAG_WEBSOCKET) {
     cacheTd.appendChild(
         makeImg("websocket.png", "WebSocket handshake; connection may still be active."));
     cacheTd.style.paddingLeft = '6pt';
-  } else if (!(flags & FLAG_NOTWORKER)) {
+  } else if (flags & AFLAG_PREFETCH) {
+    cacheTd.appendChild(
+        makeImg("prefetch.png", "Prefetched request; may be proxied."));
+    cacheTd.style.paddingLeft = '6pt';
+  } else if (flags & AFLAG_WORKER) {
     cacheTd.appendChild(
         makeImg("serviceworker.png", "Service Worker request; possibly from a different tab."));
     cacheTd.style.paddingLeft = '6pt';
-  } else if (!(flags & FLAG_UNCACHED)) {
+  } else if (flags & AFLAG_CACHE) {
     cacheTd.appendChild(
         makeImg("cached_arrow.png", "Data from cached requests only."));
     cacheTd.style.paddingLeft = '6pt';

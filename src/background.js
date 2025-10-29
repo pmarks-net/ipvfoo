@@ -141,24 +141,6 @@ function reformatForNAT64(addr, doLookup=true) {
   return formatIPv6(packed128, /*with_dots=*/isNAT64);
 }
 
-// Magic object that calls action and/or pageAction. We want an icon in the
-// address bar when possible (e.g. desktop Firefox) but have a fallback option
-// when browsers forget to implement pageAction (e.g. Firefox 142 for Android).
-const actions = new Proxy({}, {
-  get(target, prop) {
-    const apis = [chrome.action, chrome.pageAction].filter(Boolean);
-    return (...args) => {
-      for (const api of apis) {
-        if (typeof api[prop] === 'function') {
-          api[prop](...args);
-        } else if (prop != 'show') {  // action.show() shouldn't exist.
-          throw new Error(`actions.${prop} is not a function`);
-        }
-      }
-    };
-  }
-});
-
 class SaveableEntry {
   #prefix;
   #id;
@@ -439,9 +421,13 @@ class TabInfo extends SaveableEntry {
     if (has4) pattern += "4";
     if (has6) pattern += "6";
 
+    // Firefox might drop support for pageAction someday, but until then
+    // let's keep the icon in the address bar.
+    const action = chrome.pageAction || chrome.action;
+
     // Don't waste time rewriting the same tooltip.
     if (this.lastTooltip != tooltip) {
-      actions.setTitle({
+      action.setTitle({
         "tabId": this.id(),
         "title": tooltip,
       });
@@ -452,7 +438,7 @@ class TabInfo extends SaveableEntry {
     // Don't waste time redrawing the same icon.
     if (this.lastPattern != pattern) {
       const color = options[this.color];
-      actions.setIcon({
+      action.setIcon({
         "tabId": this.id(),
         "imageData": {
           "16": buildIcon(pattern, 16, color),
@@ -461,11 +447,13 @@ class TabInfo extends SaveableEntry {
       });
       // Send icon to the popup window.
       popups.pushPattern(this.id(), pattern, this.color);
-      actions.setPopup({
+      action.setPopup({
         "tabId": this.id(),
         "popup": `popup.html#${this.id()}`,
       });
-      actions.show(this.id());
+      if (action.show) {
+        action.show(this.id());  // Firefox only
+      }
       this.lastPattern = pattern;
       this.save();
     }

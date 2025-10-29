@@ -21,7 +21,7 @@ https://addons.mozilla.org/addon/ipvfoo/
 <picture><img src="https://badgen.net/amo/users/ipvfoo"></picture>
 <picture><img src="https://badgen.net/amo/rating/ipvfoo"></picture>
 
-To use IPvFoo with Firefox's default search engine, uncheck **Settings > Search > Show search terms in the address bar**
+To use IPvFoo with Firefox's default search engine, uncheck **Settings > Search > Show search terms in the address bar on results pages**
 
 ## Add to Edge
 https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobedeiaiofod  

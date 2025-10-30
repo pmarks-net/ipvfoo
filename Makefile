@@ -21,12 +21,12 @@ prepare:
 firefox: prepare
 	rm -f ${BUILDDIR}${NAME}-${VERSION_F}.xpi
 	cp -f ${MANIFEST_F} ${MANIFEST}
-	zip -9j ${BUILDDIR}${NAME}-${VERSION_F}.xpi -j src/*
+	(cd src && zip -9r ../${BUILDDIR}${NAME}-${VERSION_F}.xpi . -x "manifest/*")
 
 chrome: prepare
 	rm -f ${BUILDDIR}${NAME}-${VERSION_C}.zip
 	cp -f ${MANIFEST_C} ${MANIFEST}
-	zip -9j ${BUILDDIR}${NAME}-${VERSION_C}.zip -j src/*
+	(cd src && zip -9r ../${BUILDDIR}${NAME}-${VERSION_C}.zip . -x "manifest/*")
 
 clean:
 	rm -rf ${BUILDDIR}

@@ -134,7 +134,7 @@ function pushOne(tuple) {
 
 let lastPattern = "";
 let lastColor = "";  // regular/incognito color scheme
-async function pushPattern(pattern, color) {
+function pushPattern(pattern, color) {
   if (lastColor != color) {
     lastColor = color;
     setColorIsDarkMode(lastColor, darkMode);
@@ -147,12 +147,9 @@ async function pushPattern(pattern, color) {
   } else {
     return;
   }
-  await spriteImgReady;
   for (const color of ["darkfg", "lightfg"]) {
-    const canvas = document.getElementById(`pattern_icon_${color}`);
-    const ctx = canvas.getContext("2d");
-    const imageData = buildIcon(pattern, 32, color);
-    ctx.putImageData(imageData, 0, 0);
+    const img = document.getElementById(`pattern_icon_${color}`);
+    img.src = iconPath(pattern, 32, color);
   }
 }
 

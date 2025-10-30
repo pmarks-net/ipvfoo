@@ -279,7 +279,6 @@ class TabInfo extends SaveableEntry {
   constructor(prefix, tabId) {
     super(prefix, tabId);
 
-    if (!spriteImg.ready) throw "must await spriteImgReady!";
     if (!options.ready) throw "must await optionsReady!";
 
     if (tabMap[tabId]) throw "Duplicate entry in tabMap";
@@ -440,9 +439,9 @@ class TabInfo extends SaveableEntry {
       const color = options[this.color];
       action.setIcon({
         "tabId": this.id(),
-        "imageData": {
-          "16": buildIcon(pattern, 16, color),
-          "32": buildIcon(pattern, 32, color),
+        "path": {
+          "16": iconPath(pattern, 16, color),
+          "32": iconPath(pattern, 32, color),
         },
       });
       // Send icon to the popup window.
@@ -691,7 +690,6 @@ if (typeof window !== 'undefined' && window.matchMedia) {
 // Must "await storageReady;" before reading maps.
 // You can force initStorage() from the console for debugging purposes.
 const initStorage = async () => {
-  await spriteImgReady;
   await optionsReady;
 
   // These are be no-ops unless initStorage() is called manually.

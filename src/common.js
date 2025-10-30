@@ -59,118 +59,12 @@ function removeChildren(n) {
   return n;
 }
 
-const spriteImg = {ready: false};
-const spriteImgReady = (async function() {
-  for (const size of [16, 32]) {
-    const url = chrome.runtime.getURL(`sprites${size}.png`);
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      spriteImg[size] = await createImageBitmap(blob);
-    } catch (err) {
-      // Why does this sometimes fail?  My best guess is that running
-      // the unpacked extension from a ChromeOS Linux container exposes
-      // it to filesystem reliability issues. If this happens in the wild,
-      // maybe consider base64-inlining the PNGs?
-      console.error(`failed to fetch ${url}: ${err}`);
-      spriteImg[size] = redFailImg();
-    }
+function iconPath(pattern, size, color) {
+  const filebase = `${color}${size}_${pattern.replaceAll('?', 'q')}`;
+  if (!/^(lightfg|darkfg)(16|32)_[46q](|4|6|46)$/.test(filebase)) {
+    throw new Error(`Unexpected icon format: ${filebase}`);
   }
-  spriteImg.ready = true;
-})();
-
-function redFailImg() {
-  const size = 100;
-  const c = new OffscreenCanvas(size, size);
-  const ctx = c.getContext("2d");
-  ctx.fillStyle = "darkred";
-  ctx.fillRect(0, 0, size, size);
-  return c;
-}
-
-// Get a <canvas> element of the given size.
-const _canvasElements = newMap();
-function _getCanvasContext(size) {
-  let c = _canvasElements[size];
-  if (!c) {
-    if (typeof document !== 'undefined') {
-      c = document.createElement("canvas");
-      c.width = c.height = size;
-    } else {
-      c = new OffscreenCanvas(size, size);
-    }
-    _canvasElements[size] = c;
-  }
-  return c.getContext("2d", {willReadFrequently: true});
-}
-
-// Images from spritesXX.png: [x, y, w, h]
-const spriteBig = {
-  "4": {16: [1, 1, 9, 14],
-        32: [1, 1, 21, 28]},
-  "6": {16: [11, 1, 9, 14],
-        32: [23, 1, 21, 28]},
-  "?": {16: [21, 1, 9, 14],
-        32: [45, 1, 21, 28]},
-};
-const spriteSmall = {
-  "4": {16: [31, 1, 6, 6],
-        32: [67, 1, 10, 10]},
-  "6": {16: [31, 8, 6, 6],
-        32: [67, 12, 10, 10]},
-};
-
-// Destination coordinates: [x, y]
-const targetBig = {
-  16: [0, 1],
-  32: [0, 2],
-};
-const targetSmall1 = {
-  16: [10, 1],
-  32: [22, 2],
-};
-const targetSmall2 = {
-  16: [10, 8],
-  32: [22, 14],
-};
-
-// pattern is 0..3 characters, each '4', '6', or '?'.
-// size is 16 or 32.
-// color is "lightfg" or "darkfg".
-function buildIcon(pattern, size, color) {
-  if (!spriteImg.ready) throw "must await spriteImgReady!";
-  const ctx = _getCanvasContext(size);
-  ctx.clearRect(0, 0, size, size);
-  if (pattern.length >= 1) {
-    drawSprite(ctx, size, targetBig, spriteBig[pattern.charAt(0)]);
-  }
-  if (pattern.length >= 2) {
-    drawSprite(ctx, size, targetSmall1, spriteSmall[pattern.charAt(1)]);
-  }
-  if (pattern.length >= 3) {
-    drawSprite(ctx, size, targetSmall2, spriteSmall[pattern.charAt(2)]);
-  }
-  const imageData = ctx.getImageData(0, 0, size, size);
-  if (color == "lightfg") {
-    // Apply the light foreground color.
-    const px = imageData.data;
-    const floor = 128;
-    for (var i = 0; i < px.length; i += 4) {
-      px[i+0] += floor;
-      px[i+1] += floor;
-      px[i+2] += floor;
-    }
-  }
-  return imageData;
-}
-
-function drawSprite(ctx, size, targets, sources) {
-  const source = sources[size];
-  const target = targets[size];
-  // (image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
-  ctx.drawImage(spriteImg[size],
-                source[0], source[1], source[2], source[3],
-                target[0], target[1], source[2], source[3]);
+  return `generated_icons/${filebase}.png`;
 }
 
 const REGULAR_COLOR = "regularColorScheme";

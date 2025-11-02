@@ -29,7 +29,7 @@ https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobe
 
 ## Safari?
 
-IPvFoo cannot be [ported to Safari](https://github.com/pmarks-net/ipvfoo/issues/39) because the `webRequest` API does not report IP addresses.  In theory, a Safari extension could do its own DNS lookups over HTTPS, but such behavior is beyond the scope of IPvFoo.
+IPvFoo cannot be [ported to Safari](https://github.com/pmarks-net/ipvfoo/issues/39) because the `webRequest` API does not report IP addresses.  In theory, a Safari extension could do its own DNS lookups, but this would create additional network traffic, and may disagree with the browser's address selection.
 
 ## Running IPvFoo unpacked from git
 

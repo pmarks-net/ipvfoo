@@ -30,7 +30,7 @@ limitations under the License.
     font-size: 14pt;
     font-weight: normal;
   }
-  table, td, tr {
+  table, td, tr, th {
     border-width: 1px;
     border-collapse: collapse;
     border-color: #888;
@@ -38,10 +38,6 @@ limitations under the License.
     padding: 3pt;
     white-space: nowrap;
     vertical-align: middle;
-  }
-  td {
-    border-left: none;
-    border-right: none;
   }
   #nat64 table, #nat64 td, #nat64 tr {
     font-family: monospace;
@@ -52,27 +48,36 @@ limitations under the License.
     padding: 0;
     margin: 0;
   }
-  label {
-    display: flex;
-    padding: 0pt;
-    align-items: center;
-  }
-  input[type="radio"] {
-    margin-right: 3pt;
-  }
   a, a:visited {
     color: blue;
   }
-  .darkfg_frame {
-    background-color: #f2f2f2;
-    padding: 8px;
+
+  #lookup-provider table {
+    width: 100%;
   }
-  .lightfg_frame {
-    background-color: #505050;
-    padding: 8px;
+  #lookup-provider td {
+    border-left: none;
+    padding-left: 0;
   }
-  .colorscheme_title {
-    font-weight: bold;
+  #lookup-provider th {
+    width: 1%;
+    white-space: nowrap;
+    text-align: left;
+    border-right: none;
+  }
+  #providers {
+    margin-bottom: 6pt;
+  }
+  .url-field {
+    width: 100%;
+    padding: 3pt;
+    box-sizing: border-box;
+    border: 1px solid #888;
+    color: inherit;
+    background-color: inherit;
+  }
+  .url-field.invalid {
+    background-color: #fcc;
   }
 
   /* dark mode */
@@ -87,6 +92,9 @@ limitations under the License.
     #nat64 table, #nat64 td, #nat64 tr {
       color: #ff8080;
     }
+    .url-field.invalid {
+      background-color: #700;
+    }
   }
   </style>
   <script src="iputil.js"></script>
@@ -95,6 +103,27 @@ limitations under the License.
 </head>
 
 <body>
+  <div id="lookup-provider">
+    <h1>Lookup providers</h1>
+    Use this service from the popup context menu:<br>
+    <div id="providers"></div>
+    <table>
+      <tr>
+        <th>Domains:</th>
+        <td>
+          <input type="text" id="domainUrl" class="url-field" value="">
+        </td>
+      </tr>
+      <tr>
+        <th>IPs:</th>
+        <td>
+          <input type="text" id="ipUrl" class="url-field" value="">
+        </td>
+      </tr>
+    </table>
+    <br>
+  </div>
+
   <h1>NAT64 prefixes</h1>
   Prefixes are discovered automatically when you visit these IPv4-only pages using a NAT64 connection:
   <ul id="ipv4pages"></ul>

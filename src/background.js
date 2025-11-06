@@ -647,26 +647,18 @@ function lookupOriginMap(origin) {
 
 // Dark mode detection. This can eventually be replaced by
 // https://github.com/w3c/webextensions/issues/229
-if (typeof window !== 'undefined' && window.matchMedia) {
-  // Firefox can detect dark mode from the background page.
-  (async () => {
+(async () => {
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    // Firefox can detect dark mode from the background page.
     await optionsReady;
     const query = window.matchMedia('(prefers-color-scheme: dark)');
     setColorIsDarkMode(REGULAR_COLOR, query.matches);
     query.addEventListener("change", (event) => {
       setColorIsDarkMode(REGULAR_COLOR, event.matches);
     });
-  })();
-} else {
-  // Chrome needs an offscreen document to detect dark mode.
-  chrome.runtime.onMessage.addListener((message) => {
-    console.log("onMessage", message);
-    if (message.hasOwnProperty("darkModeOffscreen")) {
-      setColorIsDarkMode(REGULAR_COLOR, message.darkModeOffscreen);
-    }
-  });
-
-  (async () => {
+  } else {
+    // Chrome needs an offscreen document to detect dark mode.
+    // See the onMessage handler below.
     await optionsReady;
     try {
       await chrome.offscreen.createDocument({
@@ -684,8 +676,51 @@ if (typeof window !== 'undefined' && window.matchMedia) {
     } catch {
       // ignore
     }
-  })();
+  }
+})();
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.hasOwnProperty("darkModeOffscreen")) {
+    setColorIsDarkMode(REGULAR_COLOR, message.darkModeOffscreen);
+  }
+  if (message.hasOwnProperty("setStorageSyncDebounce")) {
+    storageSyncDebouncer.set(message.setStorageSyncDebounce);
+  }
+});
+
+// This class prevents writing to storage.sync more than once per second,
+// so the user can type in a text field without spamming the network.
+// It runs in background.js to avoid data loss if the user closes the
+// options window within 1 second of typing.
+class StorageSyncDebouncer {
+  latest = {};
+  pending = {};
+  writePromise = null;
+  set(items) {
+    for (let [key, value] of Object.entries(items)) {
+      if (this.latest[key] !== value) {
+        this.latest[key] = value;
+        this.pending[key] = value;
+      }
+    }
+    if (!this.writePromise && Object.keys(this.pending).length > 0) {
+      this.writePromise = this._writeWithDelay();
+    }
+  }
+  async _writeWithDelay() {
+    while (Object.keys(this.pending).length > 0) {
+      const toWrite = this.pending;
+      this.pending = {};
+      //console.log("writing", toWrite);
+      await Promise.all([
+        chrome.storage.sync.set(toWrite),
+        new Promise(resolve => setTimeout(resolve, 1000))
+      ]);
+    }
+    this.writePromise = null;
+  }
 }
+const storageSyncDebouncer = new StorageSyncDebouncer();
 
 // Must "await storageReady;" before reading maps.
 // You can force initStorage() from the console for debugging purposes.
@@ -1103,33 +1138,28 @@ chrome.webRequest.onErrorOccurred.addListener(forgetRequest, FILTER_ALL_URLS);
 
 // -- contextMenus --
 
-// When the user right-clicks an IP address in the popup window, add a menu
-// item to look up the address on bgp.he.net.  I don't like picking favorites,
-// so I'm open to making this a config option if someone recommends another
-// useful non-spammy service.
-//
-// Unless http://crbug.com/60758 gets resolved, the context menu's appearance
-// cannot vary based on content.
+// When the user right-clicks a domain or IP address in the popup window,
+// add a menu item that opens the requested lookup provider.
 const MENU_ID = "ipvfoo-lookup";
-
-chrome.contextMenus?.removeAll(() => {
-  chrome.contextMenus.create({
-    title: "Look up on bgp.he.net",
-    id: MENU_ID,
-    // Scope the menu to text selection in our popup windows.
-    contexts: ["selection"],
-    documentUrlPatterns: [chrome.runtime.getURL("popup.html")],
-  });
-});
 
 chrome.contextMenus?.onClicked.addListener((info, tab) => {
   if (info.menuItemId != MENU_ID) return;
-  const text = info.selectionText;
-  if (IP4_CHARS.test(text) || IP6_CHARS.test(text)) {
+  let selectionType = "";
+  let text = info.selectionText;
+  if (DNS_CHARS.test(text)) {
+    selectionType = "domain";
+  } else if (IP4_CHARS.test(text) || IP6_CHARS.test(text)) {
+    selectionType = "ip";
     // bgp.he.net doesn't support dotted IPv6 addresses.
-    chrome.tabs.create({url: `https://bgp.he.net/ip/${reformatForNAT64(text, false)}`});
-  } else if (DNS_CHARS.test(text)) {
-    chrome.tabs.create({url: `https://bgp.he.net/dns/${text}`});
+    text = reformatForNAT64(text, false);
+  }
+  const provider = options[LOOKUP_PROVIDER];
+  const pattern = (provider == "custom") ?
+      options[`${CUSTOM_PROVIDER}${selectionType}`] :
+      LOOKUP_PROVIDERS[provider]?.[selectionType];
+  const url = maybeLookupUrl(pattern, text)?.href;
+  if (url) {
+    chrome.tabs.create({url});
   } else {
     // Malformed selection; shake the popup content.
     const tabId = /#(\d+)$/.exec(info.pageUrl);
@@ -1157,5 +1187,30 @@ watchOptions(async (optionsChanged) => {
     if (refreshPageAction) {
       tabInfo.refreshPageAction();
     }
+  }
+
+  if (optionsChanged.has(LOOKUP_PROVIDER) ||
+      optionsChanged.has(CUSTOM_PROVIDER_DOMAIN) ||
+      optionsChanged.has(CUSTOM_PROVIDER_IP)) {
+    let providerText = options[LOOKUP_PROVIDER];
+    if (providerText == "custom") {
+      // Show something sensible, even when domain/ip use different providers.
+      const hostnames = [
+        maybeLookupUrl(options[CUSTOM_PROVIDER_DOMAIN])?.hostname,
+        maybeLookupUrl(options[CUSTOM_PROVIDER_IP])?.hostname
+      ].filter(Boolean);
+      providerText = [...new Set(hostnames)].join(" | ");
+    }
+    chrome.contextMenus?.removeAll(() => {
+      if (providerText) {
+        chrome.contextMenus.create({
+          title: `Lookup on ${providerText}`,
+          id: MENU_ID,
+          // Scope the menu to text selection in our popup windows.
+          contexts: ["selection"],
+          documentUrlPatterns: [chrome.runtime.getURL("popup.html")],
+        });
+      }
+    });
   }
 });

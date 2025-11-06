@@ -70,6 +70,45 @@ function iconPath(pattern, size, color) {
 const REGULAR_COLOR = "regularColorScheme";
 const INCOGNITO_COLOR = "incognitoColorScheme";
 
+const LOOKUP_PROVIDER = "lookupProvider";
+const CUSTOM_PROVIDER = "customProvider:";
+const CUSTOM_PROVIDER_DOMAIN = CUSTOM_PROVIDER + "domain";
+const CUSTOM_PROVIDER_IP = CUSTOM_PROVIDER + "ip";
+
+// "$" is a placeholder for the user's selected domain or IP address.
+const LOOKUP_PROVIDERS = {
+  "bgp.he.net": {
+    domain: "https://bgp.he.net/dns/$",
+    ip: "https://bgp.he.net/ip/$",
+  },
+  "info.addr.tools": {
+    domain: "https://info.addr.tools/$",
+    ip: "https://info.addr.tools/$",
+  },
+  "ipinfo.io": {
+    domain: "",
+    ip: "https://ipinfo.io/$",
+  },
+};
+
+function parseLookupUrl(pattern, placeholder="") {
+  pattern = pattern?.trim();
+  if (!pattern) {
+    return null;
+  }
+  if (!/^https:[/][/][^/$]+[/].*[$]/.test(pattern)) {
+    throw new Error("malformed");
+  }
+  return new URL(pattern.replaceAll("$", placeholder));  // may throw
+}
+function maybeLookupUrl(pattern, placeholder="") {
+  try {
+    return parseLookupUrl(pattern, placeholder);
+  } catch {
+    return null;
+  }
+}
+
 const NAT64_KEY = "nat64/";
 const NAT64_VALIDATE = /^nat64\/[0-9a-f]{24}$/;
 const NAT64_DEFAULTS = new Set([
@@ -79,23 +118,34 @@ const NAT64_DEFAULTS = new Set([
 ]);
 
 let _watchOptionsFunc = null;
-const options = {
-  ready: false,
+const DEFAULT_LOCAL_OPTIONS = {
   [REGULAR_COLOR]: "darkfg",  // default immediately replaced
   [INCOGNITO_COLOR]: "lightfg",
+};
+const DEFAULT_SYNC_OPTIONS = {
+  [LOOKUP_PROVIDER]: "bgp.he.net",
+  [CUSTOM_PROVIDER_DOMAIN]: "",
+  [CUSTOM_PROVIDER_IP]: "",
+};
+const options = {
+  ready: false,
   [NAT64_KEY]: new Set(NAT64_DEFAULTS),
+  ...DEFAULT_LOCAL_OPTIONS,
+  ...DEFAULT_SYNC_OPTIONS,
 };
 const optionsReady = (async function() {
   const [localItems, syncItems] = await Promise.all(
       [chrome.storage.local.get(), chrome.storage.sync.get()]);
   for (const [option, value] of Object.entries(localItems)) {
-    if (option == REGULAR_COLOR || option == INCOGNITO_COLOR) {
+    if (DEFAULT_LOCAL_OPTIONS.hasOwnProperty(option)) {
       options[option] = value;
     }
   }
   for (const [option, value] of Object.entries(syncItems)) {
     if (NAT64_VALIDATE.test(option)) {
       options[NAT64_KEY].add(option.slice(NAT64_KEY.length));
+    } else if (DEFAULT_SYNC_OPTIONS.hasOwnProperty(option)) {
+      options[option] = value;
     }
   }
   options.ready = true;
@@ -107,7 +157,7 @@ chrome.storage.local.onChanged.addListener(function(changes) {
   if (!options.ready) return;
   const optionsChanged = [];
   for (const [option, {oldValue, newValue}] of Object.entries(changes)) {
-    if (option == REGULAR_COLOR || option == INCOGNITO_COLOR) {
+    if (DEFAULT_LOCAL_OPTIONS.hasOwnProperty(option)) {
       if (options[option] != newValue) {
         options[option] = newValue;
         optionsChanged.push(option);
@@ -135,6 +185,11 @@ chrome.storage.sync.onChanged.addListener(function(changes) {
       }
       if (!optionsChanged.includes(NAT64_KEY)) {
         optionsChanged.push(NAT64_KEY);
+      }
+    } else if (DEFAULT_SYNC_OPTIONS.hasOwnProperty(option)) {
+      if (options[option] != newValue) {
+        options[option] = newValue;
+        optionsChanged.push(option);
       }
     }
   }

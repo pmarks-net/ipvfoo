@@ -24,20 +24,29 @@ const ALL_URLS = "<all_urls>";
 const LONG_DOMAIN = 50;
 
 const tabId = window.location.hash.substr(1);
-if (!isFinite(Number(tabId))) {
-  throw "Bad tabId";
-}
 
 let table = null;
 
 window.onload = async function() {
   table = document.getElementById("addr_table");
   table.onmousedown = handleMouseDown;
-  await beg();
   if (IS_MOBILE) {
     document.getElementById("mobile_footer").style.display = "flex";
   }
-  connectToExtension();
+  if (/^[0-9]+$/.test(tabId)) {
+    await beg();
+    connectToExtension();
+  } else if (tabId) {
+    throw new Error(`Bad tabId: ${tabId}`);
+  } else {
+    console.log("No tabId, using test table")
+    const TEST_TUPLES = [
+      ["ipv6.example.com", "2001:db8::f00", "6", DFLAG_SSL],
+      ["ipv4.example.com", "192.0.2.9", "4", DFLAG_NOSSL],
+      ["cached.example.com", "2001:db8::f00", "6", DFLAG_SSL | DFLAG_NOSSL | AFLAG_CACHE],
+    ];
+    pushAll(TEST_TUPLES, "646", REGULAR_COLOR, 0);
+  }
 };
 
 // Monitor for dark mode updates.

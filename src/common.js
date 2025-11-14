@@ -219,7 +219,12 @@ function setColorIsDarkMode(option, isDarkMode) {
   const value = isDarkMode ? "lightfg" : "darkfg";
   if (options[option] != value) {
     options[option] = value;
-    chrome.storage.local.set({[option]: value});
+    try {
+      chrome.storage.local.set({[option]: value});
+    } catch (e) {
+      // This happens when testing popup.html standalone.
+      console.error(e)
+    }
     _watchOptionsFunc?.([option]);
   }
 }

@@ -389,6 +389,11 @@ function handleMouseDown(e) {
   }
 }
 
+function sameRange(r1, r2) {
+  return (r1.compareBoundaryPoints(Range.START_TO_START, r2) == 0 &&
+          r1.compareBoundaryPoints(Range.END_TO_END, r2) == 0);
+}
+
 function isSpuriousSelection(sel, newTimeStamp) {
   if (newTimeStamp - oldTimeStamp > 10) {
     return false;
@@ -397,10 +402,7 @@ function isSpuriousSelection(sel, newTimeStamp) {
     return true;
   }
   for (let i = 0; i < sel.rangeCount; i++) {
-    const r1 = sel.getRangeAt(i);
-    const r2 = oldRanges[i];
-    if (r1.compareBoundaryPoints(Range.START_TO_START, r2) != 0 ||
-        r1.compareBoundaryPoints(Range.END_TO_END, r2) != 0) {
+    if (!sameRange(sel.getRangeAt(i), oldRanges[i])) {
       return true;
     }
   }
@@ -416,8 +418,21 @@ function handleContextMenu(e) {
   return sel;
 }
 
-function handleClick() {
-  selectWholeAddress(this, window.getSelection());
+function handleClick(e) {
+  const sel = window.getSelection();
+
+  // If the user clicked an already-selected address, deselect it.
+  // Don't check timeStamp because it depends how long they held the button.
+  if (e.detail == 1 && oldRanges.length == 1) {
+    const newRange = document.createRange();
+    newRange.selectNodeContents(this);
+    if (sameRange(newRange, oldRanges[0])) {
+      sel.removeAllRanges();
+      return;
+    }
+  }
+
+  selectWholeAddress(this, sel);
 }
 
 // If the user hasn't manually selected part of the address, then select

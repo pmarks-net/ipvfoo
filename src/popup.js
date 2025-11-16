@@ -267,10 +267,15 @@ function makeRow(isFirst, tuple) {
   // Build the "Domain" column.
   const domainTd = document.createElement("td");
   domainTd.appendChild(sslImg);
+
+  const selectMe = document.createElement("span");
+  domainTd.appendChild(selectMe);
+  selectMe.className = "selectMe";
+
   if (domain.length > LONG_DOMAIN) {
-    domainTd.appendChild(makeSnippedText(domain, Math.floor(LONG_DOMAIN / 2)));
+    selectMe.appendChild(makeSnippedText(domain, Math.floor(LONG_DOMAIN / 2)));
   } else {
-    domainTd.appendChild(document.createTextNode(domain));
+    selectMe.appendChild(document.createTextNode(domain));
   }
   domainTd.className = "domainTd";
   domainTd.onclick = handleClick;
@@ -418,15 +423,20 @@ function handleContextMenu(e) {
   return sel;
 }
 
+// Let the "selectMe" class define a more specific selection range.
+function nodeToRange(node) {
+  const range = document.createRange();
+  range.selectNodeContents(node.querySelector('.selectMe') || node);
+  return range;
+}
+
 function handleClick(e) {
   const sel = window.getSelection();
 
   // If the user clicked an already-selected address, deselect it.
   // Don't check timeStamp because it depends how long they held the button.
   if (e.detail == 1 && oldRanges.length == 1) {
-    const newRange = document.createRange();
-    newRange.selectNodeContents(this);
-    if (sameRange(newRange, oldRanges[0])) {
+    if (sameRange(nodeToRange(this), oldRanges[0])) {
       sel.removeAllRanges();
       return;
     }
@@ -439,9 +449,7 @@ function handleClick(e) {
 // the whole thing, to make copying easier.
 function selectWholeAddress(node, sel) {
   if (sel.isCollapsed || !sel.containsNode(node, true)) {
-    const range = document.createRange();
-    range.selectNodeContents(node);
     sel.removeAllRanges();
-    sel.addRange(range);
+    sel.addRange(nodeToRange(node));
   }
 }

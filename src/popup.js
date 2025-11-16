@@ -185,8 +185,15 @@ function shake() {
 
 // On mobile, zoom in so the table fills the viewport.
 function zoomHack() {
+  // This value is actually a bit smaller than we want,
+  // but apparently a too-narrow viewport results in a best-fit zoom.
   const tableWidth = document.querySelector('table').offsetWidth;
   document.querySelector('meta[name="viewport"]').setAttribute('content', `width=${tableWidth}`);
+
+  // Leave room to the right for the text selection handle,
+  // to prevent jittery zooming if the user selects an IP address.
+  // 8% of the table width seems reasonable.
+  table.style.setProperty('--cache-min-width', `${tableWidth * 0.08}px`);
 }
 
 // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1395025

@@ -32,6 +32,7 @@ table {
   background-image: url("1x1_808080.png");
   background-position: top 0px left 23px;
   background-repeat: repeat-y;
+  --cache-min-width: 0px;
 }
 table, td, tr {
   border-width: 1px;
@@ -66,6 +67,8 @@ img {
 }
 .cacheTd {
   border-left-width: 0;
+  text-align: right;
+  min-width: var(--cache-min-width);
 }
 .ip4 {
   color: #800000;

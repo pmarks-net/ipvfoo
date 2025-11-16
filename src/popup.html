@@ -134,6 +134,44 @@ img {
   display: none;
 }
 
+#lookup_bubble {
+  --bubble-fg: #000;
+  --bubble-left: 0px;
+  --table-left: 0px;
+  --table-width: 0px;
+  --bubble-width: 0px;
+  --max-left: calc(var(--table-left) + var(--table-width) - var(--bubble-width));
+  position: absolute;
+  display: none;
+  background: #eee;
+  border: 1px solid var(--bubble-fg);
+  border-radius: 5px;
+  box-sizing: border-box;
+  left: clamp(var(--table-left), var(--bubble-left), var(--max-left));
+  max-width: var(--table-width);
+}
+#lookup_bubble::before {
+  /* arrow pointing up from the border. */
+  --arrow-size: 5px;
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--arrow-size));
+  left: calc(var(--bubble-left) - min(var(--bubble-left), var(--max-left)) + 10px);
+  width: 0;
+  height: 0;
+  border-left: var(--arrow-size) solid transparent;
+  border-right: var(--arrow-size) solid transparent;
+  border-bottom: var(--arrow-size) solid var(--bubble-fg);
+}
+#lookup_bubble a {
+  display: block;
+  padding: 6pt;
+  color: var(--bubble-fg);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
 /* dark mode */
 @media (prefers-color-scheme: dark) {
   body {
@@ -163,6 +201,10 @@ img {
   }
   #pattern_icon_lightfg {
     display: initial;
+  }
+  #lookup_bubble {
+    background: #666;
+    --bubble-fg: #eee;
   }
 }
 
@@ -198,6 +240,9 @@ img {
     <div id="options_link"><a href="options.html">Options</a></div>
     <img id="pattern_icon_lightfg">
     <img id="pattern_icon_darkfg">
+  </div>
+  <div id="lookup_bubble">
+    <a id="lookup_link" href="#" target="_blank">Lookup on lookup.example.com</a>
   </div>
 </div>
 </body>

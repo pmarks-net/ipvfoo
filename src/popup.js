@@ -30,8 +30,13 @@ let table = null;
 window.onload = async function() {
   table = document.getElementById("addr_table");
   table.onmousedown = handleMouseDown;
+
   if (IS_MOBILE) {
     document.getElementById("mobile_footer").style.display = "flex";
+
+    document.addEventListener("selectionchange", redrawLookupBubble);
+    const resizeObserver = new ResizeObserver(redrawLookupBubble);
+    resizeObserver.observe(table);
   }
   if (/^[0-9]+$/.test(tabId)) {
     await beg();
@@ -77,6 +82,28 @@ async function beg() {
     window.close();
     await promise;
   });
+}
+
+function redrawLookupBubble() {
+  // TODO: Integrate with the contextMenus logic.
+  const bubble = document.getElementById("lookup_bubble");
+  const sel = window.getSelection();
+  if (!/^[0-9A-Za-z._:-]+$/.test(sel.toString())) {
+    bubble.style.display = "none";
+    return;
+  }
+
+  const selRect = sel.getRangeAt(0).getBoundingClientRect();
+  const tableRect = table.getBoundingClientRect();
+
+  bubble.style.display = "block";
+  bubble.style.top = `${selRect.bottom + window.scrollY + 5}px`;
+  bubble.style.setProperty('--bubble-left', `${selRect.left - 10}px`);
+  bubble.style.setProperty('--table-left', `${tableRect.left}px`);
+  bubble.style.setProperty('--table-width', `${tableRect.width}px`);
+
+  const bubbleRect = bubble.getBoundingClientRect();
+  bubble.style.setProperty('--bubble-width', `${bubbleRect.width}px`);
 }
 
 function connectToExtension() {

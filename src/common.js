@@ -109,6 +109,48 @@ function maybeLookupUrl(pattern, placeholder="") {
   }
 }
 
+// Distinguish IP address and domain name characters.
+// Note that IP6_CHARS must not match "beef.de"
+const IP4_CHARS = /^[0-9.]+$/;
+const IP6_CHARS = /^[0-9A-Fa-f]*:[0-9A-Fa-f:.]*$/;
+const DNS_CHARS = /^[0-9A-Za-z._-]+$/;
+
+function selectionToLookupUrl(text) {
+  let selectionType = "";
+  // Remember that IP must be evaluated before DNS.
+  if (IP4_CHARS.test(text) || IP6_CHARS.test(text)) {
+    selectionType = "ip";
+    // bgp.he.net doesn't support dotted IPv6 addresses.
+    text = reformatForNAT64(text, false);
+  } else if (DNS_CHARS.test(text)) {
+    selectionType = "domain";
+  } else {
+    return null;
+  }
+  const provider = options[LOOKUP_PROVIDER];
+  const pattern = (provider == "custom") ?
+      options[`${CUSTOM_PROVIDER}${selectionType}`] :
+      LOOKUP_PROVIDERS[provider]?.[selectionType];
+  return maybeLookupUrl(pattern, text);
+}
+
+// Generate "Lookup on [provider]" string for whatever text is selected.
+// If unsure, caller should provide an example domain and IP address.
+function lookupMenuTitle(...selectionTexts) {
+  let providerText = options[LOOKUP_PROVIDER];
+  if (providerText == "custom") {
+    const hostnames = selectionTexts
+        .map(text => selectionToLookupUrl(text)?.hostname)
+        .filter(Boolean);
+    providerText = [...new Set(hostnames)].join(" | ");
+  }
+  if (providerText) {
+    return `Lookup on ${providerText}`;
+  } else {
+    return "";
+  }
+}
+
 const NAT64_KEY = "nat64/";
 const NAT64_VALIDATE = /^nat64\/[0-9a-f]{24}$/;
 const NAT64_DEFAULTS = new Set([
@@ -266,4 +308,18 @@ function revertNAT64() {
     // our local Set is used for deduplication.
     _watchOptionsFunc?.([NAT64_KEY]);
   }
+}
+
+function reformatForNAT64(addr, doLookup=true) {
+  let packed128 = "";
+  try {
+    packed128 = parseIP(addr);
+  } catch {
+    return addr;  // no change
+  }
+  if (packed128.length != 128/4) {
+    return addr;  // no change
+  }
+  const isNAT64 = doLookup && options[NAT64_KEY].has(packed128.slice(0, 96/4));
+  return formatIPv6(packed128, /*with_dots=*/isNAT64);
 }

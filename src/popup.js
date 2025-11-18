@@ -85,13 +85,20 @@ async function beg() {
 }
 
 function redrawLookupBubble() {
-  // TODO: Integrate with the contextMenus logic.
   const bubble = document.getElementById("lookup_bubble");
   const sel = window.getSelection();
-  if (!/^[0-9A-Za-z._:-]+$/.test(sel.toString())) {
+  const text = sel.toString();
+  const menuTitle = lookupMenuTitle(text);
+  const href = selectionToLookupUrl(text)?.href;
+
+  if (!(menuTitle && href)) {
     bubble.style.display = "none";
     return;
   }
+
+  const link = document.getElementById("lookup_link");
+  link.textContent = menuTitle;
+  link.href = href;
 
   const selRect = sel.getRangeAt(0).getBoundingClientRect();
   const tableRect = table.getBoundingClientRect();

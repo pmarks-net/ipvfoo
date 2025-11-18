@@ -30,10 +30,6 @@ window.onload = async () => {
     ipv4pages.appendChild(li);
   }
 
-  if (IS_MOBILE) {
-    document.getElementById("lookup-provider").style.display = "none";
-  }
-
   // Generate radio buttons
   function makeRadioButton(value, text) {
     const label = document.createElement("label");

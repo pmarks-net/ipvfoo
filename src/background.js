@@ -52,12 +52,6 @@ const TAB_DEAD = 2;
 // RequestFilter for webRequest events.
 const FILTER_ALL_URLS = { urls: ["<all_urls>"] };
 
-// Distinguish IP address and domain name characters.
-// Note that IP6_CHARS must not match "beef.de"
-const IP4_CHARS = /^[0-9.]+$/;
-const IP6_CHARS = /^[0-9A-Fa-f]*:[0-9A-Fa-f:.]*$/;
-const DNS_CHARS = /^[0-9A-Za-z._-]+$/;
-
 const SECONDS = 1000;  // to milliseconds
 
 const NAME_VERSION = (() => {
@@ -125,20 +119,6 @@ function updateNAT64(domain, addr) {
   }
   // If this is a new prefix, the watchOptions callback will handle it.
   addPackedNAT64(packed.slice(0, 96/4));
-}
-
-function reformatForNAT64(addr, doLookup=true) {
-  let packed128 = "";
-  try {
-    packed128 = parseIP(addr);
-  } catch {
-    return addr;  // no change
-  }
-  if (packed128.length != 128/4) {
-    return addr;  // no change
-  }
-  const isNAT64 = doLookup && options[NAT64_KEY].has(packed128.slice(0, 96/4));
-  return formatIPv6(packed128, /*with_dots=*/isNAT64);
 }
 
 class SaveableEntry {
@@ -1144,21 +1124,8 @@ const MENU_ID = "ipvfoo-lookup";
 
 chrome.contextMenus?.onClicked.addListener((info, tab) => {
   if (info.menuItemId != MENU_ID) return;
-  let selectionType = "";
-  let text = info.selectionText;
-  // Remember that IP must be evaluated before DNS.
-  if (IP4_CHARS.test(text) || IP6_CHARS.test(text)) {
-    selectionType = "ip";
-    // bgp.he.net doesn't support dotted IPv6 addresses.
-    text = reformatForNAT64(text, false);
-  } else if (DNS_CHARS.test(text)) {
-    selectionType = "domain";
-  }
-  const provider = options[LOOKUP_PROVIDER];
-  const pattern = (provider == "custom") ?
-      options[`${CUSTOM_PROVIDER}${selectionType}`] :
-      LOOKUP_PROVIDERS[provider]?.[selectionType];
-  const url = maybeLookupUrl(pattern, text)?.href;
+  const text = info.selectionText;
+  const url = selectionToLookupUrl(text)?.href;
   if (url) {
     chrome.tabs.create({url});
   } else {
@@ -1193,19 +1160,12 @@ watchOptions(async (optionsChanged) => {
   if (optionsChanged.has(LOOKUP_PROVIDER) ||
       optionsChanged.has(CUSTOM_PROVIDER_DOMAIN) ||
       optionsChanged.has(CUSTOM_PROVIDER_IP)) {
-    let providerText = options[LOOKUP_PROVIDER];
-    if (providerText == "custom") {
-      // Show something sensible, even when domain/ip use different providers.
-      const hostnames = [
-        maybeLookupUrl(options[CUSTOM_PROVIDER_DOMAIN])?.hostname,
-        maybeLookupUrl(options[CUSTOM_PROVIDER_IP])?.hostname
-      ].filter(Boolean);
-      providerText = [...new Set(hostnames)].join(" | ");
-    }
     chrome.contextMenus?.removeAll(() => {
-      if (providerText) {
+      // Show something sensible, even when domain/ip use different providers.
+      const title = lookupMenuTitle("example.com", "0.0.0.0");
+      if (title) {
         chrome.contextMenus.create({
-          title: `Lookup on ${providerText}`,
+          title: title,
           id: MENU_ID,
           // Scope the menu to text selection in our popup windows.
           contexts: ["selection"],

@@ -10,16 +10,16 @@ Everything is captured privately using the webRequest API, without creating any 
 ## Add to Chrome
 https://chrome.google.com/webstore/detail/ipvfoo/ecanpcehffngcegjmadlcijfolapggal
 
-<picture><img src="https://badgen.net/chrome-web-store/v/ecanpcehffngcegjmadlcijfolapggal"></picture>
-<picture><img src="https://badgen.net/chrome-web-store/users/ecanpcehffngcegjmadlcijfolapggal"></picture>
-<picture><img src="https://badgen.net/chrome-web-store/rating/ecanpcehffngcegjmadlcijfolapggal"></picture>
+<picture><img src="https://img.shields.io/chrome-web-store/v/ecanpcehffngcegjmadlcijfolapggal"></picture>
+<picture><img src="https://img.shields.io/chrome-web-store/users/ecanpcehffngcegjmadlcijfolapggal"></picture>
+<picture><img src="https://img.shields.io/chrome-web-store/rating/ecanpcehffngcegjmadlcijfolapggal"></picture>
 
 ## Add to Firefox
 https://addons.mozilla.org/addon/ipvfoo/  
 
-<picture><img src="https://badgen.net/amo/v/ipvfoo"></picture>
-<picture><img src="https://badgen.net/amo/users/ipvfoo"></picture>
-<picture><img src="https://badgen.net/amo/rating/ipvfoo"></picture>
+<picture><img src="https://img.shields.io/amo/v/ipvfoo"></picture>
+<picture><img src="https://img.shields.io/amo/users/ipvfoo"></picture>
+<picture><img src="https://img.shields.io/amo/rating/ipvfoo"></picture>
 
 To use IPvFoo with Firefox's default search engine, uncheck **Settings > Search > Show search terms in the address bar on results pages**
 

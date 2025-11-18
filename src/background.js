@@ -1146,12 +1146,13 @@ chrome.contextMenus?.onClicked.addListener((info, tab) => {
   if (info.menuItemId != MENU_ID) return;
   let selectionType = "";
   let text = info.selectionText;
-  if (DNS_CHARS.test(text)) {
-    selectionType = "domain";
-  } else if (IP4_CHARS.test(text) || IP6_CHARS.test(text)) {
+  // Remember that IP must be evaluated before DNS.
+  if (IP4_CHARS.test(text) || IP6_CHARS.test(text)) {
     selectionType = "ip";
     // bgp.he.net doesn't support dotted IPv6 addresses.
     text = reformatForNAT64(text, false);
+  } else if (DNS_CHARS.test(text)) {
+    selectionType = "domain";
   }
   const provider = options[LOOKUP_PROVIDER];
   const pattern = (provider == "custom") ?

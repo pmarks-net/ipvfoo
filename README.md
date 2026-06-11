@@ -25,11 +25,12 @@ To use IPvFoo with Firefox's default search engine, uncheck **Settings > Search 
 
 ## Add to Edge
 https://microsoftedge.microsoft.com/addons/detail/ipvfoo/dphnkggpaicipkljebciobedeiaiofod  
-*(You can also run the Chrome version on Edge, as they are identical.)*
 
 <picture><img src="https://badgen.net/edge-addons/v/dphnkggpaicipkljebciobedeiaiofod"></picture>
 <picture><img src="https://badgen.net/edge-addons/users/dphnkggpaicipkljebciobedeiaiofod"></picture>
 <picture><img src="https://badgen.net/edge-addons/rating/dphnkggpaicipkljebciobedeiaiofod"></picture>
+
+*(You can also run the Chrome version on Edge, as they are identical.)*
 
 ## Safari?
 

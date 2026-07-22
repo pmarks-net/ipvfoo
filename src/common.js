@@ -22,11 +22,13 @@ const IS_MOBILE = /\bMobile\b/.test(navigator.userAgent);
 
 // Domain flags are bitwise-OR'd across all connections to a domain.
 const DFLAG_MASK = 0xFF00;
-const DFLAG_SSL = 0x100;
-const DFLAG_NOSSL = 0x200;
-const DFLAG_CONNECTED = 0x400;
-const DFLAG_WEBSOCKET = 0x800;
-const DFLAG_NOTWORKER = 0x1000;  // from a tab, not a service worker
+const DFLAG_NO_TLS = 0x100;  // Unencrypted HTTP
+const DFLAG_H1 = 0x200;      // HTTP/1.x with TLS
+const DFLAG_H2 = 0x400;      // HTTP/2.x with TLS
+const DFLAG_H3 = 0x800;      // HTTP/3.x with TLS
+const DFLAG_CONNECTED = 0x1000;
+const DFLAG_WEBSOCKET = 0x2000;
+const DFLAG_NOTWORKER = 0x4000;  // from a tab, not a service worker
 
 // Address flags refer to a specific connection, and are used to prioritize
 // which address is shown to the user.  The lowest numerical value wins.
@@ -69,6 +71,7 @@ function iconPath(pattern, size, color) {
 
 const REGULAR_COLOR = "regularColorScheme";
 const INCOGNITO_COLOR = "incognitoColorScheme";
+const SAW_HTTP_GT_1 = "sawHttpGt1";
 
 const LOOKUP_PROVIDER = "lookupProvider";
 const CUSTOM_PROVIDER = "customProvider:";
@@ -163,6 +166,7 @@ let _watchOptionsFunc = null;
 const DEFAULT_LOCAL_OPTIONS = {
   [REGULAR_COLOR]: "",  // default replaced on first boot.
   [INCOGNITO_COLOR]: "lightfg",
+  [SAW_HTTP_GT_1]: false,
 };
 const DEFAULT_SYNC_OPTIONS = {
   [LOOKUP_PROVIDER]: "bgp.he.net",
@@ -268,6 +272,22 @@ function setColorIsDarkMode(option, isDarkMode) {
       console.error(e)
     }
     _watchOptionsFunc?.([option]);
+  }
+}
+
+// Call this if webRequest reports HTTP/2 or HTTP/3.
+// Doesn't work in Chrome: https://issues.chromium.org/issues/41432835
+function sawHttpGt1() {
+  const o = SAW_HTTP_GT_1;
+  if (!options[o]) {
+    options[o] = true;
+    try {
+      chrome.storage.local.set({[o]: true});
+    } catch (e) {
+      console.error(e)
+    }
+    // Nothing is currently watching for this.
+    _watchOptionsFunc?.([o]);
   }
 }
 

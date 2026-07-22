@@ -26,6 +26,7 @@ const LONG_DOMAIN = 50;
 const tabId = window.location.hash.substr(1);
 
 let table = null;
+let gSawHttpGt1 = false;
 
 window.onload = async function() {
   table = document.getElementById("addr_table");
@@ -46,11 +47,11 @@ window.onload = async function() {
   } else {
     console.log("No tabId, using test table")
     const TEST_TUPLES = [
-      ["ipv6.example.com", "2001:db8::f00", "6", DFLAG_SSL],
-      ["ipv4.example.com", "192.0.2.9", "4", DFLAG_NOSSL],
-      ["cached.example.com", "2001:db8::f00", "6", DFLAG_SSL | DFLAG_NOSSL | AFLAG_CACHE],
+      ["ipv6.example.com", "2001:db8::f00", "6", DFLAG_H1],
+      ["ipv4.example.com", "192.0.2.9", "4", DFLAG_NO_TLS],
+      ["cached.example.com", "2001:db8::f00", "6", DFLAG_H3 | AFLAG_CACHE],
     ];
-    pushAll(TEST_TUPLES, "646", REGULAR_COLOR, 0);
+    pushAll(TEST_TUPLES, "646", REGULAR_COLOR, 0, true);
   }
 };
 
@@ -120,7 +121,7 @@ function connectToExtension() {
     //console.log("onMessage", msg.cmd, msg);
     switch (msg.cmd) {
       case "pushAll":
-        return pushAll(msg.tuples, msg.pattern, msg.color, msg.spillCount);
+        return pushAll(msg.tuples, msg.pattern, msg.color, msg.spillCount, msg.sawHttpGt1);
       case "pushOne":
         return pushOne(msg.tuple);
       case "pushPattern":
@@ -139,7 +140,8 @@ function connectToExtension() {
 }
 
 // Clear the table, and fill it with new data.
-function pushAll(tuples, pattern, color, spillCount) {
+function pushAll(tuples, pattern, color, spillCount, sawHttpGt1) {
+  gSawHttpGt1 = sawHttpGt1;
   removeChildren(table);
   for (let i = 0; i < tuples.length; i++) {
     table.appendChild(makeRow(i == 0, tuples[i]));
@@ -272,22 +274,36 @@ function makeImg(src, title) {
   return img;
 }
 
-function makeSslImg(flags) {
-  switch (flags & (DFLAG_SSL | DFLAG_NOSSL)) {
-    case DFLAG_SSL | DFLAG_NOSSL:
-      return makeImg(
-          "gray_schrodingers_lock.png",
-          "Mixture of HTTPS and non-HTTPS connections.");
-    case DFLAG_SSL:
-      return makeImg(
-          "gray_lock.png",
-          "Connection uses HTTPS.\n" +
-          "Warning: IPvFoo does not verify the integrity of encryption.");
-    default:
-      return makeImg(
-          "gray_unlock.png",
-          "Connection does not use HTTPS.");
+function makeHttpImg(flags) {
+  if (flags & DFLAG_NO_TLS) {
+    return makeImg(
+        "gray_unlock.png",
+        "Some connections do not use TLS.");
   }
+  if (gSawHttpGt1) {
+    if (flags & DFLAG_H3) {
+      return makeImg(
+          "gray_h3.png",
+          "HTTP/3 (with TLS) is the max version seen.");
+    }
+    if (flags & DFLAG_H2) {
+      return makeImg(
+          "gray_h2.png",
+          "HTTP/2 (with TLS) is the max version seen.");
+    }
+    if (flags & DFLAG_H1) {
+      return makeImg(
+          "gray_h1.png",
+          "HTTP/1.x (with TLS) is the max version seen.");
+    }
+  } else if (flags & (DFLAG_H1 | DFLAG_H2 | DFLAG_H3)) {
+    return makeImg(
+        "gray_lock.png",
+        "All connections use TLS.");
+  }
+  return makeImg(
+      "gray_question.png",
+      "Failed to parse HTTP status.");
 }
 
 function makeRow(isFirst, tuple) {
@@ -301,13 +317,13 @@ function makeRow(isFirst, tuple) {
     tr.className = "mainRow";
   }
 
-  // Build the SSL icon for the "zeroth" pseudo-column.
-  const sslImg = makeSslImg(flags);
-  sslImg.className = "sslImg";
+  // Build the HTTP icon for the "zeroth" pseudo-column.
+  const httpImg = makeHttpImg(flags);
+  httpImg.className = "httpImg";
 
   // Build the "Domain" column.
   const domainTd = document.createElement("td");
-  domainTd.appendChild(sslImg);
+  domainTd.appendChild(httpImg);
 
   const selectMe = document.createElement("span");
   domainTd.appendChild(selectMe);

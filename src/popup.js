@@ -18,6 +18,7 @@ limitations under the License.
 
 // Requires <script src="common.js">
 
+const IS_CHROMIUM = !!chrome.runtime.getManifest().background.service_worker;
 const ALL_URLS = "<all_urls>";
 
 // Snip domains longer than this, to avoid horizontal scrolling.
@@ -235,7 +236,7 @@ function zoomHack() {
 // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1395025
 let redrawn = false;
 function scrollbarHack() {
-  if (typeof browser == "undefined") {
+  if (IS_CHROMIUM) {
     return;  // nothing to do on Chrome.
   }
   setTimeout(() => {

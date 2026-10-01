@@ -37,7 +37,8 @@ user can demand a popup before any IP addresses are available.
 
 "use strict";
 
-if (chrome.runtime.getManifest().background.service_worker) {
+const IS_CHROMIUM = !!chrome.runtime.getManifest().background.service_worker;
+if (IS_CHROMIUM) {
   // This only runs on Chrome.
   // Firefox uses manifest.json/background/scripts instead.
   importScripts("iputil.js", "common.js");
@@ -592,7 +593,7 @@ const requestMap = new SaveableMap(RequestInfo, "req/");
 // Firefox-only domain->ip cache, to help work around
 // https://bugzilla.mozilla.org/show_bug.cgi?id=1395020
 const IP_CACHE_LIMIT = 1024;
-const ipCache = (typeof browser == "undefined") ? null : new SaveableMap(IPCacheEntry, "ip/");
+const ipCache = IS_CHROMIUM ? null : new SaveableMap(IPCacheEntry, "ip/");
 let ipCacheSize = 0;
 
 function ipCacheGrew() {

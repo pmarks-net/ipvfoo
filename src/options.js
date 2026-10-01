@@ -18,6 +18,8 @@ limitations under the License.
 
 // Requires <script src="common.js">
 
+const IS_CHROMIUM = !!chrome.runtime.getManifest().background.service_worker;
+
 window.onload = async () => {
   const ipv4pages = document.getElementById("ipv4pages");
   for (const domain of IPV4_ONLY_DOMAINS.keys()) {
@@ -145,7 +147,7 @@ window.onload = async () => {
   };
 
   // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1946972
-  if (typeof browser != "undefined") {
+  if (!IS_CHROMIUM) {
     document.body.addEventListener("click", function(e) {
       if (e.target.tagName == "A" && (e.ctrlKey || e.metaKey || e.shiftKey)) {
         window.open(e.target.href);

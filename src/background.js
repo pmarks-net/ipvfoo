@@ -41,7 +41,7 @@ const IS_CHROMIUM = !!chrome.runtime.getManifest().background.service_worker;
 if (IS_CHROMIUM) {
   // This only runs on Chrome.
   // Firefox uses manifest.json/background/scripts instead.
-  importScripts("iputil.js", "common.js");
+  importScripts("iputil.js", "common.js", "ipinfo-address.js", "ipinfo-service.js");
 }
 
 // Possible states for an instance of TabInfo.
@@ -1190,3 +1190,7 @@ watchOptions(async (optionsChanged) => {
     });
   }
 });
+
+if (IS_CHROMIUM) {
+  importScripts("ipinfo-background.js");
+}

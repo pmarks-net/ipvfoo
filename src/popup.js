@@ -17,17 +17,21 @@ limitations under the License.
 "use strict";
 
 // Requires <script src="common.js">
+// Requires <script src="flags/codes.js">
 
 const IS_CHROMIUM = !!chrome.runtime.getManifest().background.service_worker;
 const ALL_URLS = "<all_urls>";
 
 // Snip domains longer than this, to avoid horizontal scrolling.
-const LONG_DOMAIN = 50;
+const LONG_DOMAIN = 30;
+const LONG_ADDRESS = 21;
 
 const tabId = window.location.hash.substr(1);
 
 let table = null;
 let gSawHttpGt1 = false;
+let ipinfoStatusRequest = 0;
+let ipinfoRefreshScheduled = false;
 
 window.onload = async function() {
   table = document.getElementById("addr_table");
@@ -43,6 +47,7 @@ window.onload = async function() {
   if (/^[0-9]+$/.test(tabId)) {
     await beg();
     connectToExtension();
+    refreshIpinfoStatus();
   } else if (tabId) {
     throw new Error(`Bad tabId: ${tabId}`);
   } else {
@@ -53,8 +58,118 @@ window.onload = async function() {
       ["cached.example.com", "2001:db8::f00", "6", DFLAG_H3 | AFLAG_CACHE],
     ];
     pushAll(TEST_TUPLES, "646", REGULAR_COLOR, 0, true);
+    document.getElementById("ipinfo_status").textContent = "Preview — no IPinfo requests";
   }
 };
+
+// Treat storage notifications only as a signal. Never read the token here.
+chrome.storage.local.onChanged.addListener((changes) => {
+  if (Object.hasOwn(changes, "ipinfoSettings") && table) {
+    refreshIpinfoStatus(true);
+  }
+});
+
+async function refreshIpinfoStatus(refreshRows = false) {
+  if (!/^[0-9]+$/.test(tabId)) return;
+  const request = ++ipinfoStatusRequest;
+  if (refreshRows) {
+    for (const row of table.children) row._metadataRequest = null;
+  }
+  try {
+    const status = await chrome.runtime.sendMessage({ipinfo: {action: "getStatus"}});
+    if (request != ipinfoStatusRequest) return;
+    const text = lastColor == INCOGNITO_COLOR ? "Incognito — online lookup disabled" :
+        !status?.enabled ? "IPinfo is off — enable in Settings" :
+        !status.configured ? "Add your IPinfo token in Settings" :
+        "Country is an IP database estimate, not the connected server's location";
+    document.getElementById("ipinfo_status").textContent = text;
+    if (refreshRows) for (const row of table.children) enrichRow(row);
+  } catch {
+    if (request == ipinfoStatusRequest) {
+      document.getElementById("ipinfo_status").textContent = "IPinfo is unavailable — reopen this popup to retry";
+    }
+  }
+}
+
+function metadataMessage(status) {
+  return ({
+    disabled: "Online lookup is off. Enable it in Settings.",
+    unconfigured: "Add your IPinfo API token in Settings.",
+    incognito: "Online lookup is disabled in incognito windows.",
+    auth_error: "Token was rejected. Save a valid token in Settings.",
+    rate_limited: "IPinfo rate limit reached. Try again later.",
+    error: "IPinfo lookup failed. Try again later.",
+    invalid: "No valid IP address is available.",
+  })[status] || "IPinfo has no data for this address.";
+}
+
+function renderMetadata(row, result) {
+  const country = row.querySelector(".countryTd");
+  const asn = row.querySelector(".asnTd");
+  const org = row.querySelector(".orgTd");
+  const success = result?.status == "ok";
+  const local = result?.status == "local" || result?.status == "special";
+  country.textContent = success ? (result.countryCode || "—") :
+      local ? (result.label || (result.status == "local" ? "Local" : "Special")) : "—";
+  const flagCode = typeof result?.countryCode == "string" ? result.countryCode.toLowerCase() : "";
+  if (success && IPINFO_FLAG_CODES.has(flagCode)) {
+    // Only bundled, allowlisted SVGs are used. The text remains the accessible
+    // country label and clipboard value; flags do not need an emoji font.
+    const flag = document.createElement("img");
+    flag.className = "countryFlag";
+    flag.width = 20;
+    flag.height = 15;
+    flag.alt = "";
+    flag.setAttribute("aria-hidden", "true");
+    flag.draggable = false;
+    flag.addEventListener("error", () => { flag.hidden = true; }, {once: true});
+    flag.src = `flags/${flagCode}.svg`;
+    country.prepend(flag);
+  }
+  asn.textContent = success ? (result.asn || "—") : "—";
+  const orgName = document.createElement("span");
+  orgName.className = "orgName";
+  orgName.textContent = success ? (result.asName || "—") : "—";
+  org.replaceChildren(orgName);
+  country.title = success ? (result.country || "Country unavailable") :
+      local ? `${result.label || "Local/special address"} — no online lookup` : metadataMessage(result?.status);
+  asn.title = success ? (result.asName || "Network name unavailable") : country.title;
+  org.title = asn.title;
+  country.classList.toggle("metadata-muted", !success);
+  asn.classList.toggle("metadata-muted", !success);
+  org.classList.toggle("metadata-muted", !success);
+}
+
+function enrichRow(row) {
+  if (!/^[0-9]+$/.test(tabId) || row._metadataRequest) return;
+  if (lastColor == INCOGNITO_COLOR) {
+    renderMetadata(row, {status: "incognito"});
+    return;
+  }
+  const request = {};
+  const address = row._address;
+  row._metadataRequest = request;
+  row.querySelector(".countryTd").textContent = "…";
+  row.querySelector(".countryTd").title = "Looking up IP metadata";
+  chrome.runtime.sendMessage({ipinfo: {action: "lookup", address, tabId: Number(tabId)}})
+      .then((result) => {
+        if (row.parentNode == table && row._metadataRequest === request && row._address === address &&
+            lastColor != INCOGNITO_COLOR) renderMetadata(row, result || {status: "error"});
+      }).catch(() => {
+        if (row.parentNode == table && row._metadataRequest === request && row._address === address) {
+          renderMetadata(row, {status: "error"});
+        }
+      });
+}
+
+function scheduleIpinfoRefresh() {
+  if (ipinfoRefreshScheduled) return;
+  ipinfoRefreshScheduled = true;
+  queueMicrotask(() => {
+    ipinfoRefreshScheduled = false;
+    refreshIpinfoStatus(true);
+  });
+}
 
 // Monitor for dark mode updates.
 const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -149,6 +264,7 @@ function pushAll(tuples, pattern, color, spillCount, sawHttpGt1) {
   }
   pushPattern(pattern, color);
   pushSpillCount(spillCount);
+  for (const row of table.children) enrichRow(row);
 }
 
 // Insert or update a single table row.
@@ -160,6 +276,7 @@ function pushOne(tuple) {
     if (tr._domain == domain) {
       // Found an exact match.  Update the row.
       minimalCopy(makeRow(isFirst, tuple), tr);
+      enrichRow(tr);
       return;
     }
     if (isFirst) {
@@ -170,7 +287,9 @@ function pushOne(tuple) {
     }
   }
   // No exact match.  Insert the row in alphabetical order.
-  table.insertBefore(makeRow(false, tuple), insertHere);
+  const row = makeRow(false, tuple);
+  table.insertBefore(row, insertHere);
+  enrichRow(row);
   if (IS_MOBILE) {
     zoomHack();
   } else {
@@ -184,6 +303,7 @@ function pushPattern(pattern, color) {
   if (lastColor != color) {
     lastColor = color;
     setColorIsDarkMode(lastColor, darkMode);
+    scheduleIpinfoRefresh();
   }
   if (!IS_MOBILE) {
     return;
@@ -252,12 +372,18 @@ function scrollbarHack() {
 
 // Copy the contents of src into dst, making minimal changes.
 function minimalCopy(src, dst) {
+  const sameAddress = src._address === dst._address;
   dst.className = src.className;
   for (let s = src.firstChild, d = dst.firstChild, sNext, dNext;
        s && d;
        s = sNext, d = dNext) {
     sNext = s.nextSibling;
     dNext = d.nextSibling;
+    // Keep completed or pending metadata when only connection flags changed.
+    if (sameAddress && (s.classList.contains("countryTd") || s.classList.contains("asnTd") || s.classList.contains("orgTd"))) continue;
+    if (sameAddress && d.querySelector(".compactAddress.is-expanded")) {
+      s.querySelector(".compactAddress")?.classList.add("is-expanded");
+    }
     // First, sync up the class names.
     d.className = s.className = s.className;
     // Only replace the whole node if something changes.
@@ -266,6 +392,8 @@ function minimalCopy(src, dst) {
       dst.replaceChild(s, d);
     }
   }
+  dst._address = src._address;
+  if (!sameAddress) dst._metadataRequest = null;
 }
 
 function makeImg(src, title) {
@@ -320,6 +448,50 @@ function makeSelectMe(...children) {
   return span;
 }
 
+function makeAddressText(address) {
+  const match = address.match(/^(.*:)(\d+[.]\d+[.]\d+[.]\d+)$/);
+  const span = makeSelectMe();
+  span.title = address;
+  if (!address.includes(":") || address.length <= LONG_ADDRESS) {
+    span.append(...(match ? [match[1], makeSelectMe(match[2])] : [address]));
+    return span;
+  }
+
+  // Keep a dotted IPv4 suffix separately selectable, just like the original
+  // NAT64/mapped-address UI. Reserve space for the same 15px omission icon
+  // used by domains; its empty alternative text keeps copied addresses exact.
+  const tail = match ? match[2] : address.slice(-8);
+  const keep = LONG_ADDRESS - 3 - tail.length;
+  span.classList.add("compactAddress");
+  span.append(address.slice(0, keep));
+  const hidden = document.createElement("span");
+  hidden.className = "addressHidden";
+  hidden.textContent = address.slice(keep, -tail.length);
+  span.append(hidden);
+  const ellipsis = document.createElement("span");
+  ellipsis.className = "addressEllipsis";
+  ellipsis.setAttribute("role", "button");
+  ellipsis.tabIndex = 0;
+  ellipsis.setAttribute("aria-label", "Show full IPv6 address");
+  ellipsis.title = `${address}\nClick to show the full address`;
+  const snipImg = makeImg("snip.png", "");
+  snipImg.className = "snipImg";
+  snipImg.alt = "";
+  snipImg.draggable = false;
+  ellipsis.appendChild(snipImg);
+  const expand = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    span.classList.add("is-expanded");
+  };
+  ellipsis.addEventListener("click", expand);
+  ellipsis.addEventListener("keydown", event => {
+    if (event.key == "Enter" || event.key == " ") expand(event);
+  });
+  span.append(ellipsis, match ? makeSelectMe(tail) : tail);
+  return span;
+}
+
 function makeRow(isFirst, tuple) {
   const domain = tuple[0];
   const addr = tuple[1];
@@ -341,6 +513,7 @@ function makeRow(isFirst, tuple) {
   domainTd.appendChild(makeSelectMe(
       domain.length > LONG_DOMAIN ? makeSnippedText(domain, Math.floor(LONG_DOMAIN / 2)) : domain));
   domainTd.className = "domainTd";
+  domainTd.title = domain;
   domainTd.onclick = handleClick;
   domainTd.oncontextmenu = handleContextMenu;
 
@@ -353,12 +526,7 @@ function makeRow(isFirst, tuple) {
   }
   const connectedClass = (flags & DFLAG_CONNECTED) ? " highlight" : "";
   addrTd.className = `addrTd${addrClass}${connectedClass}`;
-  const match = addr.match(/^(.*:)(\d+[.]\d+[.]\d+[.]\d+)$/);
-  if (match) {
-    addrTd.appendChild(makeSelectMe(match[1], makeSelectMe(match[2])));
-  } else {
-    addrTd.appendChild(makeSelectMe(addr));
-  }
+  addrTd.appendChild(makeAddressText(addr));
 
   addrTd.onclick = handleClick;
   addrTd.oncontextmenu = handleContextMenu;
@@ -392,9 +560,17 @@ function makeRow(isFirst, tuple) {
   }
 
   tr._domain = domain;
+  tr._address = addr;
   tr.appendChild(domainTd);
   tr.appendChild(addrTd);
   tr.appendChild(cacheTd);
+  for (const name of ["orgTd", "asnTd", "countryTd"]) {
+    const metadata = document.createElement("td");
+    metadata.className = `${name} metadata-muted`;
+    metadata.textContent = "—";
+    metadata.title = "IP metadata is not loaded";
+    tr.appendChild(metadata);
+  }
   return tr;
 }
 

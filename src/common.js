@@ -181,7 +181,7 @@ const options = {
 };
 const optionsReady = (async function() {
   const [localItems, syncItems] = await Promise.all(
-      [chrome.storage.local.get(), chrome.storage.sync.get()]);
+      [chrome.storage.local.get(Object.keys(DEFAULT_LOCAL_OPTIONS)), chrome.storage.sync.get()]);
   for (const [option, value] of Object.entries(localItems)) {
     if (DEFAULT_LOCAL_OPTIONS.hasOwnProperty(option)) {
       options[option] = value;

@@ -79,6 +79,38 @@ limitations under the License.
   .url-field.invalid {
     background-color: #fcc;
   }
+  #ipinfo-options {
+    max-width: 780px;
+    margin-top: 20px;
+  }
+  #ipinfo-options h1 {
+    margin-bottom: 8px;
+  }
+  .ipinfo-token-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 5px 0 12px;
+  }
+  #ipinfo-token {
+    flex: 1;
+    min-width: 0;
+  }
+  .ipinfo-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  #ipinfo-status {
+    min-height: 1.5em;
+    margin: 10px 0 0;
+  }
+  #ipinfo-status[data-error="true"] {
+    color: #a82020;
+  }
+  .ipinfo-help {
+    font-size: 12px;
+  }
 
   /* dark mode */
   @media (prefers-color-scheme: dark) {
@@ -94,6 +126,9 @@ limitations under the License.
     }
     .url-field.invalid {
       background-color: #700;
+    }
+    #ipinfo-status[data-error="true"] {
+      color: #ff9999;
     }
   }
   </style>
@@ -131,6 +166,26 @@ limitations under the License.
   <table id="nat64">
     <tr><td>null::/96</td></tr>
   </table>
+
+  <section id="ipinfo-options" aria-labelledby="ipinfo-title">
+    <h1 id="ipinfo-title">Country &amp; ASN — IPinfo Lite</h1>
+    <p><label><input type="checkbox" id="ipinfo-enabled" disabled> Enable online IPinfo lookup when opening the popup</label></p>
+    <label for="ipinfo-token">IPinfo API Token</label>
+    <div class="ipinfo-token-row">
+      <input type="password" id="ipinfo-token" class="url-field" value="" placeholder="Paste your IPinfo token" autocomplete="off" spellcheck="false" autocapitalize="off" aria-describedby="ipinfo-token-help" disabled>
+      <button type="button" id="ipinfo-show" aria-pressed="false" aria-controls="ipinfo-token" disabled>Show</button>
+    </div>
+    <div class="ipinfo-actions">
+      <button type="button" id="ipinfo-save" disabled>Save</button>
+      <button type="button" id="ipinfo-test" disabled>Test connection</button>
+      <button type="button" id="ipinfo-clear" disabled>Clear token</button>
+      <button type="button" id="ipinfo-clear-cache" disabled>Clear cache</button>
+    </div>
+    <p id="ipinfo-status" role="status" aria-live="polite">Loading settings…</p>
+    <p id="ipinfo-token-help" class="ipinfo-help">Your token is stored only in this browser profile, without browser sync. Get a free token from the <a href="https://ipinfo.io/dashboard/lite" target="_blank" rel="noreferrer">IPinfo dashboard</a>. Test connection checks <code>8.8.8.8</code> using the entered token without saving it.</p>
+    <p class="ipinfo-help">When enabled, public destination IP addresses in the popup are sent to IPinfo. IPinfo also sees your connection's public IP address. Local and special addresses are skipped, and results are cached for 24 hours. Online lookup is disabled in incognito windows.</p>
+    <p class="ipinfo-help">Country is a database estimate; it may not identify the connected server's location, especially for anycast/CDN addresses. <a href="https://ipinfo.io" target="_blank" rel="noreferrer">IP address data powered by IPinfo</a>.</p>
+  </section>
 
   <div style="display:inline-block; padding-top:1.5em; width:100%">
     <button id="revert_btn" style="float:left">Revert to Defaults</button>

@@ -1,12 +1,25 @@
 Privacy Policy
 
 IPvFoo has full access to your web traffic, as this is necessary to present
-the table of connection information.  All information is kept in RAM on your
-computer, and never transmitted over the network.
+the table of connection information.  Connection information is captured
+locally using the webRequest API, without additional network traffic.
 
-Technically there is one exception: if you use the "Look up on bgp.he.net"
-feature, your browser will navigate to a URL managed by Hurricane Electric,
-containing the selected domain name or IP address.
+If you use a context-menu lookup, your browser navigates to the configured
+provider with the selected domain name or IP address.
+
+Optional IPinfo lookups are disabled by default.  If you supply an API token
+and enable them, opening the popup sends eligible destination IP addresses
+to IPinfo over HTTPS to obtain organization, ASN, and country information.
+No page URLs, domain names, or page content are sent.  IPinfo can also see
+the public IP address of your connection.  Private and special-purpose
+addresses are filtered locally.  Online lookup is disabled in incognito
+windows.  The explicit Test connection button sends 8.8.8.8 using the token
+currently entered in Options, without saving it.
+
+IPinfo settings, the token, and a bounded result cache are stored locally in
+the browser profile, not in browser sync.  Successful results expire after
+24 hours.  Options provides controls to clear the token and cache.  Country
+flag images are bundled with the extension and do not make network requests.
 
 
 My other Chrome extensions do not use personal information at all:

@@ -19,22 +19,29 @@ limitations under the License.
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style type="text/css">
+/* Size the action widget from its content, never from its initial viewport.
+   Viewport units create a feedback loop that can collapse a Chrome popup. */
+html {
+  width: max-content;
+  max-width: 780px;
+}
 body {
   margin: 0;
   font-family: serif;
   font-size: medium;
   background-color: #fff;
   color: #000;
+  width: max-content;
+  max-width: 780px;
+  box-sizing: border-box;
 }
-/* We want copy-paste to keep the domain in the first column,
-   so this draws a vertical line to fake the "zeroth" column. */
 table {
-  background-image: url("1x1_808080.png");
-  background-position: top 0px left 23px;
-  background-repeat: repeat-y;
   --cache-min-width: 0px;
+  width: auto;
+  max-width: 768px;
+  table-layout: auto;
 }
-table, td, tr {
+table, td, tr, th {
   border-width: 1px;
   border-collapse: collapse;
   border-color: #808080;
@@ -56,7 +63,47 @@ img {
   padding-right: 6pt;
 }
 .domainTd {
+  /* Keep the lock separator inside body cells, clear of the Domain heading.
+     The icon stays in the same cell so copied domains remain column one. */
+  background-image: url("1x1_808080.png");
+  background-position: top 0px left 23px;
+  background-repeat: repeat-y;
   user-select: text;
+  font-size: 14px;
+}
+.domainTd > .selectMe, .addrTd > .selectMe {
+  display: inline-block;
+  vertical-align: middle;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.domainTd > .selectMe {
+  max-width: 220px;
+}
+.addrTd > .selectMe {
+  max-width: 152px;
+}
+.addressHidden {
+  /* Preserve the exact address in selections while shortening its display. */
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  color: transparent;
+}
+.addressEllipsis {
+  cursor: pointer;
+}
+.addressEllipsis:focus-visible {
+  outline: 1px solid currentColor;
+}
+.compactAddress.is-expanded .addressHidden {
+  position: static;
+  overflow: visible;
+  width: auto;
+  color: inherit;
+}
+.compactAddress.is-expanded .addressEllipsis {
+  display: none;
 }
 .addrTd {
   font-family: monospace;
@@ -64,6 +111,7 @@ img {
   color: #000080;
   padding-right: 0;
   user-select: text;
+  font-size: 12px;
 }
 .cacheTd {
   border-left-width: 0;
@@ -80,9 +128,55 @@ img {
   background-color: #ffff90;
 }
 .border {
-  display: inline-block;
-  float: left;
+  display: block;
   padding: 6px;
+}
+th {
+  color: #666;
+  font: 11px sans-serif;
+  padding: 5px 4px;
+  text-align: left;
+}
+.countryTd, .asnTd, .orgTd {
+  font: 12px sans-serif;
+  user-select: text;
+}
+.orgName {
+  display: inline-block;
+  max-width: 130px;
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.countryFlag {
+  width: 20px;
+  height: 15px;
+  margin-right: 4px;
+  vertical-align: -3px;
+  object-fit: contain;
+  outline: 1px solid #80808080;
+}
+.metadata-muted {
+  color: #666;
+}
+#ipinfo_footer {
+  /* Help text wraps to the table, without making short-IP popups wider. */
+  contain: inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  justify-content: space-between;
+  padding-top: 7px;
+  color: #666;
+  font: 11px sans-serif;
+}
+#ipinfo_footer a {
+  color: inherit;
+  white-space: nowrap;
+}
+#ipinfo_status {
+  flex: 1 1 180px;
 }
 
 .snippedTextInvisible {
@@ -196,6 +290,9 @@ img {
   .highlight {
     background-color: #505030;
   }
+  th, .metadata-muted, #ipinfo_footer {
+    color: #bbb;
+  }
   #pattern_icon_darkfg {
     display: none;
   }
@@ -227,12 +324,29 @@ img {
 </style>
 <script type="text/javascript" src="iputil.js"></script>
 <script type="text/javascript" src="common.js"></script>
+<script type="text/javascript" src="flags/codes.js"></script>
 <script type="text/javascript" src="popup.js"></script>
 </head>
 <body>
 <div class="border">
   <button id="beg">Click to grant permission</button>
-  <table id="addr_table" height="1px"></table>
+  <table aria-label="Page connections">
+    <thead>
+      <tr>
+        <th scope="col">Domain</th>
+        <th scope="col" colspan="2">IP address</th>
+        <th scope="col">Organization</th>
+        <th scope="col">ASN</th>
+        <th scope="col">Country</th>
+      </tr>
+    </thead>
+    <tbody id="addr_table"></tbody>
+  </table>
+  <div id="ipinfo_footer">
+    <span id="ipinfo_status" role="status">IPinfo is off</span>
+    <a href="https://ipinfo.io" target="_blank" rel="noreferrer">IP data by IPinfo</a>
+    <a href="options.html" target="_blank" id="ipinfo_settings_link">Settings</a>
+  </div>
   <div id="spill_count_container">
   &#x22ee; <span id="spill_count">0</span> requests omitted
   </div>

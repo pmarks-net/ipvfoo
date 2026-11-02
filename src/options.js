@@ -21,6 +21,7 @@ limitations under the License.
 const IS_CHROMIUM = !!chrome.runtime.getManifest().background.service_worker;
 
 window.onload = async () => {
+  const resetIpinfoOptions = setupIpinfoOptions();
   const ipv4pages = document.getElementById("ipv4pages");
   for (const domain of IPV4_ONLY_DOMAINS.keys()) {
     const li = document.createElement("li");
@@ -136,6 +137,7 @@ window.onload = async () => {
     revertNAT64();
     chrome.runtime.sendMessage({setStorageSyncDebounce: DEFAULT_SYNC_OPTIONS});
     applyOptionsToPage(DEFAULT_SYNC_OPTIONS);
+    resetIpinfoOptions();
   };
 
   document.getElementById("dismiss_btn").onclick = function() {
@@ -162,3 +164,119 @@ window.onload = async () => {
     });
   }
 };
+
+function setupIpinfoOptions() {
+  const enabled = document.getElementById("ipinfo-enabled");
+  const token = document.getElementById("ipinfo-token");
+  const show = document.getElementById("ipinfo-show");
+  const save = document.getElementById("ipinfo-save");
+  const test = document.getElementById("ipinfo-test");
+  const clear = document.getElementById("ipinfo-clear");
+  const cache = document.getElementById("ipinfo-clear-cache");
+  const status = document.getElementById("ipinfo-status");
+  const controls = [enabled, token, show, save, test, clear, cache,
+      document.getElementById("revert_btn")];
+  let busy = true;
+  let loaded = false;
+
+  function updateControls() {
+    for (const control of controls) control.disabled = busy || !loaded;
+    if (!token.value.trim()) test.disabled = true;
+  }
+  function setStatus(text, error = false) {
+    status.textContent = text;
+    status.dataset.error = String(error);
+  }
+  function maskToken() {
+    token.type = "password";
+    show.textContent = "Show";
+    show.setAttribute("aria-pressed", "false");
+  }
+  async function call(action, args = {}) {
+    const result = await chrome.runtime.sendMessage({ipinfo: {action, ...args}});
+    if (!result || result.status == "error" && action != "testToken") {
+      throw new Error("IPinfo settings unavailable");
+    }
+    return result;
+  }
+  async function run(message, work) {
+    if (busy) return;
+    busy = true;
+    updateControls();
+    setStatus(message);
+    try {
+      await work();
+    } catch {
+      setStatus("The extension could not complete this action. Reopen Settings and try again.", true);
+    } finally {
+      busy = false;
+      updateControls();
+    }
+  }
+
+  token.addEventListener("input", () => {
+    updateControls();
+    setStatus("Token edited. Save to apply, or test without saving.");
+  });
+  enabled.addEventListener("change", () => setStatus("Setting changed. Save to apply."));
+  show.onclick = () => {
+    const reveal = token.type == "password";
+    token.type = reveal ? "text" : "password";
+    show.textContent = reveal ? "Hide" : "Show";
+    show.setAttribute("aria-pressed", String(reveal));
+  };
+  save.onclick = () => run("Saving…", async () => {
+    const value = token.value.trim();
+    const result = await call("saveSettings", {enabled: enabled.checked, token: value});
+    token.value = value;
+    enabled.checked = !!result.enabled;
+    maskToken();
+    setStatus(!result.enabled ? "Saved. Online lookup is off." :
+        result.configured ? "Saved. Open the extension popup to look up public IPs." :
+        "Saved. Enter a token before online lookup can run.");
+  });
+  test.onclick = () => run("Testing connection…", async () => {
+    const result = await call("testToken", {token: token.value.trim()});
+    if (result.status == "ok") {
+      setStatus(`Connection successful: ${result.asn || "ASN unavailable"} · ${result.countryCode || "country unavailable"}. Test did not save your token.`);
+      return;
+    }
+    const messages = {
+      auth_error: "Token rejected. Check the token and try again.",
+      rate_limited: "IPinfo is limiting requests. Wait and try again.",
+      incognito: "Token testing is disabled in incognito windows.",
+      unconfigured: "Enter an IPinfo API token first.",
+      error: "Connection failed or timed out. Check your network and try again.",
+    };
+    setStatus(messages[result.status] || "IPinfo did not return usable data. Try again later.", true);
+  });
+  async function clearToken() {
+    await call("clearToken");
+    token.value = "";
+    enabled.checked = false;
+    maskToken();
+    setStatus("Token removed. Online lookup is off.");
+  }
+  clear.onclick = () => run("Removing token…", clearToken);
+  cache.onclick = () => run("Clearing cache…", async () => {
+    await call("clearCache");
+    setStatus("Cache cleared. Reopen the popup to refresh IP information.");
+  });
+
+  updateControls();
+  (async () => {
+    try {
+      const settings = await call("getSettings");
+      enabled.checked = !!settings.enabled;
+      token.value = typeof settings.token == "string" ? settings.token : "";
+      loaded = true;
+      setStatus(token.value ? "A token is saved on this device." : "No token saved. Online queries require your token.");
+    } catch {
+      setStatus("Settings could not be loaded. Reopen this page to retry.", true);
+    } finally {
+      busy = false;
+      updateControls();
+    }
+  })();
+  return () => run("Resetting IPinfo settings…", clearToken);
+}
